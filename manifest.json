@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-bible-verse",
+  "name": "Bible Verse",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Look up and display Bible verses directly in your notes using API.Bible. Supports inline references, code blocks, comparison views, and multiple Bible websites.",
+  "author": "Bible Verse Plugin",
+  "isDesktopOnly": false
+}
