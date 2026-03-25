@@ -11,6 +11,8 @@ import {
   renderComparison,
   renderError,
 } from "./renderer";
+import { generateLink, generateSearchUrl } from "./linker";
+import { QuickInsertModal } from "./quick-insert-modal";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
 
 export default class BibleVersePlugin extends Plugin {
@@ -98,6 +100,70 @@ export default class BibleVersePlugin extends Plugin {
       callback: async () => {
         const count = await this.baker.processVault("strip");
         new Notice(`Stripped baked text from ${count} files.`);
+      },
+    });
+
+    this.addCommand({
+      id: "quick-insert",
+      name: "Quick insert reference",
+      callback: () => {
+        const modal = new QuickInsertModal(this.app, (refStr, openInBrowser) => {
+          const editor = this.app.workspace.activeEditor?.editor;
+          if (editor) {
+            editor.replaceSelection(`@[${refStr}]`);
+          }
+          if (openInBrowser) {
+            const ref = parseReference(refStr);
+            if (ref) {
+              const abbr = this.getTranslationAbbr();
+              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+              window.open(url, "_blank");
+            }
+          }
+        });
+        modal.open();
+      },
+    });
+
+    this.addCommand({
+      id: "search-selection",
+      name: "Search Bible for selected text",
+      editorCallback: (editor) => {
+        const selection = editor.getSelection();
+        if (!selection || selection.trim().length === 0) {
+          new Notice("No text selected.");
+          return;
+        }
+        navigator.clipboard.writeText(selection.trim());
+        new Notice("Copied to clipboard. Opening search...");
+        const abbr = this.getTranslationAbbr();
+        const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
+        window.open(url, "_blank");
+      },
+    });
+
+    this.addCommand({
+      id: "open-reference",
+      name: "Open reference at cursor on Bible site",
+      editorCallback: (editor) => {
+        const cursor = editor.getCursor();
+        const line = editor.getLine(cursor.line);
+        const regex = /@\[([^\]]+)\]/g;
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          const start = match.index;
+          const end = start + match[0].length;
+          if (cursor.ch >= start && cursor.ch <= end) {
+            const ref = parseReference(match[1]);
+            if (ref) {
+              const abbr = this.getTranslationAbbr();
+              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+              window.open(url, "_blank");
+              return;
+            }
+          }
+        }
+        new Notice("No Bible reference found at cursor.");
       },
     });
   }

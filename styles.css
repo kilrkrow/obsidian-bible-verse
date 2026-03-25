@@ -233,6 +233,33 @@
 }
 
 /* ========================
+   Quick Insert Modal
+   ======================== */
+.bible-verse-quick-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 1.1em;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  margin-bottom: 0.5em;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.bible-verse-quick-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.bible-verse-quick-status {
+  font-size: 0.9em;
+  min-height: 1.4em;
+  margin-bottom: 0.75em;
+  font-weight: 500;
+}
+
+/* ========================
    Container (wraps inline replacements)
    ======================== */
 .bible-verse-container {

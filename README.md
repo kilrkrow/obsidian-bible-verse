@@ -120,6 +120,14 @@ For God so loved the world...
 %%end-bible%%
 ```
 
+### Quick Lookup
+
+Three commands for fast Bible reference workflows. Assign hotkeys in **Settings → Hotkeys**.
+
+- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., "John 3:16") with real-time validation. On Enter, inserts `@[reference]` at the cursor. Optionally opens the verse on your preferred Bible site.
+- **Search Bible for selected text** — Select any text in your note, then run this command to copy it to the clipboard and open a search on your preferred Bible website.
+- **Open reference at cursor on Bible site** — Place your cursor inside an `@[ref]` marker and run this command to open that reference on your preferred Bible website.
+
 ### Commands
 
 - **Bake all verses in this note** — Fetch and embed all `@[ref]` verses in the current note

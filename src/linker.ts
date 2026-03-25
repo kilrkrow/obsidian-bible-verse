@@ -26,6 +26,27 @@ export function generateLink(
   }
 }
 
+/**
+ * Generate a search URL on the user's preferred Bible website for a free-text query.
+ */
+export function generateSearchUrl(
+  query: string,
+  translation: string,
+  website: BibleWebsite
+): string {
+  const encoded = encodeURIComponent(query);
+  switch (website) {
+    case "BibleHub":
+      return `https://biblehub.com/search.php?q=${encoded}`;
+    case "BibleGateway":
+      return `https://www.biblegateway.com/quicksearch/?search=${encoded}&version=${translation}`;
+    case "BlueLetter":
+      return `https://www.blueletterbible.org/search/search.cfm?Criteria=${encoded}&t=${translation.toLowerCase()}`;
+    case "BibleCom":
+      return `https://www.bible.com/search/bible?query=${encoded}`;
+  }
+}
+
 function bibleHubUrl(ref: BibleReference, translation: string): string {
   const slug = BIBLEHUB_SLUGS[ref.book] || ref.book.toLowerCase().replace(/\s+/g, "_");
   const trans = translation.toLowerCase();

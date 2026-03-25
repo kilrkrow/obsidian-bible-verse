@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => BibleVersePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -978,6 +978,19 @@ function generateLink(ref, translation, website) {
       return bibleComUrl(ref, translation);
   }
 }
+function generateSearchUrl(query, translation, website) {
+  const encoded = encodeURIComponent(query);
+  switch (website) {
+    case "BibleHub":
+      return `https://biblehub.com/search.php?q=${encoded}`;
+    case "BibleGateway":
+      return `https://www.biblegateway.com/quicksearch/?search=${encoded}&version=${translation}`;
+    case "BlueLetter":
+      return `https://www.blueletterbible.org/search/search.cfm?Criteria=${encoded}&t=${translation.toLowerCase()}`;
+    case "BibleCom":
+      return `https://www.bible.com/search/bible?query=${encoded}`;
+  }
+}
 function bibleHubUrl(ref, translation) {
   var _a;
   const slug = BIBLEHUB_SLUGS[ref.book] || ref.book.toLowerCase().replace(/\s+/g, "_");
@@ -1139,8 +1152,64 @@ function renderError(container, message) {
   });
 }
 
+// src/quick-insert-modal.ts
+var import_obsidian3 = require("obsidian");
+var QuickInsertModal = class extends import_obsidian3.Modal {
+  constructor(app, onSubmit) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "Insert Bible Reference" });
+    let inputValue = "";
+    let openInBrowser = false;
+    const statusEl = contentEl.createDiv({ cls: "bible-verse-quick-status" });
+    const inputEl = contentEl.createEl("input", {
+      type: "text",
+      placeholder: "Type a reference... (e.g., John 3:16)",
+      cls: "bible-verse-quick-input"
+    });
+    inputEl.style.width = "100%";
+    inputEl.style.padding = "8px";
+    inputEl.style.fontSize = "1.1em";
+    inputEl.focus();
+    inputEl.addEventListener("input", () => {
+      inputValue = inputEl.value;
+      const ref = parseReference(inputValue);
+      if (ref) {
+        statusEl.setText("\u2713 " + formatReference(ref));
+        statusEl.style.color = "var(--text-success, green)";
+        inputEl.style.borderColor = "var(--text-success, green)";
+      } else if (inputValue.length > 0) {
+        statusEl.setText("Invalid reference");
+        statusEl.style.color = "var(--text-error, red)";
+        inputEl.style.borderColor = "var(--text-error, red)";
+      } else {
+        statusEl.setText("");
+        inputEl.style.borderColor = "";
+      }
+    });
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const ref = parseReference(inputValue);
+        if (ref) {
+          this.onSubmit(formatReference(ref), openInBrowser);
+          this.close();
+        }
+      }
+    });
+    new import_obsidian3.Setting(contentEl).setName("Also open on Bible site").addToggle((toggle) => toggle.onChange((val) => {
+      openInBrowser = val;
+    }));
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/main.ts
-var BibleVersePlugin = class extends import_obsidian3.Plugin {
+var BibleVersePlugin = class extends import_obsidian4.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -1168,9 +1237,9 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
         );
         if (newContent !== content) {
           editor.setValue(newContent);
-          new import_obsidian3.Notice("Bible verses baked into note.");
+          new import_obsidian4.Notice("Bible verses baked into note.");
         } else {
-          new import_obsidian3.Notice("No verses to bake.");
+          new import_obsidian4.Notice("No verses to bake.");
         }
       }
     });
@@ -1185,7 +1254,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
           (ref) => this.fetchVerse(ref)
         );
         editor.setValue(newContent);
-        new import_obsidian3.Notice("Bible verses refreshed.");
+        new import_obsidian4.Notice("Bible verses refreshed.");
       }
     });
     this.addCommand({
@@ -1196,7 +1265,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian3.Notice(`Refreshed baked verses in ${count} files.`);
+        new import_obsidian4.Notice(`Refreshed baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1207,7 +1276,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian3.Notice(`Baked verses in ${count} files.`);
+        new import_obsidian4.Notice(`Baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1215,7 +1284,69 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
       name: "Strip baked text from all notes",
       callback: async () => {
         const count = await this.baker.processVault("strip");
-        new import_obsidian3.Notice(`Stripped baked text from ${count} files.`);
+        new import_obsidian4.Notice(`Stripped baked text from ${count} files.`);
+      }
+    });
+    this.addCommand({
+      id: "quick-insert",
+      name: "Quick insert reference",
+      callback: () => {
+        const modal = new QuickInsertModal(this.app, (refStr, openInBrowser) => {
+          var _a;
+          const editor = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor;
+          if (editor) {
+            editor.replaceSelection(`@[${refStr}]`);
+          }
+          if (openInBrowser) {
+            const ref = parseReference(refStr);
+            if (ref) {
+              const abbr = this.getTranslationAbbr();
+              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+              window.open(url, "_blank");
+            }
+          }
+        });
+        modal.open();
+      }
+    });
+    this.addCommand({
+      id: "search-selection",
+      name: "Search Bible for selected text",
+      editorCallback: (editor) => {
+        const selection = editor.getSelection();
+        if (!selection || selection.trim().length === 0) {
+          new import_obsidian4.Notice("No text selected.");
+          return;
+        }
+        navigator.clipboard.writeText(selection.trim());
+        new import_obsidian4.Notice("Copied to clipboard. Opening search...");
+        const abbr = this.getTranslationAbbr();
+        const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
+        window.open(url, "_blank");
+      }
+    });
+    this.addCommand({
+      id: "open-reference",
+      name: "Open reference at cursor on Bible site",
+      editorCallback: (editor) => {
+        const cursor = editor.getCursor();
+        const line = editor.getLine(cursor.line);
+        const regex = /@\[([^\]]+)\]/g;
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          const start = match.index;
+          const end = start + match[0].length;
+          if (cursor.ch >= start && cursor.ch <= end) {
+            const ref = parseReference(match[1]);
+            if (ref) {
+              const abbr = this.getTranslationAbbr();
+              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+              window.open(url, "_blank");
+              return;
+            }
+          }
+        }
+        new import_obsidian4.Notice("No Bible reference found at cursor.");
       }
     });
   }
