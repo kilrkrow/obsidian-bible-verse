@@ -17,7 +17,6 @@ export type DisplayStyle = "sidebar" | "callout" | "blockquote" | "inline";
 export type BibleWebsite = "BibleHub" | "BibleGateway" | "BlueLetter" | "BibleCom";
 
 export interface BibleVerseSettings {
-  apiKey: string;
   defaultTranslation: string;
   preferredWebsite: BibleWebsite;
   displayStyle: DisplayStyle;
@@ -25,22 +24,11 @@ export interface BibleVerseSettings {
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
-  apiKey: "",
-  defaultTranslation: "de4e12af7f28f599-02", // KJV from API.Bible
+  defaultTranslation: "eng_kjv",
   preferredWebsite: "BibleGateway",
   displayStyle: "callout",
   persistVerseText: false,
 };
-
-/** API.Bible response for a passage */
-export interface ApiBiblePassage {
-  id: string;
-  orgId: string;
-  bibleId: string;
-  reference: string;
-  content: string;
-  copyright: string;
-}
 
 /** Cached verse entry */
 export interface CachedVerse {

@@ -11,6 +11,7 @@ import {
   renderComparison,
   renderError,
 } from "./renderer";
+import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
@@ -24,7 +25,7 @@ export default class BibleVersePlugin extends Plugin {
     this.cache = new VerseCache(this);
     await this.cache.load();
 
-    this.api = new BibleApi(this.settings.apiKey, this.cache);
+    this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
 
     // Register the inline postprocessor for @[ref] syntax
@@ -110,6 +111,15 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
+   * Get a short abbreviation for the current translation.
+   * Looks up from the HELLOAO_ABBREV map, falls back to the ID itself.
+   */
+  private getTranslationAbbr(translationId?: string): string {
+    const id = translationId ?? this.settings.defaultTranslation;
+    return HELLOAO_ABBREV[id] ?? id;
+  }
+
+  /**
    * Fetch a verse using the current settings.
    */
   async fetchVerse(ref: BibleReference): Promise<CachedVerse | null> {
@@ -123,20 +133,6 @@ export default class BibleVersePlugin extends Plugin {
       console.error("Bible Verse: Failed to fetch verse", e);
       return null;
     }
-  }
-
-  /**
-   * Get a short abbreviation for the current translation.
-   * Falls back to the Bible ID if not a known translation.
-   */
-  private getTranslationAbbr(): string {
-    const id = this.settings.defaultTranslation;
-    // Check known IDs
-    if (id.startsWith("de4e12af")) return "KJV";
-    if (id.startsWith("06125ada")) return "ASV";
-    if (id.startsWith("9879dbb7")) return "WEB";
-    // Return the ID itself as fallback
-    return id;
   }
 
   /**
@@ -179,7 +175,8 @@ export default class BibleVersePlugin extends Plugin {
           span.className = "bible-verse-container";
 
           // Try cache first, then fetch
-          const cached = this.cache.get(this.getTranslationAbbr(), formatReference(ref));
+          const abbr = this.getTranslationAbbr();
+          const cached = this.cache.get(abbr, formatReference(ref));
           if (cached) {
             renderVerse(
               span,
@@ -190,7 +187,7 @@ export default class BibleVersePlugin extends Plugin {
             );
           } else {
             // Render a link placeholder, then fetch async
-            renderLink(span, ref, this.getTranslationAbbr(), this.settings.preferredWebsite);
+            renderLink(span, ref, abbr, this.settings.preferredWebsite);
             this.fetchAndRender(span, ref);
           }
 
@@ -302,7 +299,9 @@ export default class BibleVersePlugin extends Plugin {
     const translationId = config["translation"]
       ? this.resolveTranslationId(config["translation"])
       : this.settings.defaultTranslation;
-    const translationAbbr = config["translation"] || this.getTranslationAbbr();
+    const translationAbbr = config["translation"]
+      ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"]))
+      : this.getTranslationAbbr();
 
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
@@ -324,8 +323,9 @@ export default class BibleVersePlugin extends Plugin {
 
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, trans);
+        const verse = await this.api.getPassage(ref, id, abbr);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -340,16 +340,22 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
-   * Resolve a translation abbreviation to an API.Bible ID.
-   * If it looks like an API.Bible ID already, return as-is.
+   * Resolve a translation abbreviation to a HelloAO translation ID.
+   * Searches the curated list by abbreviation, then by ID directly.
    */
   private resolveTranslationId(abbr: string): string {
-    const { API_BIBLE_IDS } = require("./constants");
     const upper = abbr.toUpperCase();
-    if (API_BIBLE_IDS[upper]) return API_BIBLE_IDS[upper];
-    // If it contains a dash, assume it's already a full ID
-    if (abbr.includes("-")) return abbr;
-    // Fallback to default
-    return this.settings.defaultTranslation;
+    // Match by abbreviation
+    const match = HELLOAO_TRANSLATIONS.find(
+      (t) => t.abbreviation.toUpperCase() === upper
+    );
+    if (match) return match.id;
+    // Match by ID directly
+    const byId = HELLOAO_TRANSLATIONS.find(
+      (t) => t.id.toUpperCase() === upper
+    );
+    if (byId) return byId.id;
+    // Fallback: assume it's a HelloAO ID already
+    return abbr;
   }
 }

@@ -9,9 +9,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -34,512 +31,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/constants.ts
-var constants_exports = {};
-__export(constants_exports, {
-  API_BIBLE_IDS: () => API_BIBLE_IDS,
-  BIBLEHUB_SLUGS: () => BIBLEHUB_SLUGS,
-  BIBLE_COM_TRANSLATION_IDS: () => BIBLE_COM_TRANSLATION_IDS,
-  BLB_CODES: () => BLB_CODES,
-  BOOK_ALIASES: () => BOOK_ALIASES,
-  USFM_CODES: () => USFM_CODES
-});
-var USFM_CODES, BLB_CODES, BIBLEHUB_SLUGS, BIBLE_COM_TRANSLATION_IDS, API_BIBLE_IDS, BOOK_ALIASES;
-var init_constants = __esm({
-  "src/constants.ts"() {
-    USFM_CODES = {
-      "Genesis": "GEN",
-      "Exodus": "EXO",
-      "Leviticus": "LEV",
-      "Numbers": "NUM",
-      "Deuteronomy": "DEU",
-      "Joshua": "JOS",
-      "Judges": "JDG",
-      "Ruth": "RUT",
-      "1 Samuel": "1SA",
-      "2 Samuel": "2SA",
-      "1 Kings": "1KI",
-      "2 Kings": "2KI",
-      "1 Chronicles": "1CH",
-      "2 Chronicles": "2CH",
-      "Ezra": "EZR",
-      "Nehemiah": "NEH",
-      "Esther": "EST",
-      "Job": "JOB",
-      "Psalms": "PSA",
-      "Proverbs": "PRO",
-      "Ecclesiastes": "ECC",
-      "Song of Solomon": "SNG",
-      "Isaiah": "ISA",
-      "Jeremiah": "JER",
-      "Lamentations": "LAM",
-      "Ezekiel": "EZK",
-      "Daniel": "DAN",
-      "Hosea": "HOS",
-      "Joel": "JOL",
-      "Amos": "AMO",
-      "Obadiah": "OBA",
-      "Jonah": "JON",
-      "Micah": "MIC",
-      "Nahum": "NAM",
-      "Habakkuk": "HAB",
-      "Zephaniah": "ZEP",
-      "Haggai": "HAG",
-      "Zechariah": "ZEC",
-      "Malachi": "MAL",
-      "Matthew": "MAT",
-      "Mark": "MRK",
-      "Luke": "LUK",
-      "John": "JHN",
-      "Acts": "ACT",
-      "Romans": "ROM",
-      "1 Corinthians": "1CO",
-      "2 Corinthians": "2CO",
-      "Galatians": "GAL",
-      "Ephesians": "EPH",
-      "Philippians": "PHP",
-      "Colossians": "COL",
-      "1 Thessalonians": "1TH",
-      "2 Thessalonians": "2TH",
-      "1 Timothy": "1TI",
-      "2 Timothy": "2TI",
-      "Titus": "TIT",
-      "Philemon": "PHM",
-      "Hebrews": "HEB",
-      "James": "JAS",
-      "1 Peter": "1PE",
-      "2 Peter": "2PE",
-      "1 John": "1JN",
-      "2 John": "2JN",
-      "3 John": "3JN",
-      "Jude": "JUD",
-      "Revelation": "REV"
-    };
-    BLB_CODES = {
-      "Genesis": "gen",
-      "Exodus": "exo",
-      "Leviticus": "lev",
-      "Numbers": "num",
-      "Deuteronomy": "deu",
-      "Joshua": "jos",
-      "Judges": "jdg",
-      "Ruth": "rut",
-      "1 Samuel": "1sa",
-      "2 Samuel": "2sa",
-      "1 Kings": "1ki",
-      "2 Kings": "2ki",
-      "1 Chronicles": "1ch",
-      "2 Chronicles": "2ch",
-      "Ezra": "ezr",
-      "Nehemiah": "neh",
-      "Esther": "est",
-      "Job": "job",
-      "Psalms": "psa",
-      "Proverbs": "pro",
-      "Ecclesiastes": "ecc",
-      "Song of Solomon": "sng",
-      "Isaiah": "isa",
-      "Jeremiah": "jer",
-      "Lamentations": "lam",
-      "Ezekiel": "eze",
-      "Daniel": "dan",
-      "Hosea": "hos",
-      "Joel": "joe",
-      "Amos": "amo",
-      "Obadiah": "oba",
-      "Jonah": "jon",
-      "Micah": "mic",
-      "Nahum": "nah",
-      "Habakkuk": "hab",
-      "Zephaniah": "zep",
-      "Haggai": "hag",
-      "Zechariah": "zec",
-      "Malachi": "mal",
-      "Matthew": "mat",
-      "Mark": "mar",
-      "Luke": "luk",
-      "John": "jhn",
-      "Acts": "act",
-      "Romans": "rom",
-      "1 Corinthians": "1co",
-      "2 Corinthians": "2co",
-      "Galatians": "gal",
-      "Ephesians": "eph",
-      "Philippians": "php",
-      "Colossians": "col",
-      "1 Thessalonians": "1th",
-      "2 Thessalonians": "2th",
-      "1 Timothy": "1ti",
-      "2 Timothy": "2ti",
-      "Titus": "tit",
-      "Philemon": "phm",
-      "Hebrews": "heb",
-      "James": "jas",
-      "1 Peter": "1pe",
-      "2 Peter": "2pe",
-      "1 John": "1jn",
-      "2 John": "2jn",
-      "3 John": "3jn",
-      "Jude": "jud",
-      "Revelation": "rev"
-    };
-    BIBLEHUB_SLUGS = {
-      "Genesis": "genesis",
-      "Exodus": "exodus",
-      "Leviticus": "leviticus",
-      "Numbers": "numbers",
-      "Deuteronomy": "deuteronomy",
-      "Joshua": "joshua",
-      "Judges": "judges",
-      "Ruth": "ruth",
-      "1 Samuel": "1_samuel",
-      "2 Samuel": "2_samuel",
-      "1 Kings": "1_kings",
-      "2 Kings": "2_kings",
-      "1 Chronicles": "1_chronicles",
-      "2 Chronicles": "2_chronicles",
-      "Ezra": "ezra",
-      "Nehemiah": "nehemiah",
-      "Esther": "esther",
-      "Job": "job",
-      "Psalms": "psalms",
-      "Proverbs": "proverbs",
-      "Ecclesiastes": "ecclesiastes",
-      "Song of Solomon": "songs",
-      "Isaiah": "isaiah",
-      "Jeremiah": "jeremiah",
-      "Lamentations": "lamentations",
-      "Ezekiel": "ezekiel",
-      "Daniel": "daniel",
-      "Hosea": "hosea",
-      "Joel": "joel",
-      "Amos": "amos",
-      "Obadiah": "obadiah",
-      "Jonah": "jonah",
-      "Micah": "micah",
-      "Nahum": "nahum",
-      "Habakkuk": "habakkuk",
-      "Zephaniah": "zephaniah",
-      "Haggai": "haggai",
-      "Zechariah": "zechariah",
-      "Malachi": "malachi",
-      "Matthew": "matthew",
-      "Mark": "mark",
-      "Luke": "luke",
-      "John": "john",
-      "Acts": "acts",
-      "Romans": "romans",
-      "1 Corinthians": "1_corinthians",
-      "2 Corinthians": "2_corinthians",
-      "Galatians": "galatians",
-      "Ephesians": "ephesians",
-      "Philippians": "philippians",
-      "Colossians": "colossians",
-      "1 Thessalonians": "1_thessalonians",
-      "2 Thessalonians": "2_thessalonians",
-      "1 Timothy": "1_timothy",
-      "2 Timothy": "2_timothy",
-      "Titus": "titus",
-      "Philemon": "philemon",
-      "Hebrews": "hebrews",
-      "James": "james",
-      "1 Peter": "1_peter",
-      "2 Peter": "2_peter",
-      "1 John": "1_john",
-      "2 John": "2_john",
-      "3 John": "3_john",
-      "Jude": "jude",
-      "Revelation": "revelation"
-    };
-    BIBLE_COM_TRANSLATION_IDS = {
-      "KJV": 1,
-      "ESV": 59,
-      "NASB": 100,
-      "NIV": 111,
-      "NKJV": 114,
-      "NLT": 116,
-      "AMP": 1588,
-      "CSB": 1713,
-      "MSG": 97,
-      "RSV": 2020
-    };
-    API_BIBLE_IDS = {
-      "KJV": "de4e12af7f28f599-02",
-      "ASV": "06125adad2d5898a-01",
-      "WEB": "9879dbb7cfe39e4d-04"
-    };
-    BOOK_ALIASES = {
-      // Psalm vs Psalms
-      "psalm": "Psalms",
-      "psalms": "Psalms",
-      "ps": "Psalms",
-      "psa": "Psalms",
-      // Song of Solomon variations
-      "song of solomon": "Song of Solomon",
-      "song of songs": "Song of Solomon",
-      "songs": "Song of Solomon",
-      "sos": "Song of Solomon",
-      "sng": "Song of Solomon",
-      "song": "Song of Solomon",
-      // Genesis
-      "genesis": "Genesis",
-      "gen": "Genesis",
-      // Exodus
-      "exodus": "Exodus",
-      "exod": "Exodus",
-      "exo": "Exodus",
-      "ex": "Exodus",
-      // Leviticus
-      "leviticus": "Leviticus",
-      "lev": "Leviticus",
-      // Numbers
-      "numbers": "Numbers",
-      "num": "Numbers",
-      // Deuteronomy
-      "deuteronomy": "Deuteronomy",
-      "deut": "Deuteronomy",
-      "deu": "Deuteronomy",
-      "dt": "Deuteronomy",
-      // Joshua
-      "joshua": "Joshua",
-      "josh": "Joshua",
-      "jos": "Joshua",
-      // Judges
-      "judges": "Judges",
-      "judg": "Judges",
-      "jdg": "Judges",
-      // Ruth
-      "ruth": "Ruth",
-      "rut": "Ruth",
-      // Samuel
-      "1 samuel": "1 Samuel",
-      "1samuel": "1 Samuel",
-      "1 sam": "1 Samuel",
-      "1sam": "1 Samuel",
-      "1sa": "1 Samuel",
-      "2 samuel": "2 Samuel",
-      "2samuel": "2 Samuel",
-      "2 sam": "2 Samuel",
-      "2sam": "2 Samuel",
-      "2sa": "2 Samuel",
-      // Kings
-      "1 kings": "1 Kings",
-      "1kings": "1 Kings",
-      "1 kgs": "1 Kings",
-      "1kgs": "1 Kings",
-      "1ki": "1 Kings",
-      "2 kings": "2 Kings",
-      "2kings": "2 Kings",
-      "2 kgs": "2 Kings",
-      "2kgs": "2 Kings",
-      "2ki": "2 Kings",
-      // Chronicles
-      "1 chronicles": "1 Chronicles",
-      "1chronicles": "1 Chronicles",
-      "1 chr": "1 Chronicles",
-      "1chr": "1 Chronicles",
-      "1ch": "1 Chronicles",
-      "2 chronicles": "2 Chronicles",
-      "2chronicles": "2 Chronicles",
-      "2 chr": "2 Chronicles",
-      "2chr": "2 Chronicles",
-      "2ch": "2 Chronicles",
-      // Ezra
-      "ezra": "Ezra",
-      "ezr": "Ezra",
-      // Nehemiah
-      "nehemiah": "Nehemiah",
-      "neh": "Nehemiah",
-      // Esther
-      "esther": "Esther",
-      "est": "Esther",
-      // Job
-      "job": "Job",
-      // Proverbs
-      "proverbs": "Proverbs",
-      "prov": "Proverbs",
-      "pro": "Proverbs",
-      "pr": "Proverbs",
-      // Ecclesiastes
-      "ecclesiastes": "Ecclesiastes",
-      "eccl": "Ecclesiastes",
-      "ecc": "Ecclesiastes",
-      "eccles": "Ecclesiastes",
-      // Isaiah
-      "isaiah": "Isaiah",
-      "isa": "Isaiah",
-      "is": "Isaiah",
-      // Jeremiah
-      "jeremiah": "Jeremiah",
-      "jer": "Jeremiah",
-      // Lamentations
-      "lamentations": "Lamentations",
-      "lam": "Lamentations",
-      // Ezekiel
-      "ezekiel": "Ezekiel",
-      "ezek": "Ezekiel",
-      "eze": "Ezekiel",
-      "ezk": "Ezekiel",
-      // Daniel
-      "daniel": "Daniel",
-      "dan": "Daniel",
-      // Hosea
-      "hosea": "Hosea",
-      "hos": "Hosea",
-      // Joel
-      "joel": "Joel",
-      "joe": "Joel",
-      // Amos
-      "amos": "Amos",
-      // Obadiah
-      "obadiah": "Obadiah",
-      "oba": "Obadiah",
-      "obad": "Obadiah",
-      // Jonah
-      "jonah": "Jonah",
-      "jon": "Jonah",
-      // Micah
-      "micah": "Micah",
-      "mic": "Micah",
-      // Nahum
-      "nahum": "Nahum",
-      "nah": "Nahum",
-      "nam": "Nahum",
-      // Habakkuk
-      "habakkuk": "Habakkuk",
-      "hab": "Habakkuk",
-      // Zephaniah
-      "zephaniah": "Zephaniah",
-      "zeph": "Zephaniah",
-      "zep": "Zephaniah",
-      // Haggai
-      "haggai": "Haggai",
-      "hag": "Haggai",
-      // Zechariah
-      "zechariah": "Zechariah",
-      "zech": "Zechariah",
-      "zec": "Zechariah",
-      // Malachi
-      "malachi": "Malachi",
-      "mal": "Malachi",
-      // Matthew
-      "matthew": "Matthew",
-      "matt": "Matthew",
-      "mat": "Matthew",
-      "mt": "Matthew",
-      // Mark
-      "mark": "Mark",
-      "mrk": "Mark",
-      "mk": "Mark",
-      // Luke
-      "luke": "Luke",
-      "luk": "Luke",
-      "lk": "Luke",
-      // John (not 1/2/3 John)
-      "john": "John",
-      "jhn": "John",
-      "jn": "John",
-      // Acts
-      "acts": "Acts",
-      "act": "Acts",
-      // Romans
-      "romans": "Romans",
-      "rom": "Romans",
-      "ro": "Romans",
-      // Corinthians
-      "1 corinthians": "1 Corinthians",
-      "1corinthians": "1 Corinthians",
-      "1 cor": "1 Corinthians",
-      "1cor": "1 Corinthians",
-      "1co": "1 Corinthians",
-      "2 corinthians": "2 Corinthians",
-      "2corinthians": "2 Corinthians",
-      "2 cor": "2 Corinthians",
-      "2cor": "2 Corinthians",
-      "2co": "2 Corinthians",
-      // Galatians
-      "galatians": "Galatians",
-      "gal": "Galatians",
-      // Ephesians
-      "ephesians": "Ephesians",
-      "eph": "Ephesians",
-      // Philippians
-      "philippians": "Philippians",
-      "phil": "Philippians",
-      "php": "Philippians",
-      // Colossians
-      "colossians": "Colossians",
-      "col": "Colossians",
-      // Thessalonians
-      "1 thessalonians": "1 Thessalonians",
-      "1thessalonians": "1 Thessalonians",
-      "1 thess": "1 Thessalonians",
-      "1thess": "1 Thessalonians",
-      "1th": "1 Thessalonians",
-      "2 thessalonians": "2 Thessalonians",
-      "2thessalonians": "2 Thessalonians",
-      "2 thess": "2 Thessalonians",
-      "2thess": "2 Thessalonians",
-      "2th": "2 Thessalonians",
-      // Timothy
-      "1 timothy": "1 Timothy",
-      "1timothy": "1 Timothy",
-      "1 tim": "1 Timothy",
-      "1tim": "1 Timothy",
-      "1ti": "1 Timothy",
-      "2 timothy": "2 Timothy",
-      "2timothy": "2 Timothy",
-      "2 tim": "2 Timothy",
-      "2tim": "2 Timothy",
-      "2ti": "2 Timothy",
-      // Titus
-      "titus": "Titus",
-      "tit": "Titus",
-      // Philemon
-      "philemon": "Philemon",
-      "phm": "Philemon",
-      "phlm": "Philemon",
-      // Hebrews
-      "hebrews": "Hebrews",
-      "heb": "Hebrews",
-      // James
-      "james": "James",
-      "jas": "James",
-      // Peter
-      "1 peter": "1 Peter",
-      "1peter": "1 Peter",
-      "1 pet": "1 Peter",
-      "1pet": "1 Peter",
-      "1pe": "1 Peter",
-      "2 peter": "2 Peter",
-      "2peter": "2 Peter",
-      "2 pet": "2 Peter",
-      "2pet": "2 Peter",
-      "2pe": "2 Peter",
-      // John epistles
-      "1 john": "1 John",
-      "1john": "1 John",
-      "1 jn": "1 John",
-      "1jn": "1 John",
-      "2 john": "2 John",
-      "2john": "2 John",
-      "2 jn": "2 John",
-      "2jn": "2 John",
-      "3 john": "3 John",
-      "3john": "3 John",
-      "3 jn": "3 John",
-      "3jn": "3 John",
-      // Jude
-      "jude": "Jude",
-      "jud": "Jude",
-      // Revelation
-      "revelation": "Revelation",
-      "rev": "Revelation",
-      "re": "Revelation"
-    };
-  }
-});
-
 // src/main.ts
 var main_exports = {};
 __export(main_exports, {
@@ -550,16 +41,523 @@ var import_obsidian3 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
-  apiKey: "",
-  defaultTranslation: "de4e12af7f28f599-02",
-  // KJV from API.Bible
+  defaultTranslation: "eng_kjv",
   preferredWebsite: "BibleGateway",
   displayStyle: "callout",
   persistVerseText: false
 };
 
+// src/constants.ts
+var USFM_CODES = {
+  "Genesis": "GEN",
+  "Exodus": "EXO",
+  "Leviticus": "LEV",
+  "Numbers": "NUM",
+  "Deuteronomy": "DEU",
+  "Joshua": "JOS",
+  "Judges": "JDG",
+  "Ruth": "RUT",
+  "1 Samuel": "1SA",
+  "2 Samuel": "2SA",
+  "1 Kings": "1KI",
+  "2 Kings": "2KI",
+  "1 Chronicles": "1CH",
+  "2 Chronicles": "2CH",
+  "Ezra": "EZR",
+  "Nehemiah": "NEH",
+  "Esther": "EST",
+  "Job": "JOB",
+  "Psalms": "PSA",
+  "Proverbs": "PRO",
+  "Ecclesiastes": "ECC",
+  "Song of Solomon": "SNG",
+  "Isaiah": "ISA",
+  "Jeremiah": "JER",
+  "Lamentations": "LAM",
+  "Ezekiel": "EZK",
+  "Daniel": "DAN",
+  "Hosea": "HOS",
+  "Joel": "JOL",
+  "Amos": "AMO",
+  "Obadiah": "OBA",
+  "Jonah": "JON",
+  "Micah": "MIC",
+  "Nahum": "NAM",
+  "Habakkuk": "HAB",
+  "Zephaniah": "ZEP",
+  "Haggai": "HAG",
+  "Zechariah": "ZEC",
+  "Malachi": "MAL",
+  "Matthew": "MAT",
+  "Mark": "MRK",
+  "Luke": "LUK",
+  "John": "JHN",
+  "Acts": "ACT",
+  "Romans": "ROM",
+  "1 Corinthians": "1CO",
+  "2 Corinthians": "2CO",
+  "Galatians": "GAL",
+  "Ephesians": "EPH",
+  "Philippians": "PHP",
+  "Colossians": "COL",
+  "1 Thessalonians": "1TH",
+  "2 Thessalonians": "2TH",
+  "1 Timothy": "1TI",
+  "2 Timothy": "2TI",
+  "Titus": "TIT",
+  "Philemon": "PHM",
+  "Hebrews": "HEB",
+  "James": "JAS",
+  "1 Peter": "1PE",
+  "2 Peter": "2PE",
+  "1 John": "1JN",
+  "2 John": "2JN",
+  "3 John": "3JN",
+  "Jude": "JUD",
+  "Revelation": "REV"
+};
+var BLB_CODES = {
+  "Genesis": "gen",
+  "Exodus": "exo",
+  "Leviticus": "lev",
+  "Numbers": "num",
+  "Deuteronomy": "deu",
+  "Joshua": "jos",
+  "Judges": "jdg",
+  "Ruth": "rut",
+  "1 Samuel": "1sa",
+  "2 Samuel": "2sa",
+  "1 Kings": "1ki",
+  "2 Kings": "2ki",
+  "1 Chronicles": "1ch",
+  "2 Chronicles": "2ch",
+  "Ezra": "ezr",
+  "Nehemiah": "neh",
+  "Esther": "est",
+  "Job": "job",
+  "Psalms": "psa",
+  "Proverbs": "pro",
+  "Ecclesiastes": "ecc",
+  "Song of Solomon": "sng",
+  "Isaiah": "isa",
+  "Jeremiah": "jer",
+  "Lamentations": "lam",
+  "Ezekiel": "eze",
+  "Daniel": "dan",
+  "Hosea": "hos",
+  "Joel": "joe",
+  "Amos": "amo",
+  "Obadiah": "oba",
+  "Jonah": "jon",
+  "Micah": "mic",
+  "Nahum": "nah",
+  "Habakkuk": "hab",
+  "Zephaniah": "zep",
+  "Haggai": "hag",
+  "Zechariah": "zec",
+  "Malachi": "mal",
+  "Matthew": "mat",
+  "Mark": "mar",
+  "Luke": "luk",
+  "John": "jhn",
+  "Acts": "act",
+  "Romans": "rom",
+  "1 Corinthians": "1co",
+  "2 Corinthians": "2co",
+  "Galatians": "gal",
+  "Ephesians": "eph",
+  "Philippians": "php",
+  "Colossians": "col",
+  "1 Thessalonians": "1th",
+  "2 Thessalonians": "2th",
+  "1 Timothy": "1ti",
+  "2 Timothy": "2ti",
+  "Titus": "tit",
+  "Philemon": "phm",
+  "Hebrews": "heb",
+  "James": "jas",
+  "1 Peter": "1pe",
+  "2 Peter": "2pe",
+  "1 John": "1jn",
+  "2 John": "2jn",
+  "3 John": "3jn",
+  "Jude": "jud",
+  "Revelation": "rev"
+};
+var BIBLEHUB_SLUGS = {
+  "Genesis": "genesis",
+  "Exodus": "exodus",
+  "Leviticus": "leviticus",
+  "Numbers": "numbers",
+  "Deuteronomy": "deuteronomy",
+  "Joshua": "joshua",
+  "Judges": "judges",
+  "Ruth": "ruth",
+  "1 Samuel": "1_samuel",
+  "2 Samuel": "2_samuel",
+  "1 Kings": "1_kings",
+  "2 Kings": "2_kings",
+  "1 Chronicles": "1_chronicles",
+  "2 Chronicles": "2_chronicles",
+  "Ezra": "ezra",
+  "Nehemiah": "nehemiah",
+  "Esther": "esther",
+  "Job": "job",
+  "Psalms": "psalms",
+  "Proverbs": "proverbs",
+  "Ecclesiastes": "ecclesiastes",
+  "Song of Solomon": "songs",
+  "Isaiah": "isaiah",
+  "Jeremiah": "jeremiah",
+  "Lamentations": "lamentations",
+  "Ezekiel": "ezekiel",
+  "Daniel": "daniel",
+  "Hosea": "hosea",
+  "Joel": "joel",
+  "Amos": "amos",
+  "Obadiah": "obadiah",
+  "Jonah": "jonah",
+  "Micah": "micah",
+  "Nahum": "nahum",
+  "Habakkuk": "habakkuk",
+  "Zephaniah": "zephaniah",
+  "Haggai": "haggai",
+  "Zechariah": "zechariah",
+  "Malachi": "malachi",
+  "Matthew": "matthew",
+  "Mark": "mark",
+  "Luke": "luke",
+  "John": "john",
+  "Acts": "acts",
+  "Romans": "romans",
+  "1 Corinthians": "1_corinthians",
+  "2 Corinthians": "2_corinthians",
+  "Galatians": "galatians",
+  "Ephesians": "ephesians",
+  "Philippians": "philippians",
+  "Colossians": "colossians",
+  "1 Thessalonians": "1_thessalonians",
+  "2 Thessalonians": "2_thessalonians",
+  "1 Timothy": "1_timothy",
+  "2 Timothy": "2_timothy",
+  "Titus": "titus",
+  "Philemon": "philemon",
+  "Hebrews": "hebrews",
+  "James": "james",
+  "1 Peter": "1_peter",
+  "2 Peter": "2_peter",
+  "1 John": "1_john",
+  "2 John": "2_john",
+  "3 John": "3_john",
+  "Jude": "jude",
+  "Revelation": "revelation"
+};
+var BIBLE_COM_TRANSLATION_IDS = {
+  "KJV": 1,
+  "ESV": 59,
+  "NASB": 100,
+  "NIV": 111,
+  "NKJV": 114,
+  "NLT": 116,
+  "AMP": 1588,
+  "CSB": 1713,
+  "MSG": 97,
+  "RSV": 2020
+};
+var HELLOAO_TRANSLATIONS = [
+  { id: "eng_kjv", name: "King James Version (KJV)", abbreviation: "KJV" },
+  { id: "BSB", name: "Berean Standard Bible (BSB)", abbreviation: "BSB" },
+  { id: "eng_asv", name: "American Standard Version (ASV)", abbreviation: "ASV" },
+  { id: "eng_web", name: "World English Bible (WEB)", abbreviation: "WEB" },
+  { id: "eng_net", name: "NET Bible (NET)", abbreviation: "NET" },
+  { id: "eng_dby", name: "Darby Translation (DARBY)", abbreviation: "DARBY" },
+  { id: "eng_dra", name: "Douay-Rheims 1899 (DRB)", abbreviation: "DRB" },
+  { id: "eng_rv5", name: "Revised Version (ERV)", abbreviation: "ERV" },
+  { id: "eng_kja", name: "King James + Apocrypha (KJV+)", abbreviation: "KJV+" },
+  { id: "eng_wbs", name: "Webster Bible (WBT)", abbreviation: "WBT" },
+  { id: "eng_ylt", name: "Young's Literal Translation (YLT)", abbreviation: "YLT" },
+  { id: "eng_bbe", name: "Bible in Basic English (BBE)", abbreviation: "BBE" },
+  { id: "eng_fbv", name: "Free Bible Version (FBV)", abbreviation: "FBV" },
+  { id: "eng_lsv", name: "Literal Standard Version (LSV)", abbreviation: "LSV" },
+  { id: "eng_msb", name: "Majority Standard Bible (MSB)", abbreviation: "MSB" },
+  { id: "ENGWEBP", name: "World English Bible (WEB-P)", abbreviation: "WEBP" },
+  { id: "eng_gnv", name: "Geneva Bible 1599 (GNV)", abbreviation: "GNV" },
+  { id: "eng_ojb", name: "Orthodox Jewish Bible (OJB)", abbreviation: "OJB" }
+];
+var HELLOAO_ABBREV = Object.fromEntries(
+  HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation])
+);
+var BOOK_ALIASES = {
+  // Psalm vs Psalms
+  "psalm": "Psalms",
+  "psalms": "Psalms",
+  "ps": "Psalms",
+  "psa": "Psalms",
+  // Song of Solomon variations
+  "song of solomon": "Song of Solomon",
+  "song of songs": "Song of Solomon",
+  "songs": "Song of Solomon",
+  "sos": "Song of Solomon",
+  "sng": "Song of Solomon",
+  "song": "Song of Solomon",
+  // Genesis
+  "genesis": "Genesis",
+  "gen": "Genesis",
+  // Exodus
+  "exodus": "Exodus",
+  "exod": "Exodus",
+  "exo": "Exodus",
+  "ex": "Exodus",
+  // Leviticus
+  "leviticus": "Leviticus",
+  "lev": "Leviticus",
+  // Numbers
+  "numbers": "Numbers",
+  "num": "Numbers",
+  // Deuteronomy
+  "deuteronomy": "Deuteronomy",
+  "deut": "Deuteronomy",
+  "deu": "Deuteronomy",
+  "dt": "Deuteronomy",
+  // Joshua
+  "joshua": "Joshua",
+  "josh": "Joshua",
+  "jos": "Joshua",
+  // Judges
+  "judges": "Judges",
+  "judg": "Judges",
+  "jdg": "Judges",
+  // Ruth
+  "ruth": "Ruth",
+  "rut": "Ruth",
+  // Samuel
+  "1 samuel": "1 Samuel",
+  "1samuel": "1 Samuel",
+  "1 sam": "1 Samuel",
+  "1sam": "1 Samuel",
+  "1sa": "1 Samuel",
+  "2 samuel": "2 Samuel",
+  "2samuel": "2 Samuel",
+  "2 sam": "2 Samuel",
+  "2sam": "2 Samuel",
+  "2sa": "2 Samuel",
+  // Kings
+  "1 kings": "1 Kings",
+  "1kings": "1 Kings",
+  "1 kgs": "1 Kings",
+  "1kgs": "1 Kings",
+  "1ki": "1 Kings",
+  "2 kings": "2 Kings",
+  "2kings": "2 Kings",
+  "2 kgs": "2 Kings",
+  "2kgs": "2 Kings",
+  "2ki": "2 Kings",
+  // Chronicles
+  "1 chronicles": "1 Chronicles",
+  "1chronicles": "1 Chronicles",
+  "1 chr": "1 Chronicles",
+  "1chr": "1 Chronicles",
+  "1ch": "1 Chronicles",
+  "2 chronicles": "2 Chronicles",
+  "2chronicles": "2 Chronicles",
+  "2 chr": "2 Chronicles",
+  "2chr": "2 Chronicles",
+  "2ch": "2 Chronicles",
+  // Ezra
+  "ezra": "Ezra",
+  "ezr": "Ezra",
+  // Nehemiah
+  "nehemiah": "Nehemiah",
+  "neh": "Nehemiah",
+  // Esther
+  "esther": "Esther",
+  "est": "Esther",
+  // Job
+  "job": "Job",
+  // Proverbs
+  "proverbs": "Proverbs",
+  "prov": "Proverbs",
+  "pro": "Proverbs",
+  "pr": "Proverbs",
+  // Ecclesiastes
+  "ecclesiastes": "Ecclesiastes",
+  "eccl": "Ecclesiastes",
+  "ecc": "Ecclesiastes",
+  "eccles": "Ecclesiastes",
+  // Isaiah
+  "isaiah": "Isaiah",
+  "isa": "Isaiah",
+  "is": "Isaiah",
+  // Jeremiah
+  "jeremiah": "Jeremiah",
+  "jer": "Jeremiah",
+  // Lamentations
+  "lamentations": "Lamentations",
+  "lam": "Lamentations",
+  // Ezekiel
+  "ezekiel": "Ezekiel",
+  "ezek": "Ezekiel",
+  "eze": "Ezekiel",
+  "ezk": "Ezekiel",
+  // Daniel
+  "daniel": "Daniel",
+  "dan": "Daniel",
+  // Hosea
+  "hosea": "Hosea",
+  "hos": "Hosea",
+  // Joel
+  "joel": "Joel",
+  "joe": "Joel",
+  // Amos
+  "amos": "Amos",
+  // Obadiah
+  "obadiah": "Obadiah",
+  "oba": "Obadiah",
+  "obad": "Obadiah",
+  // Jonah
+  "jonah": "Jonah",
+  "jon": "Jonah",
+  // Micah
+  "micah": "Micah",
+  "mic": "Micah",
+  // Nahum
+  "nahum": "Nahum",
+  "nah": "Nahum",
+  "nam": "Nahum",
+  // Habakkuk
+  "habakkuk": "Habakkuk",
+  "hab": "Habakkuk",
+  // Zephaniah
+  "zephaniah": "Zephaniah",
+  "zeph": "Zephaniah",
+  "zep": "Zephaniah",
+  // Haggai
+  "haggai": "Haggai",
+  "hag": "Haggai",
+  // Zechariah
+  "zechariah": "Zechariah",
+  "zech": "Zechariah",
+  "zec": "Zechariah",
+  // Malachi
+  "malachi": "Malachi",
+  "mal": "Malachi",
+  // Matthew
+  "matthew": "Matthew",
+  "matt": "Matthew",
+  "mat": "Matthew",
+  "mt": "Matthew",
+  // Mark
+  "mark": "Mark",
+  "mrk": "Mark",
+  "mk": "Mark",
+  // Luke
+  "luke": "Luke",
+  "luk": "Luke",
+  "lk": "Luke",
+  // John (not 1/2/3 John)
+  "john": "John",
+  "jhn": "John",
+  "jn": "John",
+  // Acts
+  "acts": "Acts",
+  "act": "Acts",
+  // Romans
+  "romans": "Romans",
+  "rom": "Romans",
+  "ro": "Romans",
+  // Corinthians
+  "1 corinthians": "1 Corinthians",
+  "1corinthians": "1 Corinthians",
+  "1 cor": "1 Corinthians",
+  "1cor": "1 Corinthians",
+  "1co": "1 Corinthians",
+  "2 corinthians": "2 Corinthians",
+  "2corinthians": "2 Corinthians",
+  "2 cor": "2 Corinthians",
+  "2cor": "2 Corinthians",
+  "2co": "2 Corinthians",
+  // Galatians
+  "galatians": "Galatians",
+  "gal": "Galatians",
+  // Ephesians
+  "ephesians": "Ephesians",
+  "eph": "Ephesians",
+  // Philippians
+  "philippians": "Philippians",
+  "phil": "Philippians",
+  "php": "Philippians",
+  // Colossians
+  "colossians": "Colossians",
+  "col": "Colossians",
+  // Thessalonians
+  "1 thessalonians": "1 Thessalonians",
+  "1thessalonians": "1 Thessalonians",
+  "1 thess": "1 Thessalonians",
+  "1thess": "1 Thessalonians",
+  "1th": "1 Thessalonians",
+  "2 thessalonians": "2 Thessalonians",
+  "2thessalonians": "2 Thessalonians",
+  "2 thess": "2 Thessalonians",
+  "2thess": "2 Thessalonians",
+  "2th": "2 Thessalonians",
+  // Timothy
+  "1 timothy": "1 Timothy",
+  "1timothy": "1 Timothy",
+  "1 tim": "1 Timothy",
+  "1tim": "1 Timothy",
+  "1ti": "1 Timothy",
+  "2 timothy": "2 Timothy",
+  "2timothy": "2 Timothy",
+  "2 tim": "2 Timothy",
+  "2tim": "2 Timothy",
+  "2ti": "2 Timothy",
+  // Titus
+  "titus": "Titus",
+  "tit": "Titus",
+  // Philemon
+  "philemon": "Philemon",
+  "phm": "Philemon",
+  "phlm": "Philemon",
+  // Hebrews
+  "hebrews": "Hebrews",
+  "heb": "Hebrews",
+  // James
+  "james": "James",
+  "jas": "James",
+  // Peter
+  "1 peter": "1 Peter",
+  "1peter": "1 Peter",
+  "1 pet": "1 Peter",
+  "1pet": "1 Peter",
+  "1pe": "1 Peter",
+  "2 peter": "2 Peter",
+  "2peter": "2 Peter",
+  "2 pet": "2 Peter",
+  "2pet": "2 Peter",
+  "2pe": "2 Peter",
+  // John epistles
+  "1 john": "1 John",
+  "1john": "1 John",
+  "1 jn": "1 John",
+  "1jn": "1 John",
+  "2 john": "2 John",
+  "2john": "2 John",
+  "2 jn": "2 John",
+  "2jn": "2 John",
+  "3 john": "3 John",
+  "3john": "3 John",
+  "3 jn": "3 John",
+  "3jn": "3 John",
+  // Jude
+  "jude": "Jude",
+  "jud": "Jude",
+  // Revelation
+  "revelation": "Revelation",
+  "rev": "Revelation",
+  "re": "Revelation"
+};
+
 // src/parser.ts
-init_constants();
 var REF_REGEX = /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(\d+))?((?:,\s*\d+)*))?$/;
 function normalizeBookName(raw) {
   var _a;
@@ -639,99 +637,103 @@ function formatReference(ref) {
 
 // src/api.ts
 var import_obsidian = require("obsidian");
-init_constants();
-var BASE_URL = "https://api.scripture.api.bible/v1";
+var BASE_URL = "https://bible.helloao.org/api";
 var BibleApi = class {
-  constructor(apiKey, cache) {
-    this.apiKey = apiKey;
+  constructor(cache) {
     this.cache = cache;
   }
-  setApiKey(key) {
-    this.apiKey = key;
-  }
   /**
-   * Build an API.Bible passage ID from a parsed reference.
-   * Format: {USFM}.{chapter}.{verse}-{USFM}.{chapter}.{endVerse}
+   * Extract text from a HelloAO verse content array.
+   * Content items can be plain strings or objects with a `text` property
+   * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
    */
-  buildPassageId(ref) {
-    const usfm = USFM_CODES[ref.book];
-    if (!usfm)
-      throw new Error(`Unknown book: ${ref.book}`);
-    if (ref.startVerse === null) {
-      return `${usfm}.${ref.chapter}`;
-    }
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.endChapter}.${ref.endVerse}`;
-    }
-    if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}`;
-    }
-    if (ref.endVerse !== null) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.chapter}.${ref.endVerse}`;
-    }
-    const allVerses = [ref.startVerse, ...ref.additionalVerses];
-    const max = Math.max(...allVerses);
-    return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.chapter}.${max}`;
+  extractVerseText(content) {
+    return content.map((item) => {
+      if (typeof item === "string")
+        return item;
+      if (typeof item === "object" && item !== null && "text" in item) {
+        return item.text;
+      }
+      return "";
+    }).filter((s) => s.length > 0).join(" ");
   }
   /**
-   * Fetch a passage from API.Bible.
+   * Determine which verses from the chapter are needed for this reference.
+   * Returns a Set of verse numbers to include.
+   */
+  getRequestedVerses(ref) {
+    if (ref.startVerse === null)
+      return null;
+    const verses = /* @__PURE__ */ new Set();
+    if (ref.endVerse !== null && ref.endChapter === null) {
+      for (let v = ref.startVerse; v <= ref.endVerse; v++) {
+        verses.add(v);
+      }
+    } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
+      verses.add(ref.startVerse);
+    } else {
+      if (ref.endVerse !== null) {
+        for (let v = ref.startVerse; v <= ref.endVerse; v++) {
+          verses.add(v);
+        }
+      } else {
+        verses.add(ref.startVerse);
+      }
+      for (const v of ref.additionalVerses) {
+        verses.add(v);
+      }
+    }
+    return verses;
+  }
+  /**
+   * Fetch a passage from HelloAO Bible API.
+   * Fetches the whole chapter and extracts the requested verses client-side.
    * Returns cached version if available.
    */
-  async getPassage(ref, bibleId, translationAbbr) {
+  async getPassage(ref, translationId, translationAbbr) {
+    var _a;
     const refStr = formatReference(ref);
     const cached = this.cache.get(translationAbbr, refStr);
     if (cached)
       return cached;
-    if (!this.apiKey) {
-      throw new Error(
-        "API key not configured. Go to Settings \u2192 Bible Verse to add your API.Bible key."
-      );
-    }
-    const passageId = this.buildPassageId(ref);
-    const url = `${BASE_URL}/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`;
-    const response = await (0, import_obsidian.requestUrl)({
-      url,
-      headers: { "api-key": this.apiKey }
-    });
+    const usfm = USFM_CODES[ref.book];
+    if (!usfm)
+      throw new Error(`Unknown book: ${ref.book}`);
+    const url = `${BASE_URL}/${translationId}/${usfm}/${ref.chapter}.json`;
+    const response = await (0, import_obsidian.requestUrl)({ url });
     if (response.status !== 200) {
-      throw new Error(`API.Bible returned status ${response.status}`);
+      throw new Error(`HelloAO API returned status ${response.status}`);
     }
-    const data = response.json.data;
-    const text = data.content.trim();
-    const copyright = data.copyright || "";
+    const data = response.json;
+    const chapterContent = data.chapter.content;
+    const requestedVerses = this.getRequestedVerses(ref);
+    const verseParts = [];
+    for (const item of chapterContent) {
+      if (typeof item === "object" && item !== null && item.type === "verse") {
+        const verseItem = item;
+        if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
+          const text2 = this.extractVerseText(verseItem.content);
+          if (text2)
+            verseParts.push(text2);
+        }
+      }
+    }
+    if (verseParts.length === 0) {
+      throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
+    }
+    const text = verseParts.join(" ");
+    const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
+    const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
       reference: refStr,
       translation: translationAbbr,
-      bibleId,
+      bibleId: translationId,
       text,
       copyright,
       fetchedAt: Date.now()
     };
     await this.cache.set(entry);
     return entry;
-  }
-  /**
-   * Fetch the list of available Bible translations.
-   */
-  async getTranslations() {
-    if (!this.apiKey)
-      return [];
-    const response = await (0, import_obsidian.requestUrl)({
-      url: `${BASE_URL}/bibles`,
-      headers: { "api-key": this.apiKey }
-    });
-    if (response.status !== 200)
-      return [];
-    const bibles = response.json.data;
-    return bibles.filter((b) => b.language.id === "eng").map((b) => {
-      var _a;
-      return {
-        id: b.id,
-        name: b.name,
-        abbreviation: ((_a = b.abbreviation) == null ? void 0 : _a.toUpperCase()) || b.id,
-        language: b.language.name
-      };
-    });
   }
 };
 
@@ -931,27 +933,15 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Bible Verse Settings" });
-    new import_obsidian2.Setting(containerEl).setName("API.Bible API Key").setDesc(
-      createFragment((el) => {
-        el.appendText("Required. Get a free key at ");
-        el.createEl("a", {
-          text: "scripture.api.bible",
-          href: "https://scripture.api.bible"
-        });
-      })
-    ).addText(
-      (text) => text.setPlaceholder("Enter your API key").setValue(this.plugin.settings.apiKey).onChange(async (value) => {
-        this.plugin.settings.apiKey = value;
-        await this.plugin.saveSettings();
-        this.plugin.api.setApiKey(value);
-      })
-    );
-    new import_obsidian2.Setting(containerEl).setName("Default Translation").setDesc("The Bible translation to use by default (API.Bible ID)").addText(
-      (text) => text.setPlaceholder("de4e12af7f28f599-02").setValue(this.plugin.settings.defaultTranslation).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Default Translation").setDesc("The Bible translation to use by default").addDropdown((dropdown) => {
+      for (const t of HELLOAO_TRANSLATIONS) {
+        dropdown.addOption(t.id, t.name);
+      }
+      dropdown.setValue(this.plugin.settings.defaultTranslation).onChange(async (value) => {
         this.plugin.settings.defaultTranslation = value;
         await this.plugin.saveSettings();
-      })
-    );
+      });
+    });
     new import_obsidian2.Setting(containerEl).setName("Preferred Bible Website").setDesc("Which website to link verse references to").addDropdown(
       (dropdown) => dropdown.addOption("BibleHub", "BibleHub").addOption("BibleGateway", "BibleGateway").addOption("BlueLetter", "Blue Letter Bible").addOption("BibleCom", "Bible.com").setValue(this.plugin.settings.preferredWebsite).onChange(async (value) => {
         this.plugin.settings.preferredWebsite = value;
@@ -976,7 +966,6 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
 };
 
 // src/linker.ts
-init_constants();
 function generateLink(ref, translation, website) {
   switch (website) {
     case "BibleHub":
@@ -1163,7 +1152,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
     await this.loadSettings();
     this.cache = new VerseCache(this);
     await this.cache.load();
-    this.api = new BibleApi(this.settings.apiKey, this.cache);
+    this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
@@ -1237,6 +1226,15 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
     await this.saveData(this.settings);
   }
   /**
+   * Get a short abbreviation for the current translation.
+   * Looks up from the HELLOAO_ABBREV map, falls back to the ID itself.
+   */
+  getTranslationAbbr(translationId) {
+    var _a;
+    const id = translationId != null ? translationId : this.settings.defaultTranslation;
+    return (_a = HELLOAO_ABBREV[id]) != null ? _a : id;
+  }
+  /**
    * Fetch a verse using the current settings.
    */
   async fetchVerse(ref) {
@@ -1250,20 +1248,6 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
       console.error("Bible Verse: Failed to fetch verse", e);
       return null;
     }
-  }
-  /**
-   * Get a short abbreviation for the current translation.
-   * Falls back to the Bible ID if not a known translation.
-   */
-  getTranslationAbbr() {
-    const id = this.settings.defaultTranslation;
-    if (id.startsWith("de4e12af"))
-      return "KJV";
-    if (id.startsWith("06125ada"))
-      return "ASV";
-    if (id.startsWith("9879dbb7"))
-      return "WEB";
-    return id;
   }
   /**
    * Inline markdown postprocessor: finds @[ref] in rendered text and replaces them.
@@ -1294,7 +1278,8 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
         if (ref) {
           const span = document.createElement("span");
           span.className = "bible-verse-container";
-          const cached = this.cache.get(this.getTranslationAbbr(), formatReference(ref));
+          const abbr = this.getTranslationAbbr();
+          const cached = this.cache.get(abbr, formatReference(ref));
           if (cached) {
             renderVerse(
               span,
@@ -1304,7 +1289,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
               this.settings.preferredWebsite
             );
           } else {
-            renderLink(span, ref, this.getTranslationAbbr(), this.settings.preferredWebsite);
+            renderLink(span, ref, abbr, this.settings.preferredWebsite);
             this.fetchAndRender(span, ref);
           }
           frag.appendChild(span);
@@ -1388,7 +1373,7 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
       return;
     }
     const translationId = config["translation"] ? this.resolveTranslationId(config["translation"]) : this.settings.defaultTranslation;
-    const translationAbbr = config["translation"] || this.getTranslationAbbr();
+    const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       renderVerse(el, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
@@ -1403,8 +1388,9 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
     const verses = [];
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, trans);
+        const verse = await this.api.getPassage(ref, id, abbr);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -1417,16 +1403,21 @@ var BibleVersePlugin = class extends import_obsidian3.Plugin {
     }
   }
   /**
-   * Resolve a translation abbreviation to an API.Bible ID.
-   * If it looks like an API.Bible ID already, return as-is.
+   * Resolve a translation abbreviation to a HelloAO translation ID.
+   * Searches the curated list by abbreviation, then by ID directly.
    */
   resolveTranslationId(abbr) {
-    const { API_BIBLE_IDS: API_BIBLE_IDS2 } = (init_constants(), __toCommonJS(constants_exports));
     const upper = abbr.toUpperCase();
-    if (API_BIBLE_IDS2[upper])
-      return API_BIBLE_IDS2[upper];
-    if (abbr.includes("-"))
-      return abbr;
-    return this.settings.defaultTranslation;
+    const match = HELLOAO_TRANSLATIONS.find(
+      (t) => t.abbreviation.toUpperCase() === upper
+    );
+    if (match)
+      return match.id;
+    const byId = HELLOAO_TRANSLATIONS.find(
+      (t) => t.id.toUpperCase() === upper
+    );
+    if (byId)
+      return byId.id;
+    return abbr;
   }
 };

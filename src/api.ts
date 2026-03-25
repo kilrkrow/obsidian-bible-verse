@@ -1,69 +1,84 @@
 import { requestUrl } from "obsidian";
-import { BibleReference, CachedVerse, TranslationInfo } from "./types";
+import { BibleReference, CachedVerse } from "./types";
 import { USFM_CODES } from "./constants";
 import { VerseCache } from "./cache";
 import { formatReference } from "./parser";
 
-const BASE_URL = "https://api.scripture.api.bible/v1";
+const BASE_URL = "https://bible.helloao.org/api";
 
 /**
- * Client for the API.Bible service.
- * Handles fetching verse text with caching and copyright attribution.
+ * Client for the HelloAO Bible API.
+ * Fetches whole chapters and extracts specific verses client-side.
+ * No API key required.
  */
 export class BibleApi {
-  private apiKey: string;
   private cache: VerseCache;
 
-  constructor(apiKey: string, cache: VerseCache) {
-    this.apiKey = apiKey;
+  constructor(cache: VerseCache) {
     this.cache = cache;
   }
 
-  setApiKey(key: string): void {
-    this.apiKey = key;
-  }
-
   /**
-   * Build an API.Bible passage ID from a parsed reference.
-   * Format: {USFM}.{chapter}.{verse}-{USFM}.{chapter}.{endVerse}
+   * Extract text from a HelloAO verse content array.
+   * Content items can be plain strings or objects with a `text` property
+   * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
    */
-  buildPassageId(ref: BibleReference): string {
-    const usfm = USFM_CODES[ref.book];
-    if (!usfm) throw new Error(`Unknown book: ${ref.book}`);
-
-    // Whole chapter
-    if (ref.startVerse === null) {
-      return `${usfm}.${ref.chapter}`;
-    }
-
-    // Multi-chapter range
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.endChapter}.${ref.endVerse}`;
-    }
-
-    // Single verse
-    if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}`;
-    }
-
-    // Verse range
-    if (ref.endVerse !== null) {
-      return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.chapter}.${ref.endVerse}`;
-    }
-
-    // Single verse (with additional verses — fetch the full range)
-    const allVerses = [ref.startVerse, ...ref.additionalVerses];
-    const max = Math.max(...allVerses);
-    return `${usfm}.${ref.chapter}.${ref.startVerse}-${usfm}.${ref.chapter}.${max}`;
+  private extractVerseText(content: unknown[]): string {
+    return content
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (typeof item === "object" && item !== null && "text" in item) {
+          return (item as { text: string }).text;
+        }
+        return "";
+      })
+      .filter((s) => s.length > 0)
+      .join(" ");
   }
 
   /**
-   * Fetch a passage from API.Bible.
+   * Determine which verses from the chapter are needed for this reference.
+   * Returns a Set of verse numbers to include.
+   */
+  private getRequestedVerses(ref: BibleReference): Set<number> | null {
+    // Whole chapter — return null to indicate "all verses"
+    if (ref.startVerse === null) return null;
+
+    const verses = new Set<number>();
+
+    if (ref.endVerse !== null && ref.endChapter === null) {
+      // Simple range within one chapter: e.g. John 3:16-21
+      for (let v = ref.startVerse; v <= ref.endVerse; v++) {
+        verses.add(v);
+      }
+    } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
+      // Single verse
+      verses.add(ref.startVerse);
+    } else {
+      // Has additional verses or is a range
+      if (ref.endVerse !== null) {
+        for (let v = ref.startVerse; v <= ref.endVerse; v++) {
+          verses.add(v);
+        }
+      } else {
+        verses.add(ref.startVerse);
+      }
+      for (const v of ref.additionalVerses) {
+        verses.add(v);
+      }
+    }
+
+    return verses;
+  }
+
+  /**
+   * Fetch a passage from HelloAO Bible API.
+   * Fetches the whole chapter and extracts the requested verses client-side.
    * Returns cached version if available.
    */
   async getPassage(
     ref: BibleReference,
-    bibleId: string,
+    translationId: string,
     translationAbbr: string
   ): Promise<CachedVerse> {
     const refStr = formatReference(ref);
@@ -72,32 +87,53 @@ export class BibleApi {
     const cached = this.cache.get(translationAbbr, refStr);
     if (cached) return cached;
 
-    if (!this.apiKey) {
-      throw new Error(
-        "API key not configured. Go to Settings → Bible Verse to add your API.Bible key."
-      );
-    }
+    const usfm = USFM_CODES[ref.book];
+    if (!usfm) throw new Error(`Unknown book: ${ref.book}`);
 
-    const passageId = this.buildPassageId(ref);
-    const url = `${BASE_URL}/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`;
+    // For multi-chapter ranges, only fetch the starting chapter
+    // (HelloAO serves one chapter at a time)
+    const url = `${BASE_URL}/${translationId}/${usfm}/${ref.chapter}.json`;
 
-    const response = await requestUrl({
-      url,
-      headers: { "api-key": this.apiKey },
-    });
+    const response = await requestUrl({ url });
 
     if (response.status !== 200) {
-      throw new Error(`API.Bible returned status ${response.status}`);
+      throw new Error(`HelloAO API returned status ${response.status}`);
     }
 
-    const data = response.json.data;
-    const text = (data.content as string).trim();
-    const copyright = (data.copyright as string) || "";
+    const data = response.json;
+    const chapterContent: unknown[] = data.chapter.content;
+    const requestedVerses = this.getRequestedVerses(ref);
+
+    // Extract text from matching verses
+    const verseParts: string[] = [];
+    for (const item of chapterContent) {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        (item as Record<string, unknown>).type === "verse"
+      ) {
+        const verseItem = item as { type: string; number: number; content: unknown[] };
+        if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
+          const text = this.extractVerseText(verseItem.content);
+          if (text) verseParts.push(text);
+        }
+      }
+    }
+
+    if (verseParts.length === 0) {
+      throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
+    }
+
+    const text = verseParts.join(" ");
+
+    // Build copyright from license URL
+    const licenseUrl: string | undefined = data.translation?.licenseUrl;
+    const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
 
     const entry: CachedVerse = {
       reference: refStr,
       translation: translationAbbr,
-      bibleId,
+      bibleId: translationId,
       text,
       copyright,
       fetchedAt: Date.now(),
@@ -105,35 +141,5 @@ export class BibleApi {
 
     await this.cache.set(entry);
     return entry;
-  }
-
-  /**
-   * Fetch the list of available Bible translations.
-   */
-  async getTranslations(): Promise<TranslationInfo[]> {
-    if (!this.apiKey) return [];
-
-    const response = await requestUrl({
-      url: `${BASE_URL}/bibles`,
-      headers: { "api-key": this.apiKey },
-    });
-
-    if (response.status !== 200) return [];
-
-    const bibles = response.json.data as Array<{
-      id: string;
-      name: string;
-      abbreviation: string;
-      language: { id: string; name: string };
-    }>;
-
-    return bibles
-      .filter((b) => b.language.id === "eng")
-      .map((b) => ({
-        id: b.id,
-        name: b.name,
-        abbreviation: b.abbreviation?.toUpperCase() || b.id,
-        language: b.language.name,
-      }));
   }
 }

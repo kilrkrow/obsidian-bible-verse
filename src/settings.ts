@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BibleWebsite, DisplayStyle } from "./types";
+import { HELLOAO_TRANSLATIONS } from "./constants";
 
 export class BibleVerseSettingTab extends PluginSettingTab {
   plugin: BibleVersePlugin;
@@ -16,42 +17,21 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     containerEl.createEl("h2", { text: "Bible Verse Settings" });
 
-    // API Key
-    new Setting(containerEl)
-      .setName("API.Bible API Key")
-      .setDesc(
-        createFragment((el) => {
-          el.appendText("Required. Get a free key at ");
-          el.createEl("a", {
-            text: "scripture.api.bible",
-            href: "https://scripture.api.bible",
-          });
-        })
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder("Enter your API key")
-          .setValue(this.plugin.settings.apiKey)
-          .onChange(async (value) => {
-            this.plugin.settings.apiKey = value;
-            await this.plugin.saveSettings();
-            this.plugin.api.setApiKey(value);
-          })
-      );
-
-    // Default Translation
+    // Default Translation (dropdown from curated list)
     new Setting(containerEl)
       .setName("Default Translation")
-      .setDesc("The Bible translation to use by default (API.Bible ID)")
-      .addText((text) =>
-        text
-          .setPlaceholder("de4e12af7f28f599-02")
+      .setDesc("The Bible translation to use by default")
+      .addDropdown((dropdown) => {
+        for (const t of HELLOAO_TRANSLATIONS) {
+          dropdown.addOption(t.id, t.name);
+        }
+        dropdown
           .setValue(this.plugin.settings.defaultTranslation)
           .onChange(async (value) => {
             this.plugin.settings.defaultTranslation = value;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     // Preferred Website
     new Setting(containerEl)

@@ -232,14 +232,38 @@ export const BIBLE_COM_TRANSLATION_IDS: Record<string, number> = {
 };
 
 /**
- * Known API.Bible translation IDs for common translations.
- * These are the default Bible IDs from the API.Bible catalog.
+ * Curated list of HelloAO Bible translations for the settings dropdown.
  */
-export const API_BIBLE_IDS: Record<string, string> = {
-  "KJV": "de4e12af7f28f599-02",
-  "ASV": "06125adad2d5898a-01",
-  "WEB": "9879dbb7cfe39e4d-04",
-};
+export const HELLOAO_TRANSLATIONS: { id: string; name: string; abbreviation: string }[] = [
+  { id: "eng_kjv",   name: "King James Version (KJV)",          abbreviation: "KJV" },
+  { id: "BSB",       name: "Berean Standard Bible (BSB)",       abbreviation: "BSB" },
+  { id: "eng_asv",   name: "American Standard Version (ASV)",   abbreviation: "ASV" },
+  { id: "eng_web",   name: "World English Bible (WEB)",         abbreviation: "WEB" },
+  { id: "eng_net",   name: "NET Bible (NET)",                   abbreviation: "NET" },
+  { id: "eng_dby",   name: "Darby Translation (DARBY)",         abbreviation: "DARBY" },
+  { id: "eng_dra",   name: "Douay-Rheims 1899 (DRB)",           abbreviation: "DRB" },
+  { id: "eng_rv5",   name: "Revised Version (ERV)",             abbreviation: "ERV" },
+  { id: "eng_kja",   name: "King James + Apocrypha (KJV+)",     abbreviation: "KJV+" },
+  { id: "eng_wbs",   name: "Webster Bible (WBT)",               abbreviation: "WBT" },
+  { id: "eng_ylt",   name: "Young's Literal Translation (YLT)", abbreviation: "YLT" },
+  { id: "eng_bbe",   name: "Bible in Basic English (BBE)",      abbreviation: "BBE" },
+  { id: "eng_fbv",   name: "Free Bible Version (FBV)",          abbreviation: "FBV" },
+  { id: "eng_lsv",   name: "Literal Standard Version (LSV)",    abbreviation: "LSV" },
+  { id: "eng_msb",   name: "Majority Standard Bible (MSB)",     abbreviation: "MSB" },
+  { id: "ENGWEBP",   name: "World English Bible (WEB-P)",       abbreviation: "WEBP" },
+  { id: "eng_gnv",   name: "Geneva Bible 1599 (GNV)",           abbreviation: "GNV" },
+  { id: "eng_ojb",   name: "Orthodox Jewish Bible (OJB)",       abbreviation: "OJB" },
+];
+
+/**
+ * Mapping from HelloAO translation ID → short display abbreviation.
+ */
+export const HELLOAO_ABBREV: Record<string, string> = Object.fromEntries(
+  HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation])
+);
+
+// TODO: Link-only mode for commercially-licensed translations (NIV, NLT, NKJV, AMP, ESV)
+// — render just a hyperlink to BibleGateway/BibleHub without fetching text. Future v2 feature.
 
 /**
  * Book name aliases → canonical name.
