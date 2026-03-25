@@ -1,21 +1,16 @@
 /* Bible Verse Plugin - Styles
- * Uses CSS custom properties for theming compatibility with
- * both light and dark Obsidian themes.
+ * Uses Obsidian's native CSS variables directly for reliable
+ * light/dark theme compatibility. No custom :root overrides.
+ *
+ * Obsidian variables used:
+ *   --text-normal          body text
+ *   --text-muted           copyright / secondary text
+ *   --text-accent          links
+ *   --interactive-accent   accent color (borders, highlights)
+ *   --background-primary   main editor bg
+ *   --background-secondary subtle panel bg
+ *   --background-modifier-border  borders
  */
-
-/* ========================
-   Custom Properties
-   ======================== */
-:root {
-  --bible-verse-accent: var(--interactive-accent, #7c3aed);
-  --bible-verse-bg: var(--background-secondary, #f5f5f5);
-  --bible-verse-bg-alt: var(--background-secondary-alt, #e8e8e8);
-  --bible-verse-text: var(--text-normal, #333);
-  --bible-verse-muted: var(--text-muted, #999);
-  --bible-verse-border: var(--background-modifier-border, #ddd);
-  --bible-verse-link: var(--text-accent, #7c3aed);
-  --bible-verse-radius: 6px;
-}
 
 /* ========================
    Base / Shared
@@ -24,16 +19,17 @@
   margin: 0.75em 0;
   font-size: 0.95em;
   line-height: 1.6;
-  color: var(--bible-verse-text);
+  color: var(--text-normal);
 }
 
 .bible-verse-text {
   margin: 0;
   white-space: pre-wrap;
+  color: var(--text-normal);
 }
 
 .bible-verse-ref {
-  color: var(--bible-verse-link);
+  color: var(--text-accent);
   text-decoration: none;
   font-weight: 600;
 }
@@ -44,7 +40,7 @@
 
 .bible-verse-copyright {
   font-size: 0.75em;
-  color: var(--bible-verse-muted);
+  color: var(--text-muted);
   margin-top: 0.25em;
 }
 
@@ -54,35 +50,44 @@
   align-items: center;
   gap: 0.75em;
   flex-wrap: wrap;
+  color: var(--text-normal);
 }
 
 /* ========================
    Sidebar Style
    ======================== */
 .bible-verse-sidebar {
-  border-left: 3px solid var(--bible-verse-accent);
+  border-left: 3px solid var(--interactive-accent);
   padding: 0.5em 0.75em 0.5em 1em;
   background: transparent;
+  color: var(--text-normal);
 }
 
 /* ========================
    Callout Style
    ======================== */
 .bible-verse-callout {
-  background: var(--bible-verse-bg);
-  border: 1px solid var(--bible-verse-border);
-  border-radius: var(--bible-verse-radius);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
   overflow: hidden;
+  color: var(--text-normal);
 }
 
 .bible-verse-callout .bible-verse-header {
-  background: var(--bible-verse-bg-alt);
+  background: rgba(0, 0, 0, 0.05);
   padding: 0.4em 0.75em;
   display: flex;
   align-items: center;
   gap: 0.5em;
-  border-bottom: 1px solid var(--bible-verse-border);
+  border-bottom: 1px solid var(--background-modifier-border);
   font-weight: 600;
+  color: var(--text-normal);
+}
+
+/* Dark theme: lighter overlay for header */
+.theme-dark .bible-verse-callout .bible-verse-header {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .bible-verse-callout .bible-verse-icon {
@@ -91,25 +96,29 @@
 
 .bible-verse-callout .bible-verse-body {
   padding: 0.75em;
+  color: var(--text-normal);
 }
 
 .bible-verse-callout .bible-verse-copyright {
   padding: 0 0.75em 0.5em;
+  color: var(--text-muted);
 }
 
 /* ========================
    Blockquote Style
    ======================== */
 .bible-verse-blockquote {
-  border-left: 3px solid var(--bible-verse-border);
+  border-left: 3px solid var(--background-modifier-border);
   padding: 0.5em 0.75em 0.5em 1em;
-  background: var(--bible-verse-bg);
-  border-radius: 0 var(--bible-verse-radius) var(--bible-verse-radius) 0;
+  background: var(--background-secondary);
+  border-radius: 0 6px 6px 0;
   font-style: italic;
+  color: var(--text-normal);
 }
 
 .bible-verse-blockquote .bible-verse-footer {
   font-style: normal;
+  color: var(--text-normal);
 }
 
 /* ========================
@@ -118,10 +127,12 @@
 .bible-verse-inline {
   display: inline;
   margin: 0;
+  color: var(--text-normal);
 }
 
 .bible-verse-inline .bible-verse-text {
   display: inline;
+  color: var(--text-normal);
 }
 
 .bible-verse-inline .bible-verse-ref {
@@ -131,6 +142,7 @@
 .bible-verse-inline .bible-verse-copyright {
   display: inline;
   margin-left: 0.25em;
+  color: var(--text-muted);
 }
 
 /* ========================
@@ -143,6 +155,7 @@
 
 .bible-verse-link .bible-verse-ref {
   font-weight: 500;
+  color: var(--text-accent);
 }
 
 /* ========================
@@ -150,9 +163,9 @@
    ======================== */
 .bible-verse-error {
   color: var(--text-error, #e53e3e);
-  background: var(--background-modifier-error-rgb, rgba(229, 62, 62, 0.1));
+  background: rgba(229, 62, 62, 0.1);
   padding: 0.5em 0.75em;
-  border-radius: var(--bible-verse-radius);
+  border-radius: 6px;
   border-left: 3px solid var(--text-error, #e53e3e);
   font-size: 0.9em;
 }
@@ -162,18 +175,19 @@
    ======================== */
 .bible-verse-comparison {
   margin: 0.75em 0;
-  border: 1px solid var(--bible-verse-border);
-  border-radius: var(--bible-verse-radius);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
   overflow: hidden;
+  color: var(--text-normal);
 }
 
 .bible-verse-comparison-header {
-  background: var(--bible-verse-bg-alt);
+  background: var(--background-secondary);
   padding: 0.5em 0.75em;
   font-weight: 700;
-  border-bottom: 1px solid var(--bible-verse-border);
+  border-bottom: 1px solid var(--background-modifier-border);
   font-size: 1em;
-  color: var(--bible-verse-text);
+  color: var(--text-normal);
 }
 
 .bible-verse-comparison-grid {
@@ -184,7 +198,7 @@
 
 .bible-verse-comparison-col {
   padding: 0.75em;
-  border-right: 1px solid var(--bible-verse-border);
+  border-right: 1px solid var(--background-modifier-border);
 }
 
 .bible-verse-comparison-col:last-child {
@@ -197,11 +211,11 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5em;
-  color: var(--bible-verse-accent);
+  color: var(--interactive-accent);
 }
 
 .bible-verse-comparison-trans a {
-  color: var(--bible-verse-accent);
+  color: var(--interactive-accent);
   text-decoration: none;
 }
 
@@ -211,10 +225,12 @@
 
 .bible-verse-comparison-col .bible-verse-text {
   font-size: 0.93em;
+  color: var(--text-normal);
 }
 
 .bible-verse-comparison-col .bible-verse-copyright {
   margin-top: 0.5em;
+  color: var(--text-muted);
 }
 
 /* Responsive: stack columns on narrow views */
@@ -225,7 +241,7 @@
 
   .bible-verse-comparison-col {
     border-right: none;
-    border-bottom: 1px solid var(--bible-verse-border);
+    border-bottom: 1px solid var(--background-modifier-border);
   }
 
   .bible-verse-comparison-col:last-child {
