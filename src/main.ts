@@ -30,7 +30,7 @@ export default class BibleVersePlugin extends Plugin {
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
 
-    // Register the inline postprocessor for @[ref] syntax
+    // Register the inline postprocessor for bib:ref syntax
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
 
     // Register the ```bible code block processor
@@ -110,7 +110,7 @@ export default class BibleVersePlugin extends Plugin {
         const modal = new QuickInsertModal(this.app, (refStr, openInBrowser) => {
           const editor = this.app.workspace.activeEditor?.editor;
           if (editor) {
-            editor.replaceSelection(`@[${refStr}]`);
+            editor.replaceSelection(`bib:${refStr}`);
           }
           if (openInBrowser) {
             const ref = parseReference(refStr);
@@ -148,7 +148,7 @@ export default class BibleVersePlugin extends Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /@\[([^\]]+)\]/g;
+        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
@@ -202,20 +202,24 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
-   * Inline markdown postprocessor: finds @[ref] in rendered text and replaces them.
+   * Inline markdown postprocessor: finds bib:ref in rendered text and replaces them.
    */
   private async inlinePostProcessor(
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
-    // Find text nodes containing @[...]
+    // Early exit if already processed (prevents flicker from re-processing)
+    if (el.hasAttribute("data-bible-processed")) return;
+
+    // Find text nodes containing bib:...
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess: { node: Text; matches: RegExpMatchArray[] }[] = [];
 
+    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node: Text | null;
     while ((node = walker.nextNode() as Text | null)) {
       const text = node.textContent || "";
-      const matches = [...text.matchAll(/@\[([^\]]+)\]/g)];
+      const matches = [...text.matchAll(INLINE_REGEX)];
       if (matches.length > 0) {
         nodesToProcess.push({ node, matches });
       }
@@ -278,6 +282,11 @@ export default class BibleVersePlugin extends Plugin {
 
       node.parentNode?.replaceChild(frag, node);
     }
+
+    // Mark as processed to prevent re-processing (flicker fix)
+    if (nodesToProcess.length > 0) {
+      el.setAttribute("data-bible-processed", "true");
+    }
   }
 
   /**
@@ -312,7 +321,7 @@ export default class BibleVersePlugin extends Plugin {
     if (!verse) return;
 
     const content = await this.app.vault.read(file as any);
-    const refMarker = `@[${rawRef}]`;
+    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker)) return;
 
     const newContent = this.baker.bakeVerse(content, refMarker, verse);

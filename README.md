@@ -4,7 +4,7 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 
 ## Features
 
-- **Inline references** — Type `@[John 3:16]` anywhere in your notes to display a linked verse
+- **Inline references** — Type `bib:John 3:16` anywhere in your notes to display a linked verse
 - **Code block display** — Use ` ```bible ` blocks for full verse rendering with custom translation
 - **Comparison view** — Compare verses across multiple translations side by side
 - **Multiple display styles** — Sidebar, Callout, Blockquote, or Inline
@@ -32,13 +32,13 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 
 ### Inline Syntax
 
-Use `@[reference]` anywhere in your notes:
+Use `bib:reference` anywhere in your notes:
 
 ```
-@[John 3:16]
-@[1 Corinthians 13:4-7]
-@[Psalm 23]
-@[John 3:16-21,25]
+bib:John 3:16
+bib:1 Corinthians 13:4-7
+bib:Psalm 23
+bib:John 3:16-21,25
 ```
 
 ### Code Block
@@ -114,7 +114,7 @@ Some commercially-licensed translations (NIV, NLT, NKJV, ESV, etc.) are not avai
 When "Persist Verse Text" is enabled, fetched verse text is written directly into your note source:
 
 ```
-@[John 3:16]
+bib:John 3:16
 %%bible-baked|KJV%%
 For God so loved the world...
 %%end-bible%%
@@ -124,17 +124,17 @@ For God so loved the world...
 
 Three commands for fast Bible reference workflows. Assign hotkeys in **Settings → Hotkeys**.
 
-- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., "John 3:16") with real-time validation. On Enter, inserts `@[reference]` at the cursor. Optionally opens the verse on your preferred Bible site.
+- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., "John 3:16") with real-time validation. On Enter, inserts `bib:reference` at the cursor. Optionally opens the verse on your preferred Bible site.
 - **Search Bible for selected text** — Select any text in your note, then run this command to copy it to the clipboard and open a search on your preferred Bible website.
-- **Open reference at cursor on Bible site** — Place your cursor inside an `@[ref]` marker and run this command to open that reference on your preferred Bible website.
+- **Open reference at cursor on Bible site** — Place your cursor inside a `bib:ref` marker and run this command to open that reference on your preferred Bible website.
 
 ### Commands
 
-- **Bake all verses in this note** — Fetch and embed all `@[ref]` verses in the current note
+- **Bake all verses in this note** — Fetch and embed all `bib:ref` verses in the current note
 - **Refresh baked verses in this note** — Re-fetch and update all baked verses
 - **Refresh all baked verses in vault** — Re-fetch across all notes
-- **Bake all existing verses across vault** — Bake all `@[ref]` in every note
-- **Strip baked text from all notes** — Remove all baked text, keeping only `@[ref]` markers
+- **Bake all existing verses across vault** — Bake all `bib:ref` in every note
+- **Strip baked text from all notes** — Remove all baked text, keeping only `bib:ref` markers
 
 ## Supported Bible Websites
 

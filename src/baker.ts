@@ -2,12 +2,12 @@ import { App, TFile } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { parseReference, formatReference } from "./parser";
 
-/** Regex to find @[ref] patterns in note source */
-const INLINE_REF_REGEX = /@\[([^\]]+)\]/g;
+/** Regex to find bib:ref patterns in note source */
+const INLINE_REF_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
 
 /** Regex to find existing baked blocks */
 const BAKED_BLOCK_REGEX =
-  /(@\[[^\]]+\])\s*\n%%bible-baked\|([^%]+)%%\n([\s\S]*?)%%end-bible%%/g;
+  /(\bbib:[A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)\s*\n%%bible-baked\|([^%]+)%%\n([\s\S]*?)%%end-bible%%/g;
 
 /**
  * Handles baking (embedding) and unbaking verse text in note source.
@@ -20,7 +20,7 @@ export class Baker {
   }
 
   /**
-   * Extract all @[ref] references from note content.
+   * Extract all bib:ref references from note content.
    */
   extractReferences(content: string): { raw: string; ref: BibleReference; offset: number }[] {
     const results: { raw: string; ref: BibleReference; offset: number }[] = [];
@@ -36,7 +36,7 @@ export class Baker {
   }
 
   /**
-   * Bake a verse into the note content after its @[ref].
+   * Bake a verse into the note content after its bib:ref.
    * If already baked, update the baked block.
    */
   bakeVerse(content: string, refRaw: string, verse: CachedVerse): string {
@@ -53,12 +53,12 @@ export class Baker {
       return content.replace(existingPattern, refRaw + bakedBlock);
     }
 
-    // Not yet baked — insert after the @[ref]
+    // Not yet baked — insert after the bib:ref
     return content.replace(refRaw, refRaw + bakedBlock);
   }
 
   /**
-   * Strip all baked blocks from note content, leaving just the @[ref] markers.
+   * Strip all baked blocks from note content, leaving just the bib:ref markers.
    */
   stripBakedText(content: string): string {
     return content.replace(
@@ -68,7 +68,7 @@ export class Baker {
   }
 
   /**
-   * Check if a @[ref] has a baked block following it.
+   * Check if a bib:ref has a baked block following it.
    */
   hasBakedBlock(content: string, refRaw: string): boolean {
     const pattern = new RegExp(

@@ -173,6 +173,7 @@
   font-weight: 700;
   border-bottom: 1px solid var(--bible-verse-border);
   font-size: 1em;
+  color: var(--bible-verse-text);
 }
 
 .bible-verse-comparison-grid {

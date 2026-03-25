@@ -808,13 +808,13 @@ var VerseCache = class {
 };
 
 // src/baker.ts
-var INLINE_REF_REGEX = /@\[([^\]]+)\]/g;
+var INLINE_REF_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
 var Baker = class {
   constructor(app) {
     this.app = app;
   }
   /**
-   * Extract all @[ref] references from note content.
+   * Extract all bib:ref references from note content.
    */
   extractReferences(content) {
     const results = [];
@@ -829,7 +829,7 @@ var Baker = class {
     return results;
   }
   /**
-   * Bake a verse into the note content after its @[ref].
+   * Bake a verse into the note content after its bib:ref.
    * If already baked, update the baked block.
    */
   bakeVerse(content, refRaw, verse) {
@@ -847,7 +847,7 @@ ${verse.text}
     return content.replace(refRaw, refRaw + bakedBlock);
   }
   /**
-   * Strip all baked blocks from note content, leaving just the @[ref] markers.
+   * Strip all baked blocks from note content, leaving just the bib:ref markers.
    */
   stripBakedText(content) {
     return content.replace(
@@ -856,7 +856,7 @@ ${verse.text}
     );
   }
   /**
-   * Check if a @[ref] has a baked block following it.
+   * Check if a bib:ref has a baked block following it.
    */
   hasBakedBlock(content, refRaw) {
     const pattern = new RegExp(
@@ -1295,7 +1295,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           var _a;
           const editor = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor;
           if (editor) {
-            editor.replaceSelection(`@[${refStr}]`);
+            editor.replaceSelection(`bib:${refStr}`);
           }
           if (openInBrowser) {
             const ref = parseReference(refStr);
@@ -1331,7 +1331,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /@\[([^\]]+)\]/g;
+        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
@@ -1381,16 +1381,19 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     }
   }
   /**
-   * Inline markdown postprocessor: finds @[ref] in rendered text and replaces them.
+   * Inline markdown postprocessor: finds bib:ref in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
     var _a;
+    if (el.hasAttribute("data-bible-processed"))
+      return;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
+    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node;
     while (node = walker.nextNode()) {
       const text = node.textContent || "";
-      const matches = [...text.matchAll(/@\[([^\]]+)\]/g)];
+      const matches = [...text.matchAll(INLINE_REGEX)];
       if (matches.length > 0) {
         nodesToProcess.push({ node, matches });
       }
@@ -1437,6 +1440,9 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       }
       (_a = node2.parentNode) == null ? void 0 : _a.replaceChild(frag, node2);
     }
+    if (nodesToProcess.length > 0) {
+      el.setAttribute("data-bible-processed", "true");
+    }
   }
   /**
    * Fetch a verse and update the rendered element.
@@ -1465,7 +1471,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     if (!verse)
       return;
     const content = await this.app.vault.read(file);
-    const refMarker = `@[${rawRef}]`;
+    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker))
       return;
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
