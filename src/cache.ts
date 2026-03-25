@@ -19,7 +19,7 @@ export class VerseCache {
 
   /** Build a cache key from translation and reference */
   private key(translation: string, reference: string): string {
-    return `${translation}:${reference}`.toLowerCase().replace(/\s+/g, "_");
+    return `${translation}_${reference}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
 
   /** Load the full cache index from disk */
@@ -65,6 +65,14 @@ export class VerseCache {
     }
 
     const filePath = `${this.cacheDir}/${k}.json`;
+    // Ensure parent directory exists (adapter.write doesn't create intermediates)
+    const parentDir = filePath.substring(0, filePath.lastIndexOf("/"));
+    if (parentDir !== this.cacheDir) {
+      const parentExists = await adapter.exists(parentDir);
+      if (!parentExists) {
+        await adapter.mkdir(parentDir);
+      }
+    }
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
 

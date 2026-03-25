@@ -139,7 +139,12 @@ export class BibleApi {
       fetchedAt: Date.now(),
     };
 
-    await this.cache.set(entry);
+    // Cache write failure should never prevent verse display
+    try {
+      await this.cache.set(entry);
+    } catch (e) {
+      console.warn("Bible Verse: Failed to cache verse", e);
+    }
     return entry;
   }
 }

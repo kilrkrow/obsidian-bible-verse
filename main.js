@@ -732,7 +732,11 @@ var BibleApi = class {
       copyright,
       fetchedAt: Date.now()
     };
-    await this.cache.set(entry);
+    try {
+      await this.cache.set(entry);
+    } catch (e) {
+      console.warn("Bible Verse: Failed to cache verse", e);
+    }
     return entry;
   }
 };
@@ -747,7 +751,7 @@ var VerseCache = class {
   }
   /** Build a cache key from translation and reference */
   key(translation, reference) {
-    return `${translation}:${reference}`.toLowerCase().replace(/\s+/g, "_");
+    return `${translation}_${reference}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
   /** Load the full cache index from disk */
   async load() {
@@ -787,6 +791,13 @@ var VerseCache = class {
       await adapter.mkdir(this.cacheDir);
     }
     const filePath = `${this.cacheDir}/${k}.json`;
+    const parentDir = filePath.substring(0, filePath.lastIndexOf("/"));
+    if (parentDir !== this.cacheDir) {
+      const parentExists = await adapter.exists(parentDir);
+      if (!parentExists) {
+        await adapter.mkdir(parentDir);
+      }
+    }
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
   /** Check if a verse is cached */
