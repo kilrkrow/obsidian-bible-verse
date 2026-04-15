@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => BibleVersePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -819,7 +819,7 @@ var VerseCache = class {
 };
 
 // src/baker.ts
-var INLINE_REF_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+var INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var Baker = class {
   constructor(app) {
     this.app = app;
@@ -1205,7 +1205,7 @@ var QuickInsertModal = class extends import_obsidian3.Modal {
       if (e.key === "Enter") {
         const ref = parseReference(inputValue);
         if (ref) {
-          this.onSubmit(formatReference(ref), openInBrowser);
+          this.onSubmit(`{${formatReference(ref)}}`, openInBrowser);
           this.close();
         }
       }
@@ -1219,8 +1219,128 @@ var QuickInsertModal = class extends import_obsidian3.Modal {
   }
 };
 
+// src/suggest.ts
+var import_obsidian4 = require("obsidian");
+var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
+  constructor(app, plugin) {
+    super(app);
+    // Canonical book list in canonical order (Genesis → Revelation)
+    this.books = Object.keys(USFM_CODES);
+    this.plugin = plugin;
+    this.limit = 10;
+  }
+  /**
+   * Decide whether to show suggestions for the current cursor position.
+   * Returns null if the cursor is not inside an unclosed {…} block.
+   */
+  onTrigger(cursor, editor, _file) {
+    const line = editor.getLine(cursor.line);
+    const beforeCursor = line.substring(0, cursor.ch);
+    const openBrace = beforeCursor.lastIndexOf("{");
+    if (openBrace === -1)
+      return null;
+    const afterOpen = beforeCursor.substring(openBrace + 1);
+    if (afterOpen.includes("}"))
+      return null;
+    if (afterOpen.length === 0)
+      return null;
+    return {
+      start: { line: cursor.line, ch: openBrace + 1 },
+      end: cursor,
+      query: afterOpen
+    };
+  }
+  /**
+   * Return matching suggestions for the current query.
+   *
+   * If the query already parses as a valid Bible reference, returns it as a
+   * single "confirm" suggestion so the user can press Enter to close the block.
+   * Otherwise, returns matching book names.
+   */
+  getSuggestions(context) {
+    const query = context.query.trim();
+    if (query.length === 0)
+      return [];
+    if (/\d/.test(query)) {
+      const ref = parseReference(query);
+      if (ref) {
+        return [formatReference(ref)];
+      }
+    }
+    const typed = query.toLowerCase();
+    const results = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const book of this.books) {
+      if (book.toLowerCase().startsWith(typed)) {
+        results.push(book);
+        seen.add(book);
+      }
+    }
+    for (const [alias, canonical] of Object.entries(BOOK_ALIASES)) {
+      if (!seen.has(canonical) && alias.startsWith(typed)) {
+        results.push(canonical);
+        seen.add(canonical);
+      }
+    }
+    if (results.length < 5) {
+      for (const book of this.books) {
+        if (!seen.has(book) && book.toLowerCase().includes(typed)) {
+          results.push(book);
+          seen.add(book);
+        }
+      }
+    }
+    return results.slice(0, this.limit);
+  }
+  /** Render a single suggestion row in the dropdown. */
+  renderSuggestion(value, el) {
+    el.createEl("span", { cls: "bible-suggest-icon", text: "\u{1F4D6} " });
+    el.createEl("span", { cls: "bible-suggest-text", text: value });
+  }
+  /**
+   * Insert the selected suggestion into the editor.
+   *
+   * - Complete reference (has a digit): replaces the typed content and closes
+   *   the braces, moving the cursor past the }.
+   * - Book name only: replaces the typed content with "Book " so the user can
+   *   continue typing the chapter and verse.
+   */
+  selectSuggestion(value, _evt) {
+    const { context } = this;
+    if (!context)
+      return;
+    const editor = context.editor;
+    const line = editor.getLine(context.start.line);
+    const charAfterEnd = line[context.end.ch];
+    const hasClosingBrace = charAfterEnd === "}";
+    const isCompleteRef = /\d/.test(value);
+    if (isCompleteRef) {
+      if (hasClosingBrace) {
+        editor.replaceRange(value, context.start, context.end);
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + value.length + 1
+          // +1 to land after the }
+        });
+      } else {
+        editor.replaceRange(value + "}", context.start, context.end);
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + value.length + 1
+        });
+      }
+    } else {
+      editor.replaceRange(value + " ", context.start, context.end);
+      editor.setCursor({
+        line: context.start.line,
+        ch: context.start.ch + value.length + 1
+      });
+    }
+  }
+};
+
 // src/main.ts
-var BibleVersePlugin = class extends import_obsidian4.Plugin {
+var BibleVersePlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -1235,6 +1355,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
+    this.registerEditorSuggest(new BibleReferenceSuggest(this.app, this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
     this.addCommand({
@@ -1248,9 +1369,9 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
         );
         if (newContent !== content) {
           editor.setValue(newContent);
-          new import_obsidian4.Notice("Bible verses baked into note.");
+          new import_obsidian5.Notice("Bible verses baked into note.");
         } else {
-          new import_obsidian4.Notice("No verses to bake.");
+          new import_obsidian5.Notice("No verses to bake.");
         }
       }
     });
@@ -1265,7 +1386,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           (ref) => this.fetchVerse(ref)
         );
         editor.setValue(newContent);
-        new import_obsidian4.Notice("Bible verses refreshed.");
+        new import_obsidian5.Notice("Bible verses refreshed.");
       }
     });
     this.addCommand({
@@ -1276,7 +1397,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian4.Notice(`Refreshed baked verses in ${count} files.`);
+        new import_obsidian5.Notice(`Refreshed baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1287,7 +1408,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian4.Notice(`Baked verses in ${count} files.`);
+        new import_obsidian5.Notice(`Baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1295,7 +1416,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       name: "Strip baked text from all notes",
       callback: async () => {
         const count = await this.baker.processVault("strip");
-        new import_obsidian4.Notice(`Stripped baked text from ${count} files.`);
+        new import_obsidian5.Notice(`Stripped baked text from ${count} files.`);
       }
     });
     this.addCommand({
@@ -1306,10 +1427,11 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           var _a;
           const editor = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor;
           if (editor) {
-            editor.replaceSelection(`bib:${refStr}`);
+            editor.replaceSelection(refStr);
           }
           if (openInBrowser) {
-            const ref = parseReference(refStr);
+            const inner = refStr.replace(/^\{|\}$/g, "");
+            const ref = parseReference(inner);
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -1326,11 +1448,11 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       editorCallback: (editor) => {
         const selection = editor.getSelection();
         if (!selection || selection.trim().length === 0) {
-          new import_obsidian4.Notice("No text selected.");
+          new import_obsidian5.Notice("No text selected.");
           return;
         }
         navigator.clipboard.writeText(selection.trim());
-        new import_obsidian4.Notice("Copied to clipboard. Opening search...");
+        new import_obsidian5.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
         window.open(url, "_blank");
@@ -1342,13 +1464,13 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+        const regex = /\{([A-Za-z0-9][^}\n]*)\}/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
           if (cursor.ch >= start && cursor.ch <= end) {
-            const ref = parseReference(match[1]);
+            const ref = parseReference(match[1].trim());
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -1357,7 +1479,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
             }
           }
         }
-        new import_obsidian4.Notice("No Bible reference found at cursor.");
+        new import_obsidian5.Notice("No Bible reference found at cursor.");
       }
     });
   }
@@ -1396,11 +1518,9 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
    */
   async inlinePostProcessor(el, ctx) {
     var _a;
-    if (el.hasAttribute("data-bible-processed"))
-      return;
+    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
-    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node;
     while (node = walker.nextNode()) {
       const text = node.textContent || "";
@@ -1418,7 +1538,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
         if (matchIndex > lastIndex) {
           frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
         }
-        const refStr = match[1];
+        const refStr = match[1].trim();
         const ref = parseReference(refStr);
         if (ref) {
           const span = document.createElement("span");
@@ -1426,20 +1546,14 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           const abbr = this.getTranslationAbbr();
           const cached = this.cache.get(abbr, formatReference(ref));
           if (cached) {
-            renderVerse(
-              span,
-              ref,
-              cached,
-              this.settings.displayStyle,
-              this.settings.preferredWebsite
-            );
+            renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
           } else {
             renderLink(span, ref, abbr, this.settings.preferredWebsite);
             this.fetchAndRender(span, ref);
           }
           frag.appendChild(span);
           if (this.settings.persistVerseText) {
-            this.handleBake(ctx, refStr, ref);
+            this.handleBake(ctx, match[0], ref);
           }
         } else {
           frag.appendChild(document.createTextNode(match[0]));
@@ -1450,9 +1564,6 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
       (_a = node2.parentNode) == null ? void 0 : _a.replaceChild(frag, node2);
-    }
-    if (nodesToProcess.length > 0) {
-      el.setAttribute("data-bible-processed", "true");
     }
   }
   /**
@@ -1474,7 +1585,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
   /**
    * Handle automatic baking when persistVerseText is on.
    */
-  async handleBake(ctx, rawRef, ref) {
+  async handleBake(ctx, refMarker, ref) {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!file || !(file instanceof (await import("obsidian")).TFile))
       return;
@@ -1482,7 +1593,6 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     if (!verse)
       return;
     const content = await this.app.vault.read(file);
-    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker))
       return;
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
@@ -1494,6 +1604,8 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
    * Code block processor for ```bible blocks.
    */
   async codeBlockProcessor(source, el, ctx) {
+    el.empty();
+    ctx.addChild(new import_obsidian5.MarkdownRenderChild(el));
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");

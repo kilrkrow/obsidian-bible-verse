@@ -48,7 +48,8 @@ export class QuickInsertModal extends Modal {
       if (e.key === "Enter") {
         const ref = parseReference(inputValue);
         if (ref) {
-          this.onSubmit(formatReference(ref), openInBrowser);
+          // Wrap in curly braces so it matches the {ref} inline syntax
+          this.onSubmit(`{${formatReference(ref)}}`, openInBrowser);
           this.close();
         }
       }

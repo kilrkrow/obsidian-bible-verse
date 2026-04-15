@@ -1,4 +1,4 @@
-import { MarkdownPostProcessorContext, Notice, Plugin } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin } from "obsidian";
 import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse } from "./types";
 import { parseReference, formatReference } from "./parser";
 import { BibleApi } from "./api";
@@ -13,6 +13,7 @@ import {
 } from "./renderer";
 import { generateLink, generateSearchUrl } from "./linker";
 import { QuickInsertModal } from "./quick-insert-modal";
+import { BibleReferenceSuggest } from "./suggest";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
 
 export default class BibleVersePlugin extends Plugin {
@@ -30,8 +31,11 @@ export default class BibleVersePlugin extends Plugin {
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
 
-    // Register the inline postprocessor for bib:ref syntax
+    // Register the inline postprocessor for {ref} syntax
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
+
+    // Register the IntelliSense suggester for {ref} syntax
+    this.registerEditorSuggest(new BibleReferenceSuggest(this.app, this));
 
     // Register the ```bible code block processor
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
@@ -110,10 +114,13 @@ export default class BibleVersePlugin extends Plugin {
         const modal = new QuickInsertModal(this.app, (refStr, openInBrowser) => {
           const editor = this.app.workspace.activeEditor?.editor;
           if (editor) {
-            editor.replaceSelection(`bib:${refStr}`);
+            // refStr is already wrapped as "{John 3:16}" by the modal
+            editor.replaceSelection(refStr);
           }
           if (openInBrowser) {
-            const ref = parseReference(refStr);
+            // Strip braces to parse the reference for the browser link
+            const inner = refStr.replace(/^\{|\}$/g, "");
+            const ref = parseReference(inner);
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -148,13 +155,13 @@ export default class BibleVersePlugin extends Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+        const regex = /\{([A-Za-z0-9][^}\n]*)\}/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
           if (cursor.ch >= start && cursor.ch <= end) {
-            const ref = parseReference(match[1]);
+            const ref = parseReference(match[1].trim());
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -208,14 +215,15 @@ export default class BibleVersePlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
-    // Early exit if already processed (prevents flicker from re-processing)
-    if (el.hasAttribute("data-bible-processed")) return;
+    // Match {Book Chapter:Verse} syntax — curly braces are unambiguous in
+    // Obsidian markdown and will never be mis-detected as URI schemes.
+    // No antiflicker guard: once a {ref} text node is replaced with a span the
+    // regex no longer matches, so re-runs are safely no-ops.
+    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
-    // Find text nodes containing bib:...
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess: { node: Text; matches: RegExpMatchArray[] }[] = [];
 
-    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node: Text | null;
     while ((node = walker.nextNode() as Text | null)) {
       const text = node.textContent || "";
@@ -232,60 +240,48 @@ export default class BibleVersePlugin extends Plugin {
 
       for (const match of matches) {
         const matchIndex = match.index!;
-        // Add text before the match
+        // Preserve any text before this match
         if (matchIndex > lastIndex) {
           frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
         }
 
-        const refStr = match[1];
+        const refStr = match[1].trim();
         const ref = parseReference(refStr);
 
         if (ref) {
           const span = document.createElement("span");
           span.className = "bible-verse-container";
 
-          // Try cache first, then fetch
+          // Serve from cache instantly; otherwise show a link placeholder and
+          // fetch asynchronously to avoid blocking the render.
           const abbr = this.getTranslationAbbr();
           const cached = this.cache.get(abbr, formatReference(ref));
           if (cached) {
-            renderVerse(
-              span,
-              ref,
-              cached,
-              this.settings.displayStyle,
-              this.settings.preferredWebsite
-            );
+            renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
           } else {
-            // Render a link placeholder, then fetch async
             renderLink(span, ref, abbr, this.settings.preferredWebsite);
             this.fetchAndRender(span, ref);
           }
 
           frag.appendChild(span);
 
-          // Handle bake mode
           if (this.settings.persistVerseText) {
-            this.handleBake(ctx, refStr, ref);
+            // Pass the full matched token e.g. "{John 3:16}" as the marker
+            this.handleBake(ctx, match[0], ref);
           }
         } else {
-          // Not a valid reference, keep as text
+          // Not a parseable reference — leave the text unchanged
           frag.appendChild(document.createTextNode(match[0]));
         }
 
         lastIndex = matchIndex + match[0].length;
       }
 
-      // Add remaining text
       if (lastIndex < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
 
       node.parentNode?.replaceChild(frag, node);
-    }
-
-    // Mark as processed to prevent re-processing (flicker fix)
-    if (nodesToProcess.length > 0) {
-      el.setAttribute("data-bible-processed", "true");
     }
   }
 
@@ -311,7 +307,7 @@ export default class BibleVersePlugin extends Plugin {
    */
   private async handleBake(
     ctx: MarkdownPostProcessorContext,
-    rawRef: string,
+    refMarker: string,  // The full matched text as it appears in the note, e.g. "bib: John 3:16"
     ref: BibleReference
   ): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
@@ -321,7 +317,6 @@ export default class BibleVersePlugin extends Plugin {
     if (!verse) return;
 
     const content = await this.app.vault.read(file as any);
-    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker)) return;
 
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
@@ -338,6 +333,12 @@ export default class BibleVersePlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
+    // Clear any stale content and register with Obsidian's render lifecycle.
+    // This ensures the block is properly torn down and re-rendered when the
+    // source changes (fixes the "edited code block doesn't refresh" bug).
+    el.empty();
+    ctx.addChild(new MarkdownRenderChild(el));
+
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");
