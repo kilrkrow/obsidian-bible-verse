@@ -6,52 +6,141 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import type BibleVersePlugin from "./main";
-import { parseInlineSpec } from "./parser";
-import { formatReference } from "./parser";
+import { parseInlineSpec, formatReference } from "./parser";
+import { BibleReference, CachedVerse } from "./types";
+import { renderVerse, renderError } from "./renderer";
 
 // Matches {…} inline tokens (same pattern as inlinePostProcessor)
 const INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
 /**
- * A lightweight pill widget shown in Live Preview mode when the cursor is
- * not inside the {ref} token. Clicking the pill opens the reference on the
- * configured Bible website.
+ * Dispatched to the EditorView when an async verse fetch completes, so the
+ * ViewPlugin knows to rebuild decorations and show the freshly-cached verse.
  */
-class BibleRefWidget extends WidgetType {
+export const verseFetchedEffect = StateEffect.define<void>();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Live Preview widget for a {ref} token.
+ *
+ * - If the verse is already cached: renders the full verse immediately.
+ * - If not cached: shows a link pill placeholder and kicks off a fetch;
+ *   when the fetch completes it updates the DOM in place AND dispatches a
+ *   verseFetchedEffect so the ViewPlugin rebuilds decorations (showing the
+ *   cached verse from that point on).
+ */
+class BibleVerseWidget extends WidgetType {
   constructor(
-    private readonly label: string,
-    private readonly href: string
+    private readonly spec: {
+      label: string;
+      href: string;
+      ref: BibleReference;
+      translations: string[];
+      cachedVerse: CachedVerse | null;
+      plugin: BibleVersePlugin;
+    }
   ) {
     super();
   }
 
-  toDOM(_view: EditorView): HTMLElement {
-    const anchor = document.createElement("a");
-    anchor.className = "bible-verse-pill";
-    anchor.href = this.href;
-    anchor.textContent = "\uD83D\uDCD6 " + this.label; // 📖 + label
-    anchor.target = "_blank";
-    anchor.rel = "noopener";
-    // Prevent CM6 from treating this click as a selection event
-    anchor.addEventListener("mousedown", (e) => e.preventDefault());
-    return anchor;
+  toDOM(view: EditorView): HTMLElement {
+    const container = document.createElement("span");
+    container.className = "bible-verse-livepreview";
+
+    if (this.spec.cachedVerse) {
+      renderVerse(
+        container,
+        this.spec.ref,
+        this.spec.cachedVerse,
+        this.spec.plugin.settings.displayStyle,
+        this.spec.plugin.settings.preferredWebsite
+      );
+    } else {
+      // Placeholder pill
+      this.renderPill(container);
+      // Async fetch — update DOM in place, then signal the ViewPlugin
+      this.fetchAndUpdate(container, view);
+    }
+
+    return container;
   }
 
-  /** Allow click events to pass through to the DOM element. */
+  private renderPill(container: HTMLElement): void {
+    const a = document.createElement("a");
+    a.className = "bible-verse-pill";
+    a.textContent = "\uD83D\uDCD6 " + this.spec.label; // 📖 label
+    a.href = this.spec.href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.addEventListener("mousedown", (e) => e.preventDefault());
+    container.appendChild(a);
+  }
+
+  private async fetchAndUpdate(container: HTMLElement, view: EditorView): Promise<void> {
+    const { plugin, ref, translations } = this.spec;
+
+    try {
+      let verse: CachedVerse;
+
+      if (translations.length >= 2) {
+        // For comparison mode in live preview we just show the first translation
+        const id = plugin.resolveTranslationIdPublic(translations[0]);
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      } else {
+        const id = translations.length === 1
+          ? plugin.resolveTranslationIdPublic(translations[0])
+          : plugin.settings.defaultTranslation;
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      }
+
+      // Update the DOM in place (visible immediately)
+      container.empty();
+      renderVerse(
+        container,
+        ref,
+        verse,
+        plugin.settings.displayStyle,
+        plugin.settings.preferredWebsite
+      );
+
+      // Signal the ViewPlugin so future decoration builds use the cache
+      view.dispatch({ effects: verseFetchedEffect.of(undefined) });
+    } catch (e) {
+      console.error("Bible Verse Live Preview: fetch failed", e);
+      container.empty();
+      renderError(container, `Could not load ${formatReference(ref)}.`);
+    }
+  }
+
+  /**
+   * Two widgets are equal if they would render identically.
+   * Comparing cachedVerse reference is enough — once a verse enters the cache
+   * the same object is returned on subsequent lookups.
+   */
+  eq(other: BibleVerseWidget): boolean {
+    return (
+      this.spec.label === other.spec.label &&
+      this.spec.cachedVerse === other.spec.cachedVerse
+    );
+  }
+
+  /** Allow link clicks and other events to pass through. */
   ignoreEvent(event: Event): boolean {
-    return event.type === "mousedown" || event.type === "click";
-  }
-
-  eq(other: BibleRefWidget): boolean {
-    return this.label === other.label && this.href === other.href;
+    return event.type !== "mousedown";
   }
 }
 
-/**
- * Returns true if any selection range overlaps [from, to].
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 function selectionOverlaps(
   ranges: readonly { from: number; to: number }[],
   from: number,
@@ -63,13 +152,18 @@ function selectionOverlaps(
   return false;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ViewPlugin factory
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Build a CM6 ViewPlugin that decorates {ref}, {ref, TRANS}, and
- * {ref, TRANS1, TRANS2} tokens in Live Preview.
+ * Build a CM6 ViewPlugin that decorates {ref} tokens in Live Preview.
  *
- * Behaviour:
- *   - When the cursor is NOT inside the token → replace with a clickable pill.
- *   - When the cursor IS inside the token → show raw text for editing.
+ * - Cursor inside token  → raw text shown for editing.
+ * - Cursor outside token → replaced by a BibleVerseWidget:
+ *     • cached verse  → full verse rendered inline
+ *     • uncached      → pill link placeholder; async fetch updates the DOM
+ *       and dispatches verseFetchedEffect to trigger decoration rebuild.
  */
 export function buildViewPlugin(plugin: BibleVersePlugin) {
   return ViewPlugin.fromClass(
@@ -81,7 +175,15 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
       }
 
       update(update: ViewUpdate): void {
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        const needsRebuild =
+          update.docChanged ||
+          update.viewportChanged ||
+          update.selectionSet ||
+          update.transactions.some((tr) =>
+            tr.effects.some((e) => e.is(verseFetchedEffect))
+          );
+
+        if (needsRebuild) {
           this.decorations = this.buildDecorations(update.view);
         }
       }
@@ -99,8 +201,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const tokenStart = from + match.index;
             const tokenEnd = tokenStart + match[0].length;
 
-            // Don't decorate if the cursor is anywhere inside the token
-            // (let the user see and edit the raw text).
+            // Keep raw text when cursor is inside the token
             if (selectionOverlaps(selections, tokenStart, tokenEnd)) continue;
 
             const content = match[1].trim();
@@ -110,28 +211,44 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const { ref, translations } = spec;
             const refLabel = formatReference(ref);
 
-            // Build the display label including translation hint(s)
+            // Resolve translation and check cache
+            let translationId: string;
+            let abbr: string;
+            if (translations.length >= 1) {
+              translationId = plugin.resolveTranslationIdPublic(translations[0]);
+              abbr = plugin.getTranslationAbbrPublic(translationId);
+            } else {
+              translationId = plugin.settings.defaultTranslation;
+              abbr = plugin.getTranslationAbbrPublic();
+            }
+
+            const cachedVerse = plugin.cache.get(abbr, refLabel) ?? null;
+
+            // Build display label and href for the placeholder/widget header
             let label: string;
-            let href: string;
             if (translations.length === 0) {
               label = refLabel;
-              const abbr = plugin.getTranslationAbbrPublic();
-              href = plugin.generateLinkPublic(ref, abbr);
             } else if (translations.length === 1) {
               label = `${refLabel} (${translations[0]})`;
-              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
-              href = plugin.generateLinkPublic(ref, abbr);
             } else {
-              // Comparison: show first translation's link
               label = `${refLabel} (${translations.join(" | ")})`;
-              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
-              href = plugin.generateLinkPublic(ref, abbr);
             }
+
+            const href = plugin.generateLinkPublic(ref, abbr);
+
+            const widget = new BibleVerseWidget({
+              label,
+              href,
+              ref,
+              translations,
+              cachedVerse,
+              plugin,
+            });
 
             builder.add(
               tokenStart,
               tokenEnd,
-              Decoration.replace({ widget: new BibleRefWidget(label, href) })
+              Decoration.replace({ widget })
             );
           }
         }

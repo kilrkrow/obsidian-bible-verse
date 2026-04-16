@@ -1372,28 +1372,78 @@ var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
 var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
-var BibleRefWidget = class extends import_view.WidgetType {
-  constructor(label, href) {
+var verseFetchedEffect = import_state.StateEffect.define();
+var BibleVerseWidget = class extends import_view.WidgetType {
+  constructor(spec) {
     super();
-    this.label = label;
-    this.href = href;
+    this.spec = spec;
   }
-  toDOM(_view) {
-    const anchor = document.createElement("a");
-    anchor.className = "bible-verse-pill";
-    anchor.href = this.href;
-    anchor.textContent = "\u{1F4D6} " + this.label;
-    anchor.target = "_blank";
-    anchor.rel = "noopener";
-    anchor.addEventListener("mousedown", (e) => e.preventDefault());
-    return anchor;
+  toDOM(view) {
+    const container = document.createElement("span");
+    container.className = "bible-verse-livepreview";
+    if (this.spec.cachedVerse) {
+      renderVerse(
+        container,
+        this.spec.ref,
+        this.spec.cachedVerse,
+        this.spec.plugin.settings.displayStyle,
+        this.spec.plugin.settings.preferredWebsite
+      );
+    } else {
+      this.renderPill(container);
+      this.fetchAndUpdate(container, view);
+    }
+    return container;
   }
-  /** Allow click events to pass through to the DOM element. */
-  ignoreEvent(event) {
-    return event.type === "mousedown" || event.type === "click";
+  renderPill(container) {
+    const a = document.createElement("a");
+    a.className = "bible-verse-pill";
+    a.textContent = "\u{1F4D6} " + this.spec.label;
+    a.href = this.spec.href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.addEventListener("mousedown", (e) => e.preventDefault());
+    container.appendChild(a);
   }
+  async fetchAndUpdate(container, view) {
+    const { plugin, ref, translations } = this.spec;
+    try {
+      let verse;
+      if (translations.length >= 2) {
+        const id = plugin.resolveTranslationIdPublic(translations[0]);
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      } else {
+        const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      }
+      container.empty();
+      renderVerse(
+        container,
+        ref,
+        verse,
+        plugin.settings.displayStyle,
+        plugin.settings.preferredWebsite
+      );
+      view.dispatch({ effects: verseFetchedEffect.of(void 0) });
+    } catch (e) {
+      console.error("Bible Verse Live Preview: fetch failed", e);
+      container.empty();
+      renderError(container, `Could not load ${formatReference(ref)}.`);
+    }
+  }
+  /**
+   * Two widgets are equal if they would render identically.
+   * Comparing cachedVerse reference is enough — once a verse enters the cache
+   * the same object is returned on subsequent lookups.
+   */
   eq(other) {
-    return this.label === other.label && this.href === other.href;
+    return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse;
+  }
+  /** Allow link clicks and other events to pass through. */
+  ignoreEvent(event) {
+    return event.type !== "mousedown";
   }
 };
 function selectionOverlaps(ranges, from, to) {
@@ -1410,11 +1460,15 @@ function buildViewPlugin(plugin) {
         this.decorations = this.buildDecorations(view);
       }
       update(update) {
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        const needsRebuild = update.docChanged || update.viewportChanged || update.selectionSet || update.transactions.some(
+          (tr) => tr.effects.some((e) => e.is(verseFetchedEffect))
+        );
+        if (needsRebuild) {
           this.decorations = this.buildDecorations(update.view);
         }
       }
       buildDecorations(view) {
+        var _a;
         const builder = new import_state.RangeSetBuilder();
         const selections = view.state.selection.ranges;
         for (const { from, to } of view.visibleRanges) {
@@ -1432,25 +1486,37 @@ function buildViewPlugin(plugin) {
               continue;
             const { ref, translations } = spec;
             const refLabel = formatReference(ref);
+            let translationId;
+            let abbr;
+            if (translations.length >= 1) {
+              translationId = plugin.resolveTranslationIdPublic(translations[0]);
+              abbr = plugin.getTranslationAbbrPublic(translationId);
+            } else {
+              translationId = plugin.settings.defaultTranslation;
+              abbr = plugin.getTranslationAbbrPublic();
+            }
+            const cachedVerse = (_a = plugin.cache.get(abbr, refLabel)) != null ? _a : null;
             let label;
-            let href;
             if (translations.length === 0) {
               label = refLabel;
-              const abbr = plugin.getTranslationAbbrPublic();
-              href = plugin.generateLinkPublic(ref, abbr);
             } else if (translations.length === 1) {
               label = `${refLabel} (${translations[0]})`;
-              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
-              href = plugin.generateLinkPublic(ref, abbr);
             } else {
               label = `${refLabel} (${translations.join(" | ")})`;
-              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
-              href = plugin.generateLinkPublic(ref, abbr);
             }
+            const href = plugin.generateLinkPublic(ref, abbr);
+            const widget = new BibleVerseWidget({
+              label,
+              href,
+              ref,
+              translations,
+              cachedVerse,
+              plugin
+            });
             builder.add(
               tokenStart,
               tokenEnd,
-              import_view.Decoration.replace({ widget: new BibleRefWidget(label, href) })
+              import_view.Decoration.replace({ widget })
             );
           }
         }
