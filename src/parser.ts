@@ -100,6 +100,75 @@ export function parseReference(input: string): BibleReference | null {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Inline spec parser — handles {ref}, {ref, TRANS}, {ref, TRANS1, TRANS2}
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Parsed result for a {…} inline token.
+ *
+ * translations:
+ *   []         → use the plugin's default translation
+ *   [T]        → display using translation T
+ *   [T1, T2]   → render a side-by-side comparison of T1 and T2
+ */
+export interface InlineSpec {
+  ref: BibleReference;
+  translations: string[];
+}
+
+/** A translation code is word-chars only and must start with a letter. */
+const TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
+
+/**
+ * Parse the content inside {…} brackets into a structured spec.
+ *
+ * Supported formats (examples):
+ *   "John 3:16"              → { ref, translations: [] }
+ *   "John 3:16, KJV"         → { ref, translations: ["KJV"] }
+ *   "John 3:16, KJV, DARBY"  → { ref, translations: ["KJV", "DARBY"] }
+ *   "John 3:16,17, KJV"      → { ref(John 3:16-17), translations: ["KJV"] }
+ *
+ * Returns null if the content cannot be parsed as a valid reference.
+ */
+export function parseInlineSpec(content: string): InlineSpec | null {
+  const trimmed = content.trim();
+
+  // 1. Try the entire string as a plain reference first (handles additional
+  //    verse lists like "John 3:16,17" without mis-reading "17" as a trans).
+  const simpleRef = parseReference(trimmed);
+  if (simpleRef) {
+    return { ref: simpleRef, translations: [] };
+  }
+
+  // 2. Split by comma and try stripping trailing translation code(s).
+  const parts = trimmed.split(",").map((p) => p.trim());
+  if (parts.length < 2) return null;
+
+  const last = parts[parts.length - 1];
+
+  // 2a. {ref, TRANS}
+  if (TRANS_CODE_RE.test(last)) {
+    const refStr = parts.slice(0, -1).join(",");
+    const ref = parseReference(refStr);
+    if (ref) return { ref, translations: [last.toUpperCase()] };
+  }
+
+  // 2b. {ref, TRANS1, TRANS2}
+  if (parts.length >= 3) {
+    const secondLast = parts[parts.length - 2];
+    if (TRANS_CODE_RE.test(secondLast) && TRANS_CODE_RE.test(last)) {
+      const refStr = parts.slice(0, -2).join(",");
+      const ref = parseReference(refStr);
+      if (ref) {
+        return { ref, translations: [secondLast.toUpperCase(), last.toUpperCase()] };
+      }
+    }
+  }
+
+  return null;
+}
+
 /**
  * Build a human-readable reference string from parsed data.
  */

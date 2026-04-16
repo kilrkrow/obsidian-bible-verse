@@ -619,6 +619,35 @@ function parseReference(input) {
     raw: trimmed
   };
 }
+var TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
+function parseInlineSpec(content) {
+  const trimmed = content.trim();
+  const simpleRef = parseReference(trimmed);
+  if (simpleRef) {
+    return { ref: simpleRef, translations: [] };
+  }
+  const parts = trimmed.split(",").map((p) => p.trim());
+  if (parts.length < 2)
+    return null;
+  const last = parts[parts.length - 1];
+  if (TRANS_CODE_RE.test(last)) {
+    const refStr = parts.slice(0, -1).join(",");
+    const ref = parseReference(refStr);
+    if (ref)
+      return { ref, translations: [last.toUpperCase()] };
+  }
+  if (parts.length >= 3) {
+    const secondLast = parts[parts.length - 2];
+    if (TRANS_CODE_RE.test(secondLast) && TRANS_CODE_RE.test(last)) {
+      const refStr = parts.slice(0, -2).join(",");
+      const ref = parseReference(refStr);
+      if (ref) {
+        return { ref, translations: [secondLast.toUpperCase(), last.toUpperCase()] };
+      }
+    }
+  }
+  return null;
+}
 function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
   if (ref.startVerse !== null) {
@@ -1339,6 +1368,99 @@ var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
   }
 };
 
+// src/view-plugin.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
+var BibleRefWidget = class extends import_view.WidgetType {
+  constructor(label, href) {
+    super();
+    this.label = label;
+    this.href = href;
+  }
+  toDOM(_view) {
+    const anchor = document.createElement("a");
+    anchor.className = "bible-verse-pill";
+    anchor.href = this.href;
+    anchor.textContent = "\u{1F4D6} " + this.label;
+    anchor.target = "_blank";
+    anchor.rel = "noopener";
+    anchor.addEventListener("mousedown", (e) => e.preventDefault());
+    return anchor;
+  }
+  /** Allow click events to pass through to the DOM element. */
+  ignoreEvent(event) {
+    return event.type === "mousedown" || event.type === "click";
+  }
+  eq(other) {
+    return this.label === other.label && this.href === other.href;
+  }
+};
+function selectionOverlaps(ranges, from, to) {
+  for (const sel of ranges) {
+    if (sel.from <= to && sel.to >= from)
+      return true;
+  }
+  return false;
+}
+function buildViewPlugin(plugin) {
+  return import_view.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.decorations = this.buildDecorations(view);
+      }
+      update(update) {
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+          this.decorations = this.buildDecorations(update.view);
+        }
+      }
+      buildDecorations(view) {
+        const builder = new import_state.RangeSetBuilder();
+        const selections = view.state.selection.ranges;
+        for (const { from, to } of view.visibleRanges) {
+          const text = view.state.doc.sliceString(from, to);
+          INLINE_RE.lastIndex = 0;
+          let match;
+          while ((match = INLINE_RE.exec(text)) !== null) {
+            const tokenStart = from + match.index;
+            const tokenEnd = tokenStart + match[0].length;
+            if (selectionOverlaps(selections, tokenStart, tokenEnd))
+              continue;
+            const content = match[1].trim();
+            const spec = parseInlineSpec(content);
+            if (!spec)
+              continue;
+            const { ref, translations } = spec;
+            const refLabel = formatReference(ref);
+            let label;
+            let href;
+            if (translations.length === 0) {
+              label = refLabel;
+              const abbr = plugin.getTranslationAbbrPublic();
+              href = plugin.generateLinkPublic(ref, abbr);
+            } else if (translations.length === 1) {
+              label = `${refLabel} (${translations[0]})`;
+              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
+              href = plugin.generateLinkPublic(ref, abbr);
+            } else {
+              label = `${refLabel} (${translations.join(" | ")})`;
+              const abbr = plugin.getTranslationAbbrPublic(plugin.resolveTranslationIdPublic(translations[0]));
+              href = plugin.generateLinkPublic(ref, abbr);
+            }
+            builder.add(
+              tokenStart,
+              tokenEnd,
+              import_view.Decoration.replace({ widget: new BibleRefWidget(label, href) })
+            );
+          }
+        }
+        return builder.finish();
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+}
+
 // src/main.ts
 var BibleVersePlugin = class extends import_obsidian5.Plugin {
   constructor() {
@@ -1356,6 +1478,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     this.baker = new Baker(this.app);
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
     this.registerEditorSuggest(new BibleReferenceSuggest(this.app, this));
+    this.registerEditorExtension(buildViewPlugin(this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
     this.addCommand({
@@ -1470,10 +1593,10 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
           const start = match.index;
           const end = start + match[0].length;
           if (cursor.ch >= start && cursor.ch <= end) {
-            const ref = parseReference(match[1].trim());
-            if (ref) {
-              const abbr = this.getTranslationAbbr();
-              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+            const spec = parseInlineSpec(match[1].trim());
+            if (spec) {
+              const abbr = spec.translations.length >= 1 ? this.getTranslationAbbr(this.resolveTranslationId(spec.translations[0])) : this.getTranslationAbbr();
+              const url = generateLink(spec.ref, abbr, this.settings.preferredWebsite);
               window.open(url, "_blank");
               return;
             }
@@ -1538,21 +1661,27 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
         if (matchIndex > lastIndex) {
           frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
         }
-        const refStr = match[1].trim();
-        const ref = parseReference(refStr);
-        if (ref) {
+        const rawContent = match[1].trim();
+        const spec = parseInlineSpec(rawContent);
+        if (spec) {
+          const { ref, translations } = spec;
           const span = document.createElement("span");
           span.className = "bible-verse-container";
-          const abbr = this.getTranslationAbbr();
-          const cached = this.cache.get(abbr, formatReference(ref));
-          if (cached) {
-            renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
+          if (translations.length >= 2) {
+            this.renderInlineComparison(span, ref, translations);
           } else {
-            renderLink(span, ref, abbr, this.settings.preferredWebsite);
-            this.fetchAndRender(span, ref);
+            const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
+            const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
+            const cached = this.cache.get(abbr, formatReference(ref));
+            if (cached) {
+              renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
+            } else {
+              renderLink(span, ref, abbr, this.settings.preferredWebsite);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr);
+            }
           }
           frag.appendChild(span);
-          if (this.settings.persistVerseText) {
+          if (this.settings.persistVerseText && translations.length === 0) {
             this.handleBake(ctx, match[0], ref);
           }
         } else {
@@ -1567,19 +1696,36 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     }
   }
   /**
-   * Fetch a verse and update the rendered element.
+   * Fetch a verse with a specific translation and update the rendered element.
    */
-  async fetchAndRender(container, ref) {
-    const verse = await this.fetchVerse(ref);
-    if (verse) {
+  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr) {
+    try {
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       container.empty();
-      renderVerse(
-        container,
-        ref,
-        verse,
-        this.settings.displayStyle,
-        this.settings.preferredWebsite
-      );
+      renderVerse(container, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+    } catch (e) {
+      console.error("Bible Verse: Failed to fetch verse", e);
+    }
+  }
+  /**
+   * Render an inline comparison block for {ref, TRANS1, TRANS2} syntax.
+   */
+  async renderInlineComparison(container, ref, translations) {
+    const verses = [];
+    for (const trans of translations) {
+      const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
+      try {
+        const verse = await this.api.getPassage(ref, id, abbr);
+        verses.push(verse);
+      } catch (e) {
+        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
+      }
+    }
+    if (verses.length > 0) {
+      renderComparison(container, ref, verses, this.settings.preferredWebsite);
+    } else {
+      renderError(container, `Could not fetch translations for ${formatReference(ref)}.`);
     }
   }
   /**
@@ -1662,6 +1808,27 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       renderError(el, "Failed to fetch any translations for comparison.");
     }
   }
+  // ─── Public helpers for ViewPlugin ──────────────────────────────────────────
+  /**
+   * Public wrapper so the CM6 ViewPlugin can access translation abbreviations
+   * without needing to import private method details.
+   */
+  getTranslationAbbrPublic(translationId) {
+    return this.getTranslationAbbr(translationId);
+  }
+  /**
+   * Public wrapper so the CM6 ViewPlugin can resolve translation IDs.
+   */
+  resolveTranslationIdPublic(abbr) {
+    return this.resolveTranslationId(abbr);
+  }
+  /**
+   * Public wrapper so the CM6 ViewPlugin can generate Bible website links.
+   */
+  generateLinkPublic(ref, translationAbbr) {
+    return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
   /**
    * Resolve a translation abbreviation to a HelloAO translation ID.
    * Searches the curated list by abbreviation, then by ID directly.
