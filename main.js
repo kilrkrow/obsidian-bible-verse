@@ -620,33 +620,52 @@ function parseReference(input) {
   };
 }
 var TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
+var KNOWN_STYLES = [
+  "sidebar",
+  "callout",
+  "blockquote",
+  "inline"
+];
+function isKnownStyle(token) {
+  return KNOWN_STYLES.includes(token.toLowerCase());
+}
 function parseInlineSpec(content) {
   const trimmed = content.trim();
   const simpleRef = parseReference(trimmed);
   if (simpleRef) {
-    return { ref: simpleRef, translations: [] };
+    return { ref: simpleRef, translations: [], styleOverride: null };
   }
   const parts = trimmed.split(",").map((p) => p.trim());
   if (parts.length < 2)
     return null;
-  const last = parts[parts.length - 1];
-  if (TRANS_CODE_RE.test(last)) {
-    const refStr = parts.slice(0, -1).join(",");
-    const ref = parseReference(refStr);
-    if (ref)
-      return { ref, translations: [last.toUpperCase()] };
-  }
-  if (parts.length >= 3) {
-    const secondLast = parts[parts.length - 2];
-    if (TRANS_CODE_RE.test(secondLast) && TRANS_CODE_RE.test(last)) {
-      const refStr = parts.slice(0, -2).join(",");
-      const ref = parseReference(refStr);
-      if (ref) {
-        return { ref, translations: [secondLast.toUpperCase(), last.toUpperCase()] };
-      }
+  const translations = [];
+  let styleOverride = null;
+  let cut = parts.length;
+  while (cut > 1) {
+    const tok = parts[cut - 1];
+    if (isKnownStyle(tok)) {
+      if (styleOverride !== null)
+        break;
+      styleOverride = tok.toLowerCase();
+      cut--;
+      continue;
     }
+    if (TRANS_CODE_RE.test(tok)) {
+      if (translations.length >= 2)
+        break;
+      translations.unshift(tok.toUpperCase());
+      cut--;
+      continue;
+    }
+    break;
   }
-  return null;
+  if (cut === parts.length)
+    return null;
+  const refStr = parts.slice(0, cut).join(",");
+  const ref = parseReference(refStr);
+  if (!ref)
+    return null;
+  return { ref, translations, styleOverride };
 }
 function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
@@ -1379,6 +1398,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     this.spec = spec;
   }
   toDOM(view) {
+    var _a;
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
     if (this.spec.cachedVerse) {
@@ -1386,7 +1406,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         container,
         this.spec.ref,
         this.spec.cachedVerse,
-        this.spec.plugin.settings.displayStyle,
+        (_a = this.spec.styleOverride) != null ? _a : this.spec.plugin.settings.displayStyle,
         this.spec.plugin.settings.preferredWebsite
       );
     } else {
@@ -1406,6 +1426,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     container.appendChild(a);
   }
   async fetchAndUpdate(container, view) {
+    var _a;
     const { plugin, ref, translations } = this.spec;
     try {
       let verse;
@@ -1423,7 +1444,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         container,
         ref,
         verse,
-        plugin.settings.displayStyle,
+        (_a = this.spec.styleOverride) != null ? _a : plugin.settings.displayStyle,
         plugin.settings.preferredWebsite
       );
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
@@ -1439,7 +1460,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
    * the same object is returned on subsequent lookups.
    */
   eq(other) {
-    return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse;
+    return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse && this.spec.styleOverride === other.spec.styleOverride;
   }
   /**
    * Controls which events CodeMirror handles vs. what the widget DOM handles.
@@ -1504,7 +1525,7 @@ function buildViewPlugin(plugin) {
             const spec = parseInlineSpec(content);
             if (!spec)
               continue;
-            const { ref, translations } = spec;
+            const { ref, translations, styleOverride } = spec;
             const refLabel = formatReference(ref);
             let translationId;
             let abbr;
@@ -1530,6 +1551,7 @@ function buildViewPlugin(plugin) {
               href,
               ref,
               translations,
+              styleOverride,
               cachedVerse,
               plugin
             });
@@ -1726,7 +1748,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
    * Inline markdown postprocessor: finds bib:ref in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
-    var _a;
+    var _a, _b;
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
@@ -1758,12 +1780,13 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
           } else {
             const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
+            const style = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
             const cached = this.cache.get(abbr, formatReference(ref));
             if (cached) {
-              renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
             }
           }
           frag.appendChild(span);
@@ -1778,17 +1801,23 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       if (lastIndex < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
-      (_a = node2.parentNode) == null ? void 0 : _a.replaceChild(frag, node2);
+      (_b = node2.parentNode) == null ? void 0 : _b.replaceChild(frag, node2);
     }
   }
   /**
    * Fetch a verse with a specific translation and update the rendered element.
    */
-  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr) {
+  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style) {
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       container.empty();
-      renderVerse(container, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        container,
+        ref,
+        verse,
+        style != null ? style : this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
     }
@@ -1866,12 +1895,33 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     }
     const translationId = config["translation"] ? this.resolveTranslationId(config["translation"]) : this.settings.defaultTranslation;
     const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
+    const styleOverride = this.resolveStyleKey(config["style"]);
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
-      renderVerse(el, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        el,
+        ref,
+        verse,
+        styleOverride != null ? styleOverride : this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);
     }
+  }
+  /**
+   * Map a raw `style:` config value (e.g. "sidebar", "CALLOUT") to a valid
+   * DisplayStyle. Returns null for undefined or unrecognized values so the
+   * caller can fall back to the plugin default.
+   */
+  resolveStyleKey(raw) {
+    if (!raw)
+      return null;
+    const lower = raw.trim().toLowerCase();
+    if (lower === "sidebar" || lower === "callout" || lower === "blockquote" || lower === "inline") {
+      return lower;
+    }
+    return null;
   }
   /**
    * Render a comparison block with multiple translations.

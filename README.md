@@ -54,7 +54,28 @@ Typing inside `{…}` activates autocomplete suggestions:
 
 Selecting a book-only suggestion inserts it with a trailing space so you can continue typing the chapter and verse number.
 
+### Inline Translation and Style Overrides
+
+Both a translation and a display style can be specified inside the braces by
+appending comma-separated tokens after the reference. Translation codes are
+matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`,
+`inline`) wins when ambiguous.
+
+```
+{John 3:16, KJV}                  -- override translation
+{John 3:16, KJV, DARBY}           -- side-by-side comparison
+{John 3:16, sidebar}              -- default translation, force sidebar style
+{John 3:16, KJV, sidebar}         -- KJV in sidebar style
+{John 3:16, KJV, DARBY, callout}  -- comparison (style is ignored here)
+```
+
+The order of translation tokens is preserved; the style token can be placed in
+any trailing position. When both a comparison (two translations) and a style
+are present, the style is ignored because comparisons are always rendered as a
+grid.
+
 ### Code Block
+
 
 Use a `bible` code block for full verse display:
 
@@ -62,8 +83,12 @@ Use a `bible` code block for full verse display:
 ```bible
 John 3:16
 translation: KJV
+style: sidebar
 ```
 ````
+
+The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and
+overrides the global display style for this block only.
 
 ### Comparison View
 

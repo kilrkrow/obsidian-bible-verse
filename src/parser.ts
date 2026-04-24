@@ -1,4 +1,4 @@
-import { BibleReference } from "./types";
+import { BibleReference, DisplayStyle } from "./types";
 import { BOOK_ALIASES } from "./constants";
 
 /**
@@ -101,7 +101,9 @@ export function parseReference(input: string): BibleReference | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inline spec parser — handles {ref}, {ref, TRANS}, {ref, TRANS1, TRANS2}
+// Inline spec parser — handles {ref}, {ref, TRANS}, {ref, TRANS1, TRANS2},
+// plus an optional display-style override token anywhere in the trailing
+// comma-separated list, e.g. {John 3:16, sidebar} or {John 3:16, KJV, sidebar}.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -111,23 +113,43 @@ export function parseReference(input: string): BibleReference | null {
  *   []         → use the plugin's default translation
  *   [T]        → display using translation T
  *   [T1, T2]   → render a side-by-side comparison of T1 and T2
+ *
+ * styleOverride:
+ *   null       → use the plugin's default display style from settings
+ *   DisplayStyle → override the style for this token only
  */
 export interface InlineSpec {
   ref: BibleReference;
   translations: string[];
+  styleOverride: DisplayStyle | null;
 }
 
 /** A translation code is word-chars only and must start with a letter. */
 const TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 
+/** The complete set of display-style names recognized inline. */
+const KNOWN_STYLES: readonly DisplayStyle[] = [
+  "sidebar",
+  "callout",
+  "blockquote",
+  "inline",
+];
+
+function isKnownStyle(token: string): token is DisplayStyle {
+  return (KNOWN_STYLES as readonly string[]).includes(token.toLowerCase());
+}
+
 /**
  * Parse the content inside {…} brackets into a structured spec.
  *
  * Supported formats (examples):
- *   "John 3:16"              → { ref, translations: [] }
- *   "John 3:16, KJV"         → { ref, translations: ["KJV"] }
- *   "John 3:16, KJV, DARBY"  → { ref, translations: ["KJV", "DARBY"] }
- *   "John 3:16,17, KJV"      → { ref(John 3:16-17), translations: ["KJV"] }
+ *   "John 3:16"                      → { ref, translations: [], styleOverride: null }
+ *   "John 3:16, KJV"                 → { ref, translations: ["KJV"] }
+ *   "John 3:16, KJV, DARBY"          → { ref, translations: ["KJV","DARBY"] }
+ *   "John 3:16, sidebar"             → { ref, styleOverride: "sidebar" }
+ *   "John 3:16, KJV, sidebar"        → { ref, translations: ["KJV"], styleOverride: "sidebar" }
+ *   "John 3:16, KJV, DARBY, callout" → { ref, translations: ["KJV","DARBY"], styleOverride: "callout" }
+ *   "John 3:16,17, KJV"              → { ref(John 3:16-17), translations: ["KJV"] }
  *
  * Returns null if the content cannot be parsed as a valid reference.
  */
@@ -138,35 +160,51 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   //    verse lists like "John 3:16,17" without mis-reading "17" as a trans).
   const simpleRef = parseReference(trimmed);
   if (simpleRef) {
-    return { ref: simpleRef, translations: [] };
+    return { ref: simpleRef, translations: [], styleOverride: null };
   }
 
-  // 2. Split by comma and try stripping trailing translation code(s).
+  // 2. Split by comma and peel off trailing modifier tokens (translations
+  //    and/or a style override) until we hit something that belongs to the
+  //    reference itself. Whatever remains is then parsed as a reference.
   const parts = trimmed.split(",").map((p) => p.trim());
   if (parts.length < 2) return null;
 
-  const last = parts[parts.length - 1];
+  const translations: string[] = [];
+  let styleOverride: DisplayStyle | null = null;
+  let cut = parts.length;
 
-  // 2a. {ref, TRANS}
-  if (TRANS_CODE_RE.test(last)) {
-    const refStr = parts.slice(0, -1).join(",");
-    const ref = parseReference(refStr);
-    if (ref) return { ref, translations: [last.toUpperCase()] };
-  }
+  while (cut > 1) {
+    const tok = parts[cut - 1];
 
-  // 2b. {ref, TRANS1, TRANS2}
-  if (parts.length >= 3) {
-    const secondLast = parts[parts.length - 2];
-    if (TRANS_CODE_RE.test(secondLast) && TRANS_CODE_RE.test(last)) {
-      const refStr = parts.slice(0, -2).join(",");
-      const ref = parseReference(refStr);
-      if (ref) {
-        return { ref, translations: [secondLast.toUpperCase(), last.toUpperCase()] };
-      }
+    if (isKnownStyle(tok)) {
+      // Style wins over translation code matching (style names like "inline"
+      // also match TRANS_CODE_RE). Only one style override is allowed; if we
+      // already have one, stop peeling.
+      if (styleOverride !== null) break;
+      styleOverride = tok.toLowerCase() as DisplayStyle;
+      cut--;
+      continue;
     }
+
+    if (TRANS_CODE_RE.test(tok)) {
+      // Up to two translation codes (for side-by-side comparison).
+      if (translations.length >= 2) break;
+      translations.unshift(tok.toUpperCase());
+      cut--;
+      continue;
+    }
+
+    break;
   }
 
-  return null;
+  // If we didn't strip anything, this isn't a modifier-carrying spec.
+  if (cut === parts.length) return null;
+
+  const refStr = parts.slice(0, cut).join(",");
+  const ref = parseReference(refStr);
+  if (!ref) return null;
+
+  return { ref, translations, styleOverride };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin } from "obsidian";
-import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse } from "./types";
+import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
 import { parseReference, parseInlineSpec, formatReference } from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
@@ -261,7 +261,8 @@ export default class BibleVersePlugin extends Plugin {
           span.className = "bible-verse-container";
 
           if (translations.length >= 2) {
-            // Comparison mode: {John 3:16, KJV, DARBY}
+            // Comparison mode: {John 3:16, KJV, DARBY} (style override is
+            // ignored here — comparison is always rendered as a grid).
             this.renderInlineComparison(span, ref, translations);
           } else {
             // Single translation (default or override)
@@ -272,14 +273,17 @@ export default class BibleVersePlugin extends Plugin {
               ? this.getTranslationAbbr(translationId)
               : this.getTranslationAbbr();
 
+            // Pick display style: inline override wins, else plugin default.
+            const style = spec.styleOverride ?? this.settings.displayStyle;
+
             // Serve from cache instantly; otherwise show a link placeholder and
             // fetch asynchronously to avoid blocking the render.
             const cached = this.cache.get(abbr, formatReference(ref));
             if (cached) {
-              renderVerse(span, ref, cached, this.settings.displayStyle, this.settings.preferredWebsite);
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
             }
           }
 
@@ -312,12 +316,19 @@ export default class BibleVersePlugin extends Plugin {
     container: HTMLElement,
     ref: BibleReference,
     translationId: string,
-    translationAbbr: string
+    translationAbbr: string,
+    style?: DisplayStyle
   ): Promise<void> {
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       container.empty();
-      renderVerse(container, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        container,
+        ref,
+        verse,
+        style ?? this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
     }
@@ -426,12 +437,36 @@ export default class BibleVersePlugin extends Plugin {
       ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"]))
       : this.getTranslationAbbr();
 
+    // Optional `style: <name>` key overrides the global display style for
+    // this block only. Unknown style values fall back to the default.
+    const styleOverride = this.resolveStyleKey(config["style"]);
+
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
-      renderVerse(el, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        el,
+        ref,
+        verse,
+        styleOverride ?? this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${(e as Error).message}`);
     }
+  }
+
+  /**
+   * Map a raw `style:` config value (e.g. "sidebar", "CALLOUT") to a valid
+   * DisplayStyle. Returns null for undefined or unrecognized values so the
+   * caller can fall back to the plugin default.
+   */
+  private resolveStyleKey(raw: string | undefined): DisplayStyle | null {
+    if (!raw) return null;
+    const lower = raw.trim().toLowerCase();
+    if (lower === "sidebar" || lower === "callout" || lower === "blockquote" || lower === "inline") {
+      return lower;
+    }
+    return null;
   }
 
   /**

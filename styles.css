@@ -58,9 +58,19 @@
    ======================== */
 .bible-verse-sidebar {
   border-left: 3px solid var(--interactive-accent);
-  padding: 0.5em 0.75em 0.5em 1em;
+  /* Zero top padding so the verse text aligns flush with the top of the
+     accent bar (GitHub issue #5). Keep the other sides for breathing room. */
+  padding: 0 0.75em 0.5em 1em;
   background: transparent;
   color: var(--text-normal);
+}
+
+/* Ensure the first rendered child (body/text) has no top margin pushing
+   it down below the sidebar's top edge. */
+.bible-verse-sidebar > :first-child,
+.bible-verse-sidebar .bible-verse-body,
+.bible-verse-sidebar .bible-verse-text {
+  margin-top: 0;
 }
 
 /* ========================

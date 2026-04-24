@@ -9,7 +9,7 @@ import {
 import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import type BibleVersePlugin from "./main";
 import { parseInlineSpec, formatReference } from "./parser";
-import { BibleReference, CachedVerse } from "./types";
+import { BibleReference, CachedVerse, DisplayStyle } from "./types";
 import { renderVerse, renderError } from "./renderer";
 
 // Matches {…} inline tokens (same pattern as inlinePostProcessor)
@@ -41,6 +41,7 @@ class BibleVerseWidget extends WidgetType {
       href: string;
       ref: BibleReference;
       translations: string[];
+      styleOverride: DisplayStyle | null;
       cachedVerse: CachedVerse | null;
       plugin: BibleVersePlugin;
     }
@@ -57,7 +58,7 @@ class BibleVerseWidget extends WidgetType {
         container,
         this.spec.ref,
         this.spec.cachedVerse,
-        this.spec.plugin.settings.displayStyle,
+        this.spec.styleOverride ?? this.spec.plugin.settings.displayStyle,
         this.spec.plugin.settings.preferredWebsite
       );
     } else {
@@ -106,7 +107,7 @@ class BibleVerseWidget extends WidgetType {
         container,
         ref,
         verse,
-        plugin.settings.displayStyle,
+        this.spec.styleOverride ?? plugin.settings.displayStyle,
         plugin.settings.preferredWebsite
       );
 
@@ -127,7 +128,8 @@ class BibleVerseWidget extends WidgetType {
   eq(other: BibleVerseWidget): boolean {
     return (
       this.spec.label === other.spec.label &&
-      this.spec.cachedVerse === other.spec.cachedVerse
+      this.spec.cachedVerse === other.spec.cachedVerse &&
+      this.spec.styleOverride === other.spec.styleOverride
     );
   }
 
@@ -235,7 +237,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const spec = parseInlineSpec(content);
             if (!spec) continue;
 
-            const { ref, translations } = spec;
+            const { ref, translations, styleOverride } = spec;
             const refLabel = formatReference(ref);
 
             // Resolve translation and check cache
@@ -268,6 +270,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               href,
               ref,
               translations,
+              styleOverride,
               cachedVerse,
               plugin,
             });
