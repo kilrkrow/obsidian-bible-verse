@@ -1441,9 +1441,29 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   eq(other) {
     return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse;
   }
-  /** Allow link clicks and other events to pass through. */
+  /**
+   * Controls which events CodeMirror handles vs. what the widget DOM handles.
+   *
+   * Default CM6 behavior on mousedown inside a replace-decoration is to place
+   * the caret at the token position, which un-replaces the widget. That made
+   * clicking the rendered reference anchor feel broken — the user clicked
+   * "John 3:16 (KJV)" expecting BibleHub to open, but instead saw raw "{John 3:16}".
+   *
+   * Fix: when a pointer event originates on an <a> inside the widget, return true
+   * so CM leaves the event alone and the browser navigates the link normally.
+   * For non-anchor targets (verse body text, callout background, etc.) mousedown
+   * still returns false so the caret can move into the token for editing.
+   *
+   * click/auxclick always return true so left-click, middle-click (open in new
+   * tab), and Ctrl/Cmd+click all reach the anchor default handler.
+   */
   ignoreEvent(event) {
-    return event.type !== "mousedown";
+    const target = event.target;
+    const isAnchorEvent = !!(target && target.closest("a"));
+    if (event.type === "mousedown") {
+      return isAnchorEvent;
+    }
+    return true;
   }
 };
 function selectionOverlaps(ranges, from, to) {
