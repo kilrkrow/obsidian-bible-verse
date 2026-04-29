@@ -97,5 +97,16 @@ export class BibleVerseSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+    new Setting(containerEl)
+      .setName("Show verse numbers")
+      .setDesc("Display verse numbers in the rendered text.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showVerseNumbers)
+          .onChange(async (value) => {
+            this.plugin.settings.showVerseNumbers = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }

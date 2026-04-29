@@ -27,13 +27,24 @@ export class BibleApi {
     return content
       .map((item) => {
         if (typeof item === "string") return item;
-        if (typeof item === "object" && item !== null && "text" in item) {
-          return (item as { text: string }).text;
+        if (typeof item === "object" && item !== null) {
+          const obj = item as Record<string, unknown>;
+          if ("text" in obj) {
+            let text = obj.text as string;
+            // Handle poetic indentation if present
+            if (obj.poem) {
+              const indent = "\u00A0".repeat(Number(obj.poem) * 2);
+              text = "\n" + indent + text;
+            }
+            return text;
+          }
+          if (obj.lineBreak) return "\n";
         }
         return "";
       })
       .filter((s) => s.length > 0)
-      .join(" ");
+      .join(" ")
+      .replace(/\s?\n\s?/g, "\n"); // Clean up spacing around manual line breaks
   }
 
   /**
@@ -79,7 +90,8 @@ export class BibleApi {
   async getPassage(
     ref: BibleReference,
     translationId: string,
-    translationAbbr: string
+    translationAbbr: string,
+    showVerseNumbers: boolean
   ): Promise<CachedVerse> {
     const refStr = formatReference(ref);
 
@@ -104,19 +116,32 @@ export class BibleApi {
     const chapterContent: unknown[] = data.chapter.content;
     const requestedVerses = this.getRequestedVerses(ref);
 
-    // Extract text from matching verses
+    // Extract text from matching verses and structural elements
     const verseParts: string[] = [];
+
     for (const item of chapterContent) {
-      if (
-        typeof item === "object" &&
-        item !== null &&
-        (item as Record<string, unknown>).type === "verse"
-      ) {
+      if (typeof item !== "object" || item === null) continue;
+      const obj = item as Record<string, unknown>;
+
+      if (obj.type === "verse") {
         const verseItem = item as { type: string; number: number; content: unknown[] };
         if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
-          const text = this.extractVerseText(verseItem.content);
-          if (text) verseParts.push(text);
+          let text = this.extractVerseText(verseItem.content);
+          if (text) {
+            if (showVerseNumbers) {
+              text = `[${verseItem.number}] ${text}`;
+            }
+            verseParts.push(text);
+          }
         }
+      } else if (obj.type === "heading") {
+        const headingItem = item as { content: string[] };
+        const headingText = headingItem.content.join(" ").trim();
+        if (headingText) {
+          verseParts.push(`\n**${headingText}**\n`);
+        }
+      } else if (obj.type === "line_break") {
+        verseParts.push("\n");
       }
     }
 
@@ -124,7 +149,11 @@ export class BibleApi {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
 
-    const text = verseParts.join(" ");
+    const text = verseParts
+      .join(" ")
+      .replace(/\s?\n\s?/g, "\n")
+      .replace(/\n{3,}/g, "\n\n") // Max double newline
+      .trim();
 
     // Build copyright from license URL
     const licenseUrl: string | undefined = data.translation?.licenseUrl;

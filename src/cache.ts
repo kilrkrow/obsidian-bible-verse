@@ -7,7 +7,7 @@ import { CachedVerse } from "./types";
  * keyed by translation+reference.
  */
 export class VerseCache {
-  private plugin: Plugin;
+  public plugin: Plugin;
   private cache: Map<string, CachedVerse> = new Map();
   private loaded = false;
   private cacheDir: string;

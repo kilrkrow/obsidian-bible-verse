@@ -35,7 +35,8 @@ var DEFAULT_SETTINGS = {
   preferredWebsite: "BibleGateway",
   displayStyle: "callout",
   persistVerseText: false,
-  sidebarTopPadding: 0.5
+  sidebarTopPadding: 0.5,
+  showVerseNumbers: true
 };
 
 // src/constants.ts
@@ -690,11 +691,21 @@ var BibleApi = class {
     return content.map((item) => {
       if (typeof item === "string")
         return item;
-      if (typeof item === "object" && item !== null && "text" in item) {
-        return item.text;
+      if (typeof item === "object" && item !== null) {
+        const obj = item;
+        if ("text" in obj) {
+          let text = obj.text;
+          if (obj.poem) {
+            const indent = "\xA0".repeat(Number(obj.poem) * 2);
+            text = "\n" + indent + text;
+          }
+          return text;
+        }
+        if (obj.lineBreak)
+          return "\n";
       }
       return "";
-    }).filter((s) => s.length > 0).join(" ");
+    }).filter((s) => s.length > 0).join(" ").replace(/\s?\n\s?/g, "\n");
   }
   /**
    * Determine which verses from the chapter are needed for this reference.
@@ -729,7 +740,7 @@ var BibleApi = class {
    * Fetches the whole chapter and extracts the requested verses client-side.
    * Returns cached version if available.
    */
-  async getPassage(ref, translationId, translationAbbr) {
+  async getPassage(ref, translationId, translationAbbr, showVerseNumbers) {
     var _a;
     const refStr = formatReference(ref);
     const cached = this.cache.get(translationAbbr, refStr);
@@ -748,19 +759,36 @@ var BibleApi = class {
     const requestedVerses = this.getRequestedVerses(ref);
     const verseParts = [];
     for (const item of chapterContent) {
-      if (typeof item === "object" && item !== null && item.type === "verse") {
+      if (typeof item !== "object" || item === null)
+        continue;
+      const obj = item;
+      if (obj.type === "verse") {
         const verseItem = item;
         if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
-          const text2 = this.extractVerseText(verseItem.content);
-          if (text2)
+          let text2 = this.extractVerseText(verseItem.content);
+          if (text2) {
+            if (showVerseNumbers) {
+              text2 = `[${verseItem.number}] ${text2}`;
+            }
             verseParts.push(text2);
+          }
         }
+      } else if (obj.type === "heading") {
+        const headingItem = item;
+        const headingText = headingItem.content.join(" ").trim();
+        if (headingText) {
+          verseParts.push(`
+**${headingText}**
+`);
+        }
+      } else if (obj.type === "line_break") {
+        verseParts.push("\n");
       }
     }
     if (verseParts.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const text = verseParts.join(" ");
+    const text = verseParts.join(" ").replace(/\s?\n\s?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -1046,6 +1074,12 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.persistVerseText).onChange(async (value) => {
         this.plugin.settings.persistVerseText = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian2.Setting(containerEl).setName("Show verse numbers").setDesc("Display verse numbers in the rendered text.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.showVerseNumbers).onChange(async (value) => {
+        this.plugin.settings.showVerseNumbers = value;
         await this.plugin.saveSettings();
       })
     );
@@ -1461,11 +1495,11 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       if (translations.length >= 2) {
         const id = plugin.resolveTranslationIdPublic(translations[0]);
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr);
+        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
       } else {
         const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr);
+        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
       }
       container.empty();
       renderVerse(
@@ -1773,7 +1807,8 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       const verse = await this.api.getPassage(
         ref,
         this.settings.defaultTranslation,
-        this.getTranslationAbbr()
+        this.getTranslationAbbr(),
+        this.settings.showVerseNumbers
       );
       if (verse)
         return verse;
@@ -1864,7 +1899,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
    */
   async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style) {
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
       container.empty();
       renderVerse(
         container,
@@ -1886,7 +1921,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr);
+        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -1952,7 +1987,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
     const styleOverride = this.resolveStyleKey(config["style"]);
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
       renderVerse(
         el,
         ref,
@@ -1987,7 +2022,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr);
+        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);

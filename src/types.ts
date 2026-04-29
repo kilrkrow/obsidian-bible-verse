@@ -22,6 +22,7 @@ export interface BibleVerseSettings {
   displayStyle: DisplayStyle;
   persistVerseText: boolean;
   sidebarTopPadding: number;
+  showVerseNumbers: boolean;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   displayStyle: "callout",
   persistVerseText: false,
   sidebarTopPadding: 0.5,
+  showVerseNumbers: true,
 };
 
 /** Cached verse entry */

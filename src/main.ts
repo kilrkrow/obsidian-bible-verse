@@ -216,7 +216,8 @@ export default class BibleVersePlugin extends Plugin {
       const verse = await this.api.getPassage(
         ref,
         this.settings.defaultTranslation,
-        this.getTranslationAbbr()
+        this.getTranslationAbbr(),
+        this.settings.showVerseNumbers
       );
       if (verse) return verse;
     } catch (e) {
@@ -354,7 +355,7 @@ export default class BibleVersePlugin extends Plugin {
     style?: DisplayStyle
   ): Promise<void> {
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
       container.empty();
       renderVerse(
         container,
@@ -381,7 +382,7 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr);
+        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -476,7 +477,7 @@ export default class BibleVersePlugin extends Plugin {
     const styleOverride = this.resolveStyleKey(config["style"]);
 
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
       renderVerse(
         el,
         ref,
@@ -517,7 +518,7 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr);
+        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
