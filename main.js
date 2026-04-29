@@ -44,7 +44,8 @@ var DEFAULT_SETTINGS = {
   defaultTranslation: "eng_kjv",
   preferredWebsite: "BibleGateway",
   displayStyle: "callout",
-  persistVerseText: false
+  persistVerseText: false,
+  sidebarTopPadding: 0.5
 };
 
 // src/constants.ts
@@ -965,6 +966,13 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian2.Setting(containerEl).setName("Sidebar Top Padding").setDesc("Adjust the top spacing for the Sidebar style (in ems)").addSlider(
+      (slider) => slider.setLimits(0, 2, 0.1).setValue(this.plugin.settings.sidebarTopPadding).setDynamicTooltip().onChange(async (value) => {
+        this.plugin.settings.sidebarTopPadding = value;
+        await this.plugin.saveSettings();
+        this.plugin.updateStyles();
+      })
+    );
     new import_obsidian2.Setting(containerEl).setName("Persist Verse Text in Notes").setDesc(
       "When enabled, fetched verse text is automatically written into note source (bake mode)"
     ).addToggle(
@@ -1230,6 +1238,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
   }
   async onload() {
     await this.loadSettings();
+    this.updateStyles();
     this.cache = new VerseCache(this);
     await this.cache.load();
     this.api = new BibleApi(this.cache);
@@ -1363,6 +1372,12 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+  updateStyles() {
+    document.body.style.setProperty(
+      "--bible-verse-sidebar-top-padding",
+      `${this.settings.sidebarTopPadding}em`
+    );
   }
   async saveSettings() {
     await this.saveData(this.settings);
