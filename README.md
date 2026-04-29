@@ -4,7 +4,8 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 
 ## Features
 
-- **Inline references** — Type `bib:John 3:16` anywhere in your notes to display a linked verse
+- **Inline references** — Type `{John 3:16}` anywhere in your notes to display a linked verse
+- **IntelliSense autocomplete** — Typing inside `{…}` shows book name suggestions and confirms complete references
 - **Code block display** — Use ` ```bible ` blocks for full verse rendering with custom translation
 - **Comparison view** — Compare verses across multiple translations side by side
 - **Multiple display styles** — Sidebar, Callout, Blockquote, or Inline
@@ -32,16 +33,49 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 
 ### Inline Syntax
 
-Use `bib:reference` anywhere in your notes:
+Wrap any Bible reference in curly braces anywhere in your notes:
 
 ```
-bib:John 3:16
-bib:1 Corinthians 13:4-7
-bib:Psalm 23
-bib:John 3:16-21,25
+{John 3:16}
+{1 Corinthians 13:4-7}
+{Psalm 23}
+{John 3:16-21,25}
 ```
+
+The plugin renders the verse inline in Reading view and Live Preview. In Edit mode, the `{ref}` marker remains as plain text so you always know what is embedded in your note.
+
+#### IntelliSense Autocomplete
+
+Typing inside `{…}` activates autocomplete suggestions:
+
+- **Book names** — type a few letters (e.g. `{co`) to see matching books like `Colossians`, `1 Corinthians`, `2 Corinthians`
+- **Alias support** — common abbreviations work too (e.g. `{1co` → `1 Corinthians`)
+- **Complete reference** — once you have typed a full reference like `{John 3:16`, the formatted reference appears as a single suggestion; press **Enter** or **Tab** to confirm and close the braces
+
+Selecting a book-only suggestion inserts it with a trailing space so you can continue typing the chapter and verse number.
+
+### Inline Translation and Style Overrides
+
+Both a translation and a display style can be specified inside the braces by
+appending comma-separated tokens after the reference. Translation codes are
+matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`,
+`inline`) wins when ambiguous.
+
+```
+{John 3:16, KJV}                  -- override translation
+{John 3:16, KJV, DARBY}           -- side-by-side comparison
+{John 3:16, sidebar}              -- default translation, force sidebar style
+{John 3:16, KJV, sidebar}         -- KJV in sidebar style
+{John 3:16, KJV, DARBY, callout}  -- comparison (style is ignored here)
+```
+
+The order of translation tokens is preserved; the style token can be placed in
+any trailing position. When both a comparison (two translations) and a style
+are present, the style is ignored because comparisons are always rendered as a
+grid.
 
 ### Code Block
+
 
 Use a `bible` code block for full verse display:
 
@@ -49,8 +83,12 @@ Use a `bible` code block for full verse display:
 ```bible
 John 3:16
 translation: KJV
+style: sidebar
 ```
 ````
+
+The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and
+overrides the global display style for this block only.
 
 ### Comparison View
 
@@ -114,27 +152,29 @@ Some commercially-licensed translations (NIV, NLT, NKJV, ESV, etc.) are not avai
 When "Persist Verse Text" is enabled, fetched verse text is written directly into your note source:
 
 ```
-bib:John 3:16
+{John 3:16}
 %%bible-baked|KJV%%
 For God so loved the world...
 %%end-bible%%
 ```
 
+The baked block is hidden in Reading view — only the rendered verse is shown. It ensures verse text is available even without an internet connection.
+
 ### Quick Lookup
 
 Three commands for fast Bible reference workflows. Assign hotkeys in **Settings → Hotkeys**.
 
-- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., "John 3:16") with real-time validation. On Enter, inserts `bib:reference` at the cursor. Optionally opens the verse on your preferred Bible site.
+- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., `John 3:16`) with real-time validation. On Enter, inserts `{reference}` at the cursor. Optionally opens the verse on your preferred Bible site.
 - **Search Bible for selected text** — Select any text in your note, then run this command to copy it to the clipboard and open a search on your preferred Bible website.
-- **Open reference at cursor on Bible site** — Place your cursor inside a `bib:ref` marker and run this command to open that reference on your preferred Bible website.
+- **Open reference at cursor on Bible site** — Place your cursor inside a `{ref}` marker and run this command to open that reference on your preferred Bible website.
 
 ### Commands
 
-- **Bake all verses in this note** — Fetch and embed all `bib:ref` verses in the current note
+- **Bake all verses in this note** — Fetch and embed all `{ref}` verses in the current note
 - **Refresh baked verses in this note** — Re-fetch and update all baked verses
 - **Refresh all baked verses in vault** — Re-fetch across all notes
-- **Bake all existing verses across vault** — Bake all `bib:ref` in every note
-- **Strip baked text from all notes** — Remove all baked text, keeping only `bib:ref` markers
+- **Bake all existing verses across vault** — Bake all `{ref}` markers in every note
+- **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
 
 ## Supported Bible Websites
 

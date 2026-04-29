@@ -1,6 +1,6 @@
-import { MarkdownPostProcessorContext, Notice, Plugin } from "obsidian";
-import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse } from "./types";
-import { parseReference, formatReference } from "./parser";
+import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin } from "obsidian";
+import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
+import { parseReference, parseInlineSpec, formatReference } from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
 import { Baker } from "./baker";
@@ -13,6 +13,8 @@ import {
 } from "./renderer";
 import { generateLink, generateSearchUrl } from "./linker";
 import { QuickInsertModal } from "./quick-insert-modal";
+import { BibleReferenceSuggest } from "./suggest";
+import { buildViewPlugin } from "./view-plugin";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
 
 export default class BibleVersePlugin extends Plugin {
@@ -31,8 +33,14 @@ export default class BibleVersePlugin extends Plugin {
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
 
-    // Register the inline postprocessor for bib:ref syntax
+    // Register the inline postprocessor for {ref} syntax
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
+
+    // Register the IntelliSense suggester for {ref} syntax
+    this.registerEditorSuggest(new BibleReferenceSuggest(this.app, this));
+
+    // Register the CM6 ViewPlugin for Live Preview inline rendering
+    this.registerEditorExtension(buildViewPlugin(this));
 
     // Register the ```bible code block processor
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
@@ -111,10 +119,13 @@ export default class BibleVersePlugin extends Plugin {
         const modal = new QuickInsertModal(this.app, (refStr, openInBrowser) => {
           const editor = this.app.workspace.activeEditor?.editor;
           if (editor) {
-            editor.replaceSelection(`bib:${refStr}`);
+            // refStr is already wrapped as "{John 3:16}" by the modal
+            editor.replaceSelection(refStr);
           }
           if (openInBrowser) {
-            const ref = parseReference(refStr);
+            // Strip braces to parse the reference for the browser link
+            const inner = refStr.replace(/^\{|\}$/g, "");
+            const ref = parseReference(inner);
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -149,16 +160,19 @@ export default class BibleVersePlugin extends Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+        const regex = /\{([A-Za-z0-9][^}\n]*)\}/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
           if (cursor.ch >= start && cursor.ch <= end) {
-            const ref = parseReference(match[1]);
-            if (ref) {
-              const abbr = this.getTranslationAbbr();
-              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+            // Support {ref}, {ref, TRANS}, and {ref, TRANS1, TRANS2}
+            const spec = parseInlineSpec(match[1].trim());
+            if (spec) {
+              const abbr = spec.translations.length >= 1
+                ? this.getTranslationAbbr(this.resolveTranslationId(spec.translations[0]))
+                : this.getTranslationAbbr();
+              const url = generateLink(spec.ref, abbr, this.settings.preferredWebsite);
               window.open(url, "_blank");
               return;
             }
@@ -216,14 +230,15 @@ export default class BibleVersePlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
-    // Early exit if already processed (prevents flicker from re-processing)
-    if (el.hasAttribute("data-bible-processed")) return;
+    // Match {Book Chapter:Verse} syntax — curly braces are unambiguous in
+    // Obsidian markdown and will never be mis-detected as URI schemes.
+    // No antiflicker guard: once a {ref} text node is replaced with a span the
+    // regex no longer matches, so re-runs are safely no-ops.
+    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
-    // Find text nodes containing bib:...
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess: { node: Text; matches: RegExpMatchArray[] }[] = [];
 
-    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node: Text | null;
     while ((node = walker.nextNode() as Text | null)) {
       const text = node.textContent || "";
@@ -240,77 +255,116 @@ export default class BibleVersePlugin extends Plugin {
 
       for (const match of matches) {
         const matchIndex = match.index!;
-        // Add text before the match
+        // Preserve any text before this match
         if (matchIndex > lastIndex) {
           frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
         }
 
-        const refStr = match[1];
-        const ref = parseReference(refStr);
+        const rawContent = match[1].trim();
+        const spec = parseInlineSpec(rawContent);
 
-        if (ref) {
+        if (spec) {
+          const { ref, translations } = spec;
           const span = document.createElement("span");
           span.className = "bible-verse-container";
 
-          // Try cache first, then fetch
-          const abbr = this.getTranslationAbbr();
-          const cached = this.cache.get(abbr, formatReference(ref));
-          if (cached) {
-            renderVerse(
-              span,
-              ref,
-              cached,
-              this.settings.displayStyle,
-              this.settings.preferredWebsite
-            );
+          if (translations.length >= 2) {
+            // Comparison mode: {John 3:16, KJV, DARBY} (style override is
+            // ignored here — comparison is always rendered as a grid).
+            this.renderInlineComparison(span, ref, translations);
           } else {
-            // Render a link placeholder, then fetch async
-            renderLink(span, ref, abbr, this.settings.preferredWebsite);
-            this.fetchAndRender(span, ref);
+            // Single translation (default or override)
+            const translationId = translations.length === 1
+              ? this.resolveTranslationId(translations[0])
+              : this.settings.defaultTranslation;
+            const abbr = translations.length === 1
+              ? this.getTranslationAbbr(translationId)
+              : this.getTranslationAbbr();
+
+            // Pick display style: inline override wins, else plugin default.
+            const style = spec.styleOverride ?? this.settings.displayStyle;
+
+            // Serve from cache instantly; otherwise show a link placeholder and
+            // fetch asynchronously to avoid blocking the render.
+            const cached = this.cache.get(abbr, formatReference(ref));
+            if (cached) {
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
+            } else {
+              renderLink(span, ref, abbr, this.settings.preferredWebsite);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
+            }
           }
 
           frag.appendChild(span);
 
-          // Handle bake mode
-          if (this.settings.persistVerseText) {
-            this.handleBake(ctx, refStr, ref);
+          if (this.settings.persistVerseText && translations.length === 0) {
+            // Only bake plain {ref} blocks (translation-override refs are left as-is)
+            this.handleBake(ctx, match[0], ref);
           }
         } else {
-          // Not a valid reference, keep as text
+          // Not a parseable reference — leave the text unchanged
           frag.appendChild(document.createTextNode(match[0]));
         }
 
         lastIndex = matchIndex + match[0].length;
       }
 
-      // Add remaining text
       if (lastIndex < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
 
       node.parentNode?.replaceChild(frag, node);
     }
-
-    // Mark as processed to prevent re-processing (flicker fix)
-    if (nodesToProcess.length > 0) {
-      el.setAttribute("data-bible-processed", "true");
-    }
   }
 
   /**
-   * Fetch a verse and update the rendered element.
+   * Fetch a verse with a specific translation and update the rendered element.
    */
-  private async fetchAndRender(container: HTMLElement, ref: BibleReference): Promise<void> {
-    const verse = await this.fetchVerse(ref);
-    if (verse) {
+  private async fetchAndRenderWithTranslation(
+    container: HTMLElement,
+    ref: BibleReference,
+    translationId: string,
+    translationAbbr: string,
+    style?: DisplayStyle
+  ): Promise<void> {
+    try {
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       container.empty();
       renderVerse(
         container,
         ref,
         verse,
-        this.settings.displayStyle,
+        style ?? this.settings.displayStyle,
         this.settings.preferredWebsite
       );
+    } catch (e) {
+      console.error("Bible Verse: Failed to fetch verse", e);
+    }
+  }
+
+  /**
+   * Render an inline comparison block for {ref, TRANS1, TRANS2} syntax.
+   */
+  private async renderInlineComparison(
+    container: HTMLElement,
+    ref: BibleReference,
+    translations: string[]
+  ): Promise<void> {
+    const verses = [];
+    for (const trans of translations) {
+      const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
+      try {
+        const verse = await this.api.getPassage(ref, id, abbr);
+        verses.push(verse);
+      } catch (e) {
+        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
+      }
+    }
+    if (verses.length > 0) {
+      renderComparison(container, ref, verses, this.settings.preferredWebsite);
+    } else {
+      renderError(container, `Could not fetch translations for ${formatReference(ref)}.`);
     }
   }
 
@@ -319,7 +373,7 @@ export default class BibleVersePlugin extends Plugin {
    */
   private async handleBake(
     ctx: MarkdownPostProcessorContext,
-    rawRef: string,
+    refMarker: string,  // The full matched text as it appears in the note, e.g. "bib: John 3:16"
     ref: BibleReference
   ): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
@@ -329,7 +383,6 @@ export default class BibleVersePlugin extends Plugin {
     if (!verse) return;
 
     const content = await this.app.vault.read(file as any);
-    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker)) return;
 
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
@@ -346,6 +399,12 @@ export default class BibleVersePlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
+    // Clear any stale content and register with Obsidian's render lifecycle.
+    // This ensures the block is properly torn down and re-rendered when the
+    // source changes (fixes the "edited code block doesn't refresh" bug).
+    el.empty();
+    ctx.addChild(new MarkdownRenderChild(el));
+
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");
@@ -386,12 +445,36 @@ export default class BibleVersePlugin extends Plugin {
       ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"]))
       : this.getTranslationAbbr();
 
+    // Optional `style: <name>` key overrides the global display style for
+    // this block only. Unknown style values fall back to the default.
+    const styleOverride = this.resolveStyleKey(config["style"]);
+
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
-      renderVerse(el, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        el,
+        ref,
+        verse,
+        styleOverride ?? this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${(e as Error).message}`);
     }
+  }
+
+  /**
+   * Map a raw `style:` config value (e.g. "sidebar", "CALLOUT") to a valid
+   * DisplayStyle. Returns null for undefined or unrecognized values so the
+   * caller can fall back to the plugin default.
+   */
+  private resolveStyleKey(raw: string | undefined): DisplayStyle | null {
+    if (!raw) return null;
+    const lower = raw.trim().toLowerCase();
+    if (lower === "sidebar" || lower === "callout" || lower === "blockquote" || lower === "inline") {
+      return lower;
+    }
+    return null;
   }
 
   /**
@@ -421,6 +504,32 @@ export default class BibleVersePlugin extends Plugin {
       renderError(el, "Failed to fetch any translations for comparison.");
     }
   }
+
+  // ─── Public helpers for ViewPlugin ──────────────────────────────────────────
+
+  /**
+   * Public wrapper so the CM6 ViewPlugin can access translation abbreviations
+   * without needing to import private method details.
+   */
+  getTranslationAbbrPublic(translationId?: string): string {
+    return this.getTranslationAbbr(translationId);
+  }
+
+  /**
+   * Public wrapper so the CM6 ViewPlugin can resolve translation IDs.
+   */
+  resolveTranslationIdPublic(abbr: string): string {
+    return this.resolveTranslationId(abbr);
+  }
+
+  /**
+   * Public wrapper so the CM6 ViewPlugin can generate Bible website links.
+   */
+  generateLinkPublic(ref: BibleReference, translationAbbr: string): string {
+    return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   /**
    * Resolve a translation abbreviation to a HelloAO translation ID.

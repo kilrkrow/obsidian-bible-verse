@@ -2,12 +2,12 @@ import { App, TFile } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { parseReference, formatReference } from "./parser";
 
-/** Regex to find bib:ref patterns in note source */
-const INLINE_REF_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+/** Regex to find {ref} patterns in note source */
+const INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
-/** Regex to find existing baked blocks */
+/** Regex to find existing baked blocks — matches the full {ref} token */
 const BAKED_BLOCK_REGEX =
-  /(\bbib:[A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)\s*\n%%bible-baked\|([^%]+)%%\n([\s\S]*?)%%end-bible%%/g;
+  /(\{[A-Za-z0-9][^}\n]*\})\s*\n%%bible-baked\|([^%]+)%%\n([\s\S]*?)%%end-bible%%/g;
 
 /**
  * Handles baking (embedding) and unbaking verse text in note source.

@@ -37,7 +37,7 @@ __export(main_exports, {
   default: () => BibleVersePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -620,6 +620,54 @@ function parseReference(input) {
     raw: trimmed
   };
 }
+var TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
+var KNOWN_STYLES = [
+  "sidebar",
+  "callout",
+  "blockquote",
+  "inline"
+];
+function isKnownStyle(token) {
+  return KNOWN_STYLES.includes(token.toLowerCase());
+}
+function parseInlineSpec(content) {
+  const trimmed = content.trim();
+  const simpleRef = parseReference(trimmed);
+  if (simpleRef) {
+    return { ref: simpleRef, translations: [], styleOverride: null };
+  }
+  const parts = trimmed.split(",").map((p) => p.trim());
+  if (parts.length < 2)
+    return null;
+  const translations = [];
+  let styleOverride = null;
+  let cut = parts.length;
+  while (cut > 1) {
+    const tok = parts[cut - 1];
+    if (isKnownStyle(tok)) {
+      if (styleOverride !== null)
+        break;
+      styleOverride = tok.toLowerCase();
+      cut--;
+      continue;
+    }
+    if (TRANS_CODE_RE.test(tok)) {
+      if (translations.length >= 2)
+        break;
+      translations.unshift(tok.toUpperCase());
+      cut--;
+      continue;
+    }
+    break;
+  }
+  if (cut === parts.length)
+    return null;
+  const refStr = parts.slice(0, cut).join(",");
+  const ref = parseReference(refStr);
+  if (!ref)
+    return null;
+  return { ref, translations, styleOverride };
+}
 function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
   if (ref.startVerse !== null) {
@@ -820,7 +868,7 @@ var VerseCache = class {
 };
 
 // src/baker.ts
-var INLINE_REF_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+var INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var Baker = class {
   constructor(app) {
     this.app = app;
@@ -1213,7 +1261,7 @@ var QuickInsertModal = class extends import_obsidian3.Modal {
       if (e.key === "Enter") {
         const ref = parseReference(inputValue);
         if (ref) {
-          this.onSubmit(formatReference(ref), openInBrowser);
+          this.onSubmit(`{${formatReference(ref)}}`, openInBrowser);
           this.close();
         }
       }
@@ -1227,8 +1275,310 @@ var QuickInsertModal = class extends import_obsidian3.Modal {
   }
 };
 
+// src/suggest.ts
+var import_obsidian4 = require("obsidian");
+var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
+  constructor(app, plugin) {
+    super(app);
+    // Canonical book list in canonical order (Genesis → Revelation)
+    this.books = Object.keys(USFM_CODES);
+    this.plugin = plugin;
+    this.limit = 10;
+  }
+  /**
+   * Decide whether to show suggestions for the current cursor position.
+   * Returns null if the cursor is not inside an unclosed {…} block.
+   */
+  onTrigger(cursor, editor, _file) {
+    const line = editor.getLine(cursor.line);
+    const beforeCursor = line.substring(0, cursor.ch);
+    const openBrace = beforeCursor.lastIndexOf("{");
+    if (openBrace === -1)
+      return null;
+    const afterOpen = beforeCursor.substring(openBrace + 1);
+    if (afterOpen.includes("}"))
+      return null;
+    if (afterOpen.length === 0)
+      return null;
+    return {
+      start: { line: cursor.line, ch: openBrace + 1 },
+      end: cursor,
+      query: afterOpen
+    };
+  }
+  /**
+   * Return matching suggestions for the current query.
+   *
+   * If the query already parses as a valid Bible reference, returns it as a
+   * single "confirm" suggestion so the user can press Enter to close the block.
+   * Otherwise, returns matching book names.
+   */
+  getSuggestions(context) {
+    const query = context.query.trim();
+    if (query.length === 0)
+      return [];
+    if (/\d/.test(query)) {
+      const ref = parseReference(query);
+      if (ref) {
+        return [formatReference(ref)];
+      }
+    }
+    const typed = query.toLowerCase();
+    const results = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const book of this.books) {
+      if (book.toLowerCase().startsWith(typed)) {
+        results.push(book);
+        seen.add(book);
+      }
+    }
+    for (const [alias, canonical] of Object.entries(BOOK_ALIASES)) {
+      if (!seen.has(canonical) && alias.startsWith(typed)) {
+        results.push(canonical);
+        seen.add(canonical);
+      }
+    }
+    if (results.length < 5) {
+      for (const book of this.books) {
+        if (!seen.has(book) && book.toLowerCase().includes(typed)) {
+          results.push(book);
+          seen.add(book);
+        }
+      }
+    }
+    return results.slice(0, this.limit);
+  }
+  /** Render a single suggestion row in the dropdown. */
+  renderSuggestion(value, el) {
+    el.createEl("span", { cls: "bible-suggest-icon", text: "\u{1F4D6} " });
+    el.createEl("span", { cls: "bible-suggest-text", text: value });
+  }
+  /**
+   * Insert the selected suggestion into the editor.
+   *
+   * - Complete reference (has a digit): replaces the typed content and closes
+   *   the braces, moving the cursor past the }.
+   * - Book name only: replaces the typed content with "Book " so the user can
+   *   continue typing the chapter and verse.
+   */
+  selectSuggestion(value, _evt) {
+    const { context } = this;
+    if (!context)
+      return;
+    const editor = context.editor;
+    const line = editor.getLine(context.start.line);
+    const charAfterEnd = line[context.end.ch];
+    const hasClosingBrace = charAfterEnd === "}";
+    const isCompleteRef = /\d/.test(value);
+    if (isCompleteRef) {
+      if (hasClosingBrace) {
+        editor.replaceRange(value, context.start, context.end);
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + value.length + 1
+          // +1 to land after the }
+        });
+      } else {
+        editor.replaceRange(value + "}", context.start, context.end);
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + value.length + 1
+        });
+      }
+    } else {
+      editor.replaceRange(value + " ", context.start, context.end);
+      editor.setCursor({
+        line: context.start.line,
+        ch: context.start.ch + value.length + 1
+      });
+    }
+  }
+};
+
+// src/view-plugin.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
+var verseFetchedEffect = import_state.StateEffect.define();
+var BibleVerseWidget = class extends import_view.WidgetType {
+  constructor(spec) {
+    super();
+    this.spec = spec;
+  }
+  toDOM(view) {
+    var _a;
+    const container = document.createElement("span");
+    container.className = "bible-verse-livepreview";
+    if (this.spec.cachedVerse) {
+      renderVerse(
+        container,
+        this.spec.ref,
+        this.spec.cachedVerse,
+        (_a = this.spec.styleOverride) != null ? _a : this.spec.plugin.settings.displayStyle,
+        this.spec.plugin.settings.preferredWebsite
+      );
+    } else {
+      this.renderPill(container);
+      this.fetchAndUpdate(container, view);
+    }
+    return container;
+  }
+  renderPill(container) {
+    const a = document.createElement("a");
+    a.className = "bible-verse-pill";
+    a.textContent = "\u{1F4D6} " + this.spec.label;
+    a.href = this.spec.href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.addEventListener("mousedown", (e) => e.preventDefault());
+    container.appendChild(a);
+  }
+  async fetchAndUpdate(container, view) {
+    var _a;
+    const { plugin, ref, translations } = this.spec;
+    try {
+      let verse;
+      if (translations.length >= 2) {
+        const id = plugin.resolveTranslationIdPublic(translations[0]);
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      } else {
+        const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+        const abbr = plugin.getTranslationAbbrPublic(id);
+        verse = await plugin.api.getPassage(ref, id, abbr);
+      }
+      container.empty();
+      renderVerse(
+        container,
+        ref,
+        verse,
+        (_a = this.spec.styleOverride) != null ? _a : plugin.settings.displayStyle,
+        plugin.settings.preferredWebsite
+      );
+      view.dispatch({ effects: verseFetchedEffect.of(void 0) });
+    } catch (e) {
+      console.error("Bible Verse Live Preview: fetch failed", e);
+      container.empty();
+      renderError(container, `Could not load ${formatReference(ref)}.`);
+    }
+  }
+  /**
+   * Two widgets are equal if they would render identically.
+   * Comparing cachedVerse reference is enough — once a verse enters the cache
+   * the same object is returned on subsequent lookups.
+   */
+  eq(other) {
+    return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse && this.spec.styleOverride === other.spec.styleOverride;
+  }
+  /**
+   * Controls which events CodeMirror handles vs. what the widget DOM handles.
+   *
+   * Default CM6 behavior on mousedown inside a replace-decoration is to place
+   * the caret at the token position, which un-replaces the widget. That made
+   * clicking the rendered reference anchor feel broken — the user clicked
+   * "John 3:16 (KJV)" expecting BibleHub to open, but instead saw raw "{John 3:16}".
+   *
+   * Fix: when a pointer event originates on an <a> inside the widget, return true
+   * so CM leaves the event alone and the browser navigates the link normally.
+   * For non-anchor targets (verse body text, callout background, etc.) mousedown
+   * still returns false so the caret can move into the token for editing.
+   *
+   * click/auxclick always return true so left-click, middle-click (open in new
+   * tab), and Ctrl/Cmd+click all reach the anchor default handler.
+   */
+  ignoreEvent(event) {
+    const target = event.target;
+    const isAnchorEvent = !!(target && target.closest("a"));
+    if (event.type === "mousedown") {
+      return isAnchorEvent;
+    }
+    return true;
+  }
+};
+function selectionOverlaps(ranges, from, to) {
+  for (const sel of ranges) {
+    if (sel.from <= to && sel.to >= from)
+      return true;
+  }
+  return false;
+}
+function buildViewPlugin(plugin) {
+  return import_view.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.decorations = this.buildDecorations(view);
+      }
+      update(update) {
+        const needsRebuild = update.docChanged || update.viewportChanged || update.selectionSet || update.transactions.some(
+          (tr) => tr.effects.some((e) => e.is(verseFetchedEffect))
+        );
+        if (needsRebuild) {
+          this.decorations = this.buildDecorations(update.view);
+        }
+      }
+      buildDecorations(view) {
+        var _a;
+        const builder = new import_state.RangeSetBuilder();
+        const selections = view.state.selection.ranges;
+        for (const { from, to } of view.visibleRanges) {
+          const text = view.state.doc.sliceString(from, to);
+          INLINE_RE.lastIndex = 0;
+          let match;
+          while ((match = INLINE_RE.exec(text)) !== null) {
+            const tokenStart = from + match.index;
+            const tokenEnd = tokenStart + match[0].length;
+            if (selectionOverlaps(selections, tokenStart, tokenEnd))
+              continue;
+            const content = match[1].trim();
+            const spec = parseInlineSpec(content);
+            if (!spec)
+              continue;
+            const { ref, translations, styleOverride } = spec;
+            const refLabel = formatReference(ref);
+            let translationId;
+            let abbr;
+            if (translations.length >= 1) {
+              translationId = plugin.resolveTranslationIdPublic(translations[0]);
+              abbr = plugin.getTranslationAbbrPublic(translationId);
+            } else {
+              translationId = plugin.settings.defaultTranslation;
+              abbr = plugin.getTranslationAbbrPublic();
+            }
+            const cachedVerse = (_a = plugin.cache.get(abbr, refLabel)) != null ? _a : null;
+            let label;
+            if (translations.length === 0) {
+              label = refLabel;
+            } else if (translations.length === 1) {
+              label = `${refLabel} (${translations[0]})`;
+            } else {
+              label = `${refLabel} (${translations.join(" | ")})`;
+            }
+            const href = plugin.generateLinkPublic(ref, abbr);
+            const widget = new BibleVerseWidget({
+              label,
+              href,
+              ref,
+              translations,
+              styleOverride,
+              cachedVerse,
+              plugin
+            });
+            builder.add(
+              tokenStart,
+              tokenEnd,
+              import_view.Decoration.replace({ widget })
+            );
+          }
+        }
+        return builder.finish();
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+}
+
 // src/main.ts
-var BibleVersePlugin = class extends import_obsidian4.Plugin {
+var BibleVersePlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -1244,6 +1594,8 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
+    this.registerEditorSuggest(new BibleReferenceSuggest(this.app, this));
+    this.registerEditorExtension(buildViewPlugin(this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
     this.addCommand({
@@ -1257,9 +1609,9 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
         );
         if (newContent !== content) {
           editor.setValue(newContent);
-          new import_obsidian4.Notice("Bible verses baked into note.");
+          new import_obsidian5.Notice("Bible verses baked into note.");
         } else {
-          new import_obsidian4.Notice("No verses to bake.");
+          new import_obsidian5.Notice("No verses to bake.");
         }
       }
     });
@@ -1274,7 +1626,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           (ref) => this.fetchVerse(ref)
         );
         editor.setValue(newContent);
-        new import_obsidian4.Notice("Bible verses refreshed.");
+        new import_obsidian5.Notice("Bible verses refreshed.");
       }
     });
     this.addCommand({
@@ -1285,7 +1637,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian4.Notice(`Refreshed baked verses in ${count} files.`);
+        new import_obsidian5.Notice(`Refreshed baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1296,7 +1648,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           "bake",
           (ref) => this.fetchVerse(ref)
         );
-        new import_obsidian4.Notice(`Baked verses in ${count} files.`);
+        new import_obsidian5.Notice(`Baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1304,7 +1656,7 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       name: "Strip baked text from all notes",
       callback: async () => {
         const count = await this.baker.processVault("strip");
-        new import_obsidian4.Notice(`Stripped baked text from ${count} files.`);
+        new import_obsidian5.Notice(`Stripped baked text from ${count} files.`);
       }
     });
     this.addCommand({
@@ -1315,10 +1667,11 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
           var _a;
           const editor = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor;
           if (editor) {
-            editor.replaceSelection(`bib:${refStr}`);
+            editor.replaceSelection(refStr);
           }
           if (openInBrowser) {
-            const ref = parseReference(refStr);
+            const inner = refStr.replace(/^\{|\}$/g, "");
+            const ref = parseReference(inner);
             if (ref) {
               const abbr = this.getTranslationAbbr();
               const url = generateLink(ref, abbr, this.settings.preferredWebsite);
@@ -1335,11 +1688,11 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       editorCallback: (editor) => {
         const selection = editor.getSelection();
         if (!selection || selection.trim().length === 0) {
-          new import_obsidian4.Notice("No text selected.");
+          new import_obsidian5.Notice("No text selected.");
           return;
         }
         navigator.clipboard.writeText(selection.trim());
-        new import_obsidian4.Notice("Copied to clipboard. Opening search...");
+        new import_obsidian5.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
         window.open(url, "_blank");
@@ -1351,22 +1704,22 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       editorCallback: (editor) => {
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
-        const regex = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
+        const regex = /\{([A-Za-z0-9][^}\n]*)\}/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
           if (cursor.ch >= start && cursor.ch <= end) {
-            const ref = parseReference(match[1]);
-            if (ref) {
-              const abbr = this.getTranslationAbbr();
-              const url = generateLink(ref, abbr, this.settings.preferredWebsite);
+            const spec = parseInlineSpec(match[1].trim());
+            if (spec) {
+              const abbr = spec.translations.length >= 1 ? this.getTranslationAbbr(this.resolveTranslationId(spec.translations[0])) : this.getTranslationAbbr();
+              const url = generateLink(spec.ref, abbr, this.settings.preferredWebsite);
               window.open(url, "_blank");
               return;
             }
           }
         }
-        new import_obsidian4.Notice("No Bible reference found at cursor.");
+        new import_obsidian5.Notice("No Bible reference found at cursor.");
       }
     });
   }
@@ -1410,12 +1763,10 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
    * Inline markdown postprocessor: finds bib:ref in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
-    var _a;
-    if (el.hasAttribute("data-bible-processed"))
-      return;
+    var _a, _b;
+    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
-    const INLINE_REGEX = /\bbib:([A-Za-z0-9][^<>\n]*?\d+(?::\d+(?:-\d+(?::\d+)?)?(?:,\s*\d+)*)?)(?=[\s.,;:!?)\]<>]|$)/g;
     let node;
     while (node = walker.nextNode()) {
       const text = node.textContent || "";
@@ -1433,28 +1784,29 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
         if (matchIndex > lastIndex) {
           frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
         }
-        const refStr = match[1];
-        const ref = parseReference(refStr);
-        if (ref) {
+        const rawContent = match[1].trim();
+        const spec = parseInlineSpec(rawContent);
+        if (spec) {
+          const { ref, translations } = spec;
           const span = document.createElement("span");
           span.className = "bible-verse-container";
-          const abbr = this.getTranslationAbbr();
-          const cached = this.cache.get(abbr, formatReference(ref));
-          if (cached) {
-            renderVerse(
-              span,
-              ref,
-              cached,
-              this.settings.displayStyle,
-              this.settings.preferredWebsite
-            );
+          if (translations.length >= 2) {
+            this.renderInlineComparison(span, ref, translations);
           } else {
-            renderLink(span, ref, abbr, this.settings.preferredWebsite);
-            this.fetchAndRender(span, ref);
+            const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
+            const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
+            const style = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
+            const cached = this.cache.get(abbr, formatReference(ref));
+            if (cached) {
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
+            } else {
+              renderLink(span, ref, abbr, this.settings.preferredWebsite);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
+            }
           }
           frag.appendChild(span);
-          if (this.settings.persistVerseText) {
-            this.handleBake(ctx, refStr, ref);
+          if (this.settings.persistVerseText && translations.length === 0) {
+            this.handleBake(ctx, match[0], ref);
           }
         } else {
           frag.appendChild(document.createTextNode(match[0]));
@@ -1464,32 +1816,52 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       if (lastIndex < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
-      (_a = node2.parentNode) == null ? void 0 : _a.replaceChild(frag, node2);
-    }
-    if (nodesToProcess.length > 0) {
-      el.setAttribute("data-bible-processed", "true");
+      (_b = node2.parentNode) == null ? void 0 : _b.replaceChild(frag, node2);
     }
   }
   /**
-   * Fetch a verse and update the rendered element.
+   * Fetch a verse with a specific translation and update the rendered element.
    */
-  async fetchAndRender(container, ref) {
-    const verse = await this.fetchVerse(ref);
-    if (verse) {
+  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style) {
+    try {
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr);
       container.empty();
       renderVerse(
         container,
         ref,
         verse,
-        this.settings.displayStyle,
+        style != null ? style : this.settings.displayStyle,
         this.settings.preferredWebsite
       );
+    } catch (e) {
+      console.error("Bible Verse: Failed to fetch verse", e);
+    }
+  }
+  /**
+   * Render an inline comparison block for {ref, TRANS1, TRANS2} syntax.
+   */
+  async renderInlineComparison(container, ref, translations) {
+    const verses = [];
+    for (const trans of translations) {
+      const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
+      try {
+        const verse = await this.api.getPassage(ref, id, abbr);
+        verses.push(verse);
+      } catch (e) {
+        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
+      }
+    }
+    if (verses.length > 0) {
+      renderComparison(container, ref, verses, this.settings.preferredWebsite);
+    } else {
+      renderError(container, `Could not fetch translations for ${formatReference(ref)}.`);
     }
   }
   /**
    * Handle automatic baking when persistVerseText is on.
    */
-  async handleBake(ctx, rawRef, ref) {
+  async handleBake(ctx, refMarker, ref) {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!file || !(file instanceof (await import("obsidian")).TFile))
       return;
@@ -1497,7 +1869,6 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     if (!verse)
       return;
     const content = await this.app.vault.read(file);
-    const refMarker = `bib:${rawRef}`;
     if (this.baker.hasBakedBlock(content, refMarker))
       return;
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
@@ -1509,6 +1880,8 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
    * Code block processor for ```bible blocks.
    */
   async codeBlockProcessor(source, el, ctx) {
+    el.empty();
+    ctx.addChild(new import_obsidian5.MarkdownRenderChild(el));
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");
@@ -1537,12 +1910,33 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
     }
     const translationId = config["translation"] ? this.resolveTranslationId(config["translation"]) : this.settings.defaultTranslation;
     const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
+    const styleOverride = this.resolveStyleKey(config["style"]);
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr);
-      renderVerse(el, ref, verse, this.settings.displayStyle, this.settings.preferredWebsite);
+      renderVerse(
+        el,
+        ref,
+        verse,
+        styleOverride != null ? styleOverride : this.settings.displayStyle,
+        this.settings.preferredWebsite
+      );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);
     }
+  }
+  /**
+   * Map a raw `style:` config value (e.g. "sidebar", "CALLOUT") to a valid
+   * DisplayStyle. Returns null for undefined or unrecognized values so the
+   * caller can fall back to the plugin default.
+   */
+  resolveStyleKey(raw) {
+    if (!raw)
+      return null;
+    const lower = raw.trim().toLowerCase();
+    if (lower === "sidebar" || lower === "callout" || lower === "blockquote" || lower === "inline") {
+      return lower;
+    }
+    return null;
   }
   /**
    * Render a comparison block with multiple translations.
@@ -1565,6 +1959,27 @@ var BibleVersePlugin = class extends import_obsidian4.Plugin {
       renderError(el, "Failed to fetch any translations for comparison.");
     }
   }
+  // ─── Public helpers for ViewPlugin ──────────────────────────────────────────
+  /**
+   * Public wrapper so the CM6 ViewPlugin can access translation abbreviations
+   * without needing to import private method details.
+   */
+  getTranslationAbbrPublic(translationId) {
+    return this.getTranslationAbbr(translationId);
+  }
+  /**
+   * Public wrapper so the CM6 ViewPlugin can resolve translation IDs.
+   */
+  resolveTranslationIdPublic(abbr) {
+    return this.resolveTranslationId(abbr);
+  }
+  /**
+   * Public wrapper so the CM6 ViewPlugin can generate Bible website links.
+   */
+  generateLinkPublic(ref, translationAbbr) {
+    return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
   /**
    * Resolve a translation abbreviation to a HelloAO translation ID.
    * Searches the curated list by abbreviation, then by ID directly.
