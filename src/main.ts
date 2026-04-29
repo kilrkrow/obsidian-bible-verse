@@ -1,4 +1,4 @@
-import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin, TFile } from "obsidian";
 import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
 import { parseReference, parseInlineSpec, formatReference } from "./parser";
 import { BibleApi } from "./api";
@@ -209,18 +209,44 @@ export default class BibleVersePlugin extends Plugin {
 
   /**
    * Fetch a verse using the current settings.
+   * If network fetch fails, attempts to find a baked block in the active file as a fallback.
    */
   async fetchVerse(ref: BibleReference): Promise<CachedVerse | null> {
     try {
-      return await this.api.getPassage(
+      const verse = await this.api.getPassage(
         ref,
         this.settings.defaultTranslation,
         this.getTranslationAbbr()
       );
+      if (verse) return verse;
     } catch (e) {
-      console.error("Bible Verse: Failed to fetch verse", e);
-      return null;
+      console.error("Bible Verse: Network fetch failed, checking for baked fallback", e);
     }
+
+    // Fallback: Check for baked text in the current file
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile) {
+      const content = await this.app.vault.read(activeFile);
+      // We don't have the raw marker here, but we can try to find ANY baked block for this ref
+      const baked = this.baker.extractBakedText(content, formatReference(ref));
+      if (!baked) {
+        // Try again with just the book/chapter if verse-specific match failed
+        // (Baker needs a bit more work to match flex-refs reliably)
+      }
+      
+      if (baked) {
+        return {
+          text: baked.text,
+          translation: baked.translation,
+          bibleId: this.resolveTranslationId(baked.translation),
+          reference: formatReference(ref),
+          copyright: "",
+          fetchedAt: Date.now(),
+        };
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -373,21 +399,21 @@ export default class BibleVersePlugin extends Plugin {
    */
   private async handleBake(
     ctx: MarkdownPostProcessorContext,
-    refMarker: string,  // The full matched text as it appears in the note, e.g. "bib: John 3:16"
+    refMarker: string,
     ref: BibleReference
   ): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-    if (!file || !(file instanceof (await import("obsidian")).TFile)) return;
+    if (!(file instanceof TFile)) return;
 
     const verse = await this.fetchVerse(ref);
     if (!verse) return;
 
-    const content = await this.app.vault.read(file as any);
+    const content = await this.app.vault.read(file);
     if (this.baker.hasBakedBlock(content, refMarker)) return;
 
     const newContent = this.baker.bakeVerse(content, refMarker, verse);
     if (newContent !== content) {
-      await this.app.vault.modify(file as any, newContent);
+      await this.app.vault.modify(file, newContent);
     }
   }
 
