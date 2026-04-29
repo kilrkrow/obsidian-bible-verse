@@ -21,6 +21,7 @@ export interface BibleVerseSettings {
   preferredWebsite: BibleWebsite;
   displayStyle: DisplayStyle;
   persistVerseText: boolean;
+  sidebarTopPadding: number;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -28,6 +29,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   preferredWebsite: "BibleGateway",
   displayStyle: "callout",
   persistVerseText: false,
+  sidebarTopPadding: 0.5,
 };
 
 /** Cached verse entry */

@@ -58,7 +58,7 @@
    ======================== */
 .bible-verse-sidebar {
   border-left: 3px solid var(--interactive-accent);
-  padding: 0.5em 0.75em 0.5em 1em;
+  padding: var(--bible-verse-sidebar-top-padding, 0.5em) 0.75em 0.5em 1em;
   background: transparent;
   color: var(--text-normal);
 }

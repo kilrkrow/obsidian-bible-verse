@@ -23,6 +23,7 @@ export default class BibleVersePlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+    this.updateStyles();
 
     this.cache = new VerseCache(this);
     await this.cache.load();
@@ -170,6 +171,13 @@ export default class BibleVersePlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  updateStyles(): void {
+    document.body.style.setProperty(
+      "--bible-verse-sidebar-top-padding",
+      `${this.settings.sidebarTopPadding}em`
+    );
   }
 
   async saveSettings(): Promise<void> {

@@ -67,6 +67,22 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           })
       );
 
+    // Sidebar Top Padding
+    new Setting(containerEl)
+      .setName("Sidebar Top Padding")
+      .setDesc("Adjust the top spacing for the Sidebar style (in ems)")
+      .addSlider((slider) =>
+        slider
+          .setLimits(0, 2, 0.1)
+          .setValue(this.plugin.settings.sidebarTopPadding)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.sidebarTopPadding = value;
+            await this.plugin.saveSettings();
+            this.plugin.updateStyles();
+          })
+      );
+
     // Persist Verse Text
     new Setting(containerEl)
       .setName("Persist Verse Text in Notes")
