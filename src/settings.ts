@@ -106,6 +106,32 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.showVerseNumbers = value;
             await this.plugin.saveSettings();
+            this.display(); // Refresh to update dependency states
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("New line per verse")
+      .setDesc("Start each verse on a new line (only if verse numbers are enabled).")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.verseNewLine)
+          .setDisabled(!this.plugin.settings.showVerseNumbers)
+          .onChange(async (value) => {
+            this.plugin.settings.verseNewLine = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Show headings")
+      .setDesc("Display section headings from the Bible text.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showHeadings)
+          .onChange(async (value) => {
+            this.plugin.settings.showHeadings = value;
+            await this.plugin.saveSettings();
           })
       );
   }

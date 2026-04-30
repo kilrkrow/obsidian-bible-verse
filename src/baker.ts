@@ -5,13 +5,13 @@ import { parseReference, formatReference, parseInlineSpec } from "./parser";
 /** Regex to find {ref} patterns in note source */
 const INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
-/** Regex to find existing baked blocks following a reference */
-const BAKED_BLOCK_PATTERN =
-  "\\s*\\n%%bible-baked\\|([^%]+)%%\\n([\\s\\S]*?)%%end-bible%%";
+/** Regex to find bible code blocks */
+const CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
 
-/**
- * Handles baking (embedding) and unbaking verse text in note source.
- */
+/** Regex patterns for baked data */
+const INLINE_BAKE_PATTERN = " %%bible-baked\\|([^|]+)\\|(.*?)%%";
+const CODEBLOCK_BAKE_SEPARATOR = "\n---\n";
+
 export class Baker {
   private app: App;
 
@@ -20,103 +20,140 @@ export class Baker {
   }
 
   /**
-   * Extract all {ref} references from note content.
-   * Returns metadata including the parsed reference and offset in the content.
+   * Extract all bakeable references ({ref} and ```bible blocks) from note content.
    */
-  extractReferences(content: string): { raw: string; ref: BibleReference; offset: number; translations: string[] }[] {
-    const results: { raw: string; ref: BibleReference; offset: number; translations: string[] }[] = [];
+  extractReferences(content: string): { raw: string; ref: BibleReference | null; offset: number; type: "inline" | "block"; body?: string }[] {
+    const results: { raw: string; ref: BibleReference | null; offset: number; type: "inline" | "block"; body?: string }[] = [];
+    
+    // 1. Find inline references
     let match;
-    const regex = new RegExp(INLINE_REF_REGEX.source, "g");
-    while ((match = regex.exec(content)) !== null) {
+    const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
+    while ((match = inlineRegex.exec(content)) !== null) {
       const spec = parseInlineSpec(match[1]);
       if (spec) {
         results.push({
           raw: match[0],
           ref: spec.ref,
           offset: match.index,
-          translations: spec.translations,
+          type: "inline"
         });
       }
     }
-    return results;
-  }
 
-  /**
-   * Bake a verse into the note content after its {ref}.
-   * If already baked, update the baked block.
-   */
-  bakeVerse(content: string, refRaw: string, verse: CachedVerse): string {
-    const bakedBlock = `\n%%bible-baked|${verse.translation}%%\n${verse.text}\n%%end-bible%%`;
-
-    // Check if already baked — update it
-    const existingPattern = new RegExp(
-      escapeRegex(refRaw) + BAKED_BLOCK_PATTERN,
-      "g"
-    );
-
-    if (existingPattern.test(content)) {
-      return content.replace(existingPattern, refRaw + bakedBlock);
-    }
-
-    // Not yet baked — insert after the {ref}
-    // Note: This string replace only replaces the FIRST occurrence.
-    // Use bakeFile for robust multi-verse baking.
-    return content.replace(refRaw, refRaw + bakedBlock);
-  }
-
-  /**
-   * Strip all baked blocks from note content, leaving just the bib:ref markers.
-   */
-  stripBakedText(content: string): string {
-    return content.replace(
-      /\s*\n%%bible-baked\|[^%]+%%\n[\s\S]*?%%end-bible%%/g,
-      ""
-    );
-  }
-
-  /**
-   * Check if a bib:ref has a baked block following it.
-   */
-  hasBakedBlock(content: string, refRaw: string): boolean {
-    const pattern = new RegExp(
-      escapeRegex(refRaw) +
-        "\\s*\\n%%bible-baked\\|[^%]+%%\\n[\\s\\S]*?%%end-bible%%"
-    );
-    return pattern.test(content);
-  }
-
-  /**
-   * Extract baked text for a reference if it exists.
-   * Can be called with a raw marker (e.g. "{John 3:16}") or a plain reference string.
-   */
-  extractBakedText(
-    content: string,
-    refStr: string
-  ): { translation: string; text: string } | null {
-    // Try matching with the string as provided (could be the raw marker)
-    let pattern = new RegExp(
-      escapeRegex(refStr) + BAKED_BLOCK_PATTERN
-    );
-    let match = content.match(pattern);
-    
-    if (!match) {
-      // Try wrapping in braces if it wasn't already
-      if (!refStr.startsWith("{")) {
-        pattern = new RegExp(
-          escapeRegex(`{${refStr}}`) + BAKED_BLOCK_PATTERN
-        );
-        match = content.match(pattern);
+    // 2. Find code blocks
+    const blockRegex = new RegExp(CODEBLOCK_REGEX.source, "g");
+    while ((match = blockRegex.exec(content)) !== null) {
+      const body = match[1];
+      const lines = body.split("\n");
+      if (lines.length > 0) {
+        const ref = parseReference(lines[0].trim());
+        results.push({
+          raw: match[0],
+          ref: ref, // Might be null if first line isn't a ref
+          offset: match.index,
+          type: "block",
+          body: body
+        });
       }
     }
 
-    if (!match) return null;
-    return { translation: match[1], text: match[2].trim() };
+    // Sort by offset so bakeFile can process backwards correctly
+    return results.sort((a, b) => a.offset - b.offset);
   }
 
   /**
-   * Bake all verses in a single file using a single-pass offset-based approach.
-   * This is more robust than sequential string replaces.
+   * Bake a verse into the note content.
    */
+  bakeVerse(content: string, refRaw: string, verse: CachedVerse, type: "inline" | "block" = "inline"): string {
+    if (type === "inline") {
+      const escapedText = verse.text.replace(/\n/g, "\\n");
+      const bakedMarker = ` %%bible-baked|${verse.translation}|${escapedText}%%`;
+      
+      const existingPattern = new RegExp(escapeRegex(refRaw) + " %%bible-baked\\|[^|]+\\|.*?%%", "g");
+      if (existingPattern.test(content)) {
+        return content.replace(existingPattern, refRaw + bakedMarker);
+      }
+      return content.replace(refRaw, refRaw + bakedMarker);
+    } else {
+      // Code block baking
+      // If it already has a separator, replace everything after it
+      const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
+      let newBlock: string;
+      if (separatorIdx > 0) {
+        newBlock = refRaw.substring(0, separatorIdx) + CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```";
+      } else {
+        // Insert separator before the closing backticks
+        newBlock = refRaw.replace(/\n```$/, CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```");
+      }
+      return content.replace(refRaw, newBlock);
+    }
+  }
+
+  /**
+   * Strip all baked text.
+   */
+  stripBakedText(content: string): string {
+    let result = content;
+    // Strip inline
+    result = result.replace(/ %%bible-baked\|[^|]+\\|.*?%%/g, "");
+    // Strip blocks (remove everything after --- inside a bible block)
+    result = result.replace(/(```bible[\s\S]*?)\n---\n[\s\S]*?(\n```)/g, "$1$2");
+    return result;
+  }
+
+  /**
+   * Check if a reference is already baked.
+   */
+  hasBakedBlock(content: string, refRaw: string, type: "inline" | "block" = "inline"): boolean {
+    if (type === "inline") {
+      const pattern = new RegExp(escapeRegex(refRaw) + " %%bible-baked\\|[^|]+\\|.*?%%");
+      return pattern.test(content);
+    } else {
+      return refRaw.includes(CODEBLOCK_BAKE_SEPARATOR);
+    }
+  }
+
+  /**
+   * Extract baked text fallback.
+   */
+  extractBakedText(content: string, refStr: string): { translation: string; text: string } | null {
+    // Check inline first
+    const inlinePattern = new RegExp(escapeRegex(`{${refStr}}`) + " %%bible-baked\\|([^|]+)\\|(.*?)%%");
+    const inlineMatch = content.match(inlinePattern);
+    if (inlineMatch) {
+      return {
+        translation: inlineMatch[1],
+        text: inlineMatch[2].replace(/\\n/g, "\n")
+      };
+    }
+
+    // Check code blocks
+    // This is harder because we need to find the block for this ref
+    const blocks = content.match(new RegExp(CODEBLOCK_REGEX.source, "g"));
+    if (blocks) {
+      for (const block of blocks) {
+        if (block.includes(refStr) && block.includes(CODEBLOCK_BAKE_SEPARATOR)) {
+          const parts = block.split(CODEBLOCK_BAKE_SEPARATOR);
+          // Try to find translation in the header lines
+          const header = parts[0];
+          const lines = header.split("\n");
+          let translation = "KJV"; // Fallback
+          for (const line of lines) {
+            if (line.toLowerCase().startsWith("translation:")) {
+              translation = line.split(":")[1].trim();
+            }
+          }
+          return {
+            translation,
+            text: parts[1].replace(/\n```$/, "").trim()
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
   async bakeFile(
     content: string,
     fetchVerse: (ref: BibleReference) => Promise<CachedVerse | null>
@@ -124,41 +161,44 @@ export class Baker {
     const refs = this.extractReferences(content);
     if (refs.length === 0) return content;
 
-    // Iterate backwards to keep offsets valid as we insert text
     let result = content;
+    // Process backwards
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset } = refs[i];
+      const { raw, ref, offset, type } = refs[i];
+      if (!ref) continue;
+
       const verse = await fetchVerse(ref);
       if (!verse) continue;
 
-      const bakedBlock = `\n%%bible-baked|${verse.translation}%%\n${verse.text}\n%%end-bible%%`;
-      
-      // Check if there is an existing block immediately following this reference
-      const tail = result.slice(offset + raw.length);
-      const blockMatch = tail.match(new RegExp("^" + BAKED_BLOCK_PATTERN));
-      
-      if (blockMatch) {
-        // Replace existing block
-        const blockLength = blockMatch[0].length;
-        result = 
-          result.slice(0, offset + raw.length) + 
-          bakedBlock + 
-          result.slice(offset + raw.length + blockLength);
+      if (type === "inline") {
+        const escapedText = verse.text.replace(/\n/g, "\\n");
+        const bakedMarker = ` %%bible-baked|${verse.translation}|${escapedText}%%`;
+        
+        // Check for existing inline bake
+        const tail = result.slice(offset + raw.length);
+        const inlineMatch = tail.match(/^ %%bible-baked\|[^|]+\\|.*?%%/);
+        
+        if (inlineMatch) {
+          result = result.slice(0, offset + raw.length) + bakedMarker + result.slice(offset + raw.length + inlineMatch[0].length);
+        } else {
+          result = result.slice(0, offset + raw.length) + bakedMarker + result.slice(offset + raw.length);
+        }
       } else {
-        // Insert new block
-        result = 
-          result.slice(0, offset + raw.length) + 
-          bakedBlock + 
-          result.slice(offset + raw.length);
+        // Code block bake
+        const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
+        let newBlock: string;
+        if (separatorIdx > 0) {
+          newBlock = raw.substring(0, separatorIdx) + CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```";
+        } else {
+          newBlock = raw.replace(/\n```$/, CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```");
+        }
+        result = result.slice(0, offset) + newBlock + result.slice(offset + raw.length);
       }
     }
 
     return result;
   }
 
-  /**
-   * Process all markdown files in the vault.
-   */
   async processVault(
     action: "bake" | "strip",
     fetchVerse?: (ref: BibleReference) => Promise<CachedVerse | null>
@@ -168,10 +208,8 @@ export class Baker {
 
     for (const file of files) {
       const content = await this.app.vault.read(file);
-      const refs = this.extractReferences(content);
-      if (refs.length === 0) continue;
-
       let newContent: string;
+      
       if (action === "strip") {
         newContent = this.stripBakedText(content);
       } else if (fetchVerse) {
@@ -190,7 +228,6 @@ export class Baker {
   }
 }
 
-/** Escape special regex characters in a string */
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

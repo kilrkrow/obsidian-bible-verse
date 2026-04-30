@@ -91,7 +91,11 @@ export class BibleApi {
     ref: BibleReference,
     translationId: string,
     translationAbbr: string,
-    showVerseNumbers: boolean
+    settings: {
+      showVerseNumbers: boolean;
+      showHeadings: boolean;
+      verseNewLine: boolean;
+    }
   ): Promise<CachedVerse> {
     const refStr = formatReference(ref);
 
@@ -128,13 +132,13 @@ export class BibleApi {
         if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
           let text = this.extractVerseText(verseItem.content);
           if (text) {
-            if (showVerseNumbers) {
+            if (settings.showVerseNumbers) {
               text = `[${verseItem.number}] ${text}`;
             }
             verseParts.push(text);
           }
         }
-      } else if (obj.type === "heading") {
+      } else if (obj.type === "heading" && settings.showHeadings) {
         const headingItem = item as { content: string[] };
         const headingText = headingItem.content.join(" ").trim();
         if (headingText) {
@@ -150,7 +154,7 @@ export class BibleApi {
     }
 
     const text = verseParts
-      .join(" ")
+      .join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ")
       .replace(/\s?\n\s?/g, "\n")
       .replace(/\n{3,}/g, "\n\n") // Max double newline
       .trim();

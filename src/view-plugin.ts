@@ -92,13 +92,21 @@ class BibleVerseWidget extends WidgetType {
         // For comparison mode in live preview we just show the first translation
         const id = plugin.resolveTranslationIdPublic(translations[0]);
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
+        verse = await plugin.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: plugin.settings.showVerseNumbers,
+          showHeadings: plugin.settings.showHeadings,
+          verseNewLine: plugin.settings.verseNewLine,
+        });
       } else {
         const id = translations.length === 1
           ? plugin.resolveTranslationIdPublic(translations[0])
           : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
+        verse = await plugin.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: plugin.settings.showVerseNumbers,
+          showHeadings: plugin.settings.showHeadings,
+          verseNewLine: plugin.settings.verseNewLine,
+        });
       }
 
       // Update the DOM in place (visible immediately)

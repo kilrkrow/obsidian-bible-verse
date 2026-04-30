@@ -36,7 +36,9 @@ var DEFAULT_SETTINGS = {
   displayStyle: "callout",
   persistVerseText: false,
   sidebarTopPadding: 0.5,
-  showVerseNumbers: true
+  showVerseNumbers: true,
+  showHeadings: true,
+  verseNewLine: false
 };
 
 // src/constants.ts
@@ -740,7 +742,7 @@ var BibleApi = class {
    * Fetches the whole chapter and extracts the requested verses client-side.
    * Returns cached version if available.
    */
-  async getPassage(ref, translationId, translationAbbr, showVerseNumbers) {
+  async getPassage(ref, translationId, translationAbbr, settings) {
     var _a;
     const refStr = formatReference(ref);
     const cached = this.cache.get(translationAbbr, refStr);
@@ -767,13 +769,13 @@ var BibleApi = class {
         if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
           let text2 = this.extractVerseText(verseItem.content);
           if (text2) {
-            if (showVerseNumbers) {
+            if (settings.showVerseNumbers) {
               text2 = `[${verseItem.number}] ${text2}`;
             }
             verseParts.push(text2);
           }
         }
-      } else if (obj.type === "heading") {
+      } else if (obj.type === "heading" && settings.showHeadings) {
         const headingItem = item;
         const headingText = headingItem.content.join(" ").trim();
         if (headingText) {
@@ -788,7 +790,7 @@ var BibleApi = class {
     if (verseParts.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const text = verseParts.join(" ").replace(/\s?\n\s?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const text = verseParts.join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ").replace(/\s?\n\s?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -887,129 +889,165 @@ var VerseCache = class {
 
 // src/baker.ts
 var INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
-var BAKED_BLOCK_PATTERN = "\\s*\\n%%bible-baked\\|([^%]+)%%\\n([\\s\\S]*?)%%end-bible%%";
+var CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
+var CODEBLOCK_BAKE_SEPARATOR = "\n---\n";
 var Baker = class {
   constructor(app) {
     this.app = app;
   }
   /**
-   * Extract all {ref} references from note content.
-   * Returns metadata including the parsed reference and offset in the content.
+   * Extract all bakeable references ({ref} and ```bible blocks) from note content.
    */
   extractReferences(content) {
     const results = [];
     let match;
-    const regex = new RegExp(INLINE_REF_REGEX.source, "g");
-    while ((match = regex.exec(content)) !== null) {
+    const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
+    while ((match = inlineRegex.exec(content)) !== null) {
       const spec = parseInlineSpec(match[1]);
       if (spec) {
         results.push({
           raw: match[0],
           ref: spec.ref,
           offset: match.index,
-          translations: spec.translations
+          type: "inline"
         });
       }
     }
-    return results;
-  }
-  /**
-   * Bake a verse into the note content after its {ref}.
-   * If already baked, update the baked block.
-   */
-  bakeVerse(content, refRaw, verse) {
-    const bakedBlock = `
-%%bible-baked|${verse.translation}%%
-${verse.text}
-%%end-bible%%`;
-    const existingPattern = new RegExp(
-      escapeRegex(refRaw) + BAKED_BLOCK_PATTERN,
-      "g"
-    );
-    if (existingPattern.test(content)) {
-      return content.replace(existingPattern, refRaw + bakedBlock);
-    }
-    return content.replace(refRaw, refRaw + bakedBlock);
-  }
-  /**
-   * Strip all baked blocks from note content, leaving just the bib:ref markers.
-   */
-  stripBakedText(content) {
-    return content.replace(
-      /\s*\n%%bible-baked\|[^%]+%%\n[\s\S]*?%%end-bible%%/g,
-      ""
-    );
-  }
-  /**
-   * Check if a bib:ref has a baked block following it.
-   */
-  hasBakedBlock(content, refRaw) {
-    const pattern = new RegExp(
-      escapeRegex(refRaw) + "\\s*\\n%%bible-baked\\|[^%]+%%\\n[\\s\\S]*?%%end-bible%%"
-    );
-    return pattern.test(content);
-  }
-  /**
-   * Extract baked text for a reference if it exists.
-   * Can be called with a raw marker (e.g. "{John 3:16}") or a plain reference string.
-   */
-  extractBakedText(content, refStr) {
-    let pattern = new RegExp(
-      escapeRegex(refStr) + BAKED_BLOCK_PATTERN
-    );
-    let match = content.match(pattern);
-    if (!match) {
-      if (!refStr.startsWith("{")) {
-        pattern = new RegExp(
-          escapeRegex(`{${refStr}}`) + BAKED_BLOCK_PATTERN
-        );
-        match = content.match(pattern);
+    const blockRegex = new RegExp(CODEBLOCK_REGEX.source, "g");
+    while ((match = blockRegex.exec(content)) !== null) {
+      const body = match[1];
+      const lines = body.split("\n");
+      if (lines.length > 0) {
+        const ref = parseReference(lines[0].trim());
+        results.push({
+          raw: match[0],
+          ref,
+          // Might be null if first line isn't a ref
+          offset: match.index,
+          type: "block",
+          body
+        });
       }
     }
-    if (!match)
-      return null;
-    return { translation: match[1], text: match[2].trim() };
+    return results.sort((a, b) => a.offset - b.offset);
   }
   /**
-   * Bake all verses in a single file using a single-pass offset-based approach.
-   * This is more robust than sequential string replaces.
+   * Bake a verse into the note content.
    */
+  bakeVerse(content, refRaw, verse, type = "inline") {
+    if (type === "inline") {
+      const escapedText = verse.text.replace(/\n/g, "\\n");
+      const bakedMarker = ` %%bible-baked|${verse.translation}|${escapedText}%%`;
+      const existingPattern = new RegExp(escapeRegex(refRaw) + " %%bible-baked\\|[^|]+\\|.*?%%", "g");
+      if (existingPattern.test(content)) {
+        return content.replace(existingPattern, refRaw + bakedMarker);
+      }
+      return content.replace(refRaw, refRaw + bakedMarker);
+    } else {
+      const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
+      let newBlock;
+      if (separatorIdx > 0) {
+        newBlock = refRaw.substring(0, separatorIdx) + CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```";
+      } else {
+        newBlock = refRaw.replace(/\n```$/, CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```");
+      }
+      return content.replace(refRaw, newBlock);
+    }
+  }
+  /**
+   * Strip all baked text.
+   */
+  stripBakedText(content) {
+    let result = content;
+    result = result.replace(/ %%bible-baked\|[^|]+\\|.*?%%/g, "");
+    result = result.replace(/(```bible[\s\S]*?)\n---\n[\s\S]*?(\n```)/g, "$1$2");
+    return result;
+  }
+  /**
+   * Check if a reference is already baked.
+   */
+  hasBakedBlock(content, refRaw, type = "inline") {
+    if (type === "inline") {
+      const pattern = new RegExp(escapeRegex(refRaw) + " %%bible-baked\\|[^|]+\\|.*?%%");
+      return pattern.test(content);
+    } else {
+      return refRaw.includes(CODEBLOCK_BAKE_SEPARATOR);
+    }
+  }
+  /**
+   * Extract baked text fallback.
+   */
+  extractBakedText(content, refStr) {
+    const inlinePattern = new RegExp(escapeRegex(`{${refStr}}`) + " %%bible-baked\\|([^|]+)\\|(.*?)%%");
+    const inlineMatch = content.match(inlinePattern);
+    if (inlineMatch) {
+      return {
+        translation: inlineMatch[1],
+        text: inlineMatch[2].replace(/\\n/g, "\n")
+      };
+    }
+    const blocks = content.match(new RegExp(CODEBLOCK_REGEX.source, "g"));
+    if (blocks) {
+      for (const block of blocks) {
+        if (block.includes(refStr) && block.includes(CODEBLOCK_BAKE_SEPARATOR)) {
+          const parts = block.split(CODEBLOCK_BAKE_SEPARATOR);
+          const header = parts[0];
+          const lines = header.split("\n");
+          let translation = "KJV";
+          for (const line of lines) {
+            if (line.toLowerCase().startsWith("translation:")) {
+              translation = line.split(":")[1].trim();
+            }
+          }
+          return {
+            translation,
+            text: parts[1].replace(/\n```$/, "").trim()
+          };
+        }
+      }
+    }
+    return null;
+  }
   async bakeFile(content, fetchVerse) {
     const refs = this.extractReferences(content);
     if (refs.length === 0)
       return content;
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset } = refs[i];
+      const { raw, ref, offset, type } = refs[i];
+      if (!ref)
+        continue;
       const verse = await fetchVerse(ref);
       if (!verse)
         continue;
-      const bakedBlock = `
-%%bible-baked|${verse.translation}%%
-${verse.text}
-%%end-bible%%`;
-      const tail = result.slice(offset + raw.length);
-      const blockMatch = tail.match(new RegExp("^" + BAKED_BLOCK_PATTERN));
-      if (blockMatch) {
-        const blockLength = blockMatch[0].length;
-        result = result.slice(0, offset + raw.length) + bakedBlock + result.slice(offset + raw.length + blockLength);
+      if (type === "inline") {
+        const escapedText = verse.text.replace(/\n/g, "\\n");
+        const bakedMarker = ` %%bible-baked|${verse.translation}|${escapedText}%%`;
+        const tail = result.slice(offset + raw.length);
+        const inlineMatch = tail.match(/^ %%bible-baked\|[^|]+\\|.*?%%/);
+        if (inlineMatch) {
+          result = result.slice(0, offset + raw.length) + bakedMarker + result.slice(offset + raw.length + inlineMatch[0].length);
+        } else {
+          result = result.slice(0, offset + raw.length) + bakedMarker + result.slice(offset + raw.length);
+        }
       } else {
-        result = result.slice(0, offset + raw.length) + bakedBlock + result.slice(offset + raw.length);
+        const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
+        let newBlock;
+        if (separatorIdx > 0) {
+          newBlock = raw.substring(0, separatorIdx) + CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```";
+        } else {
+          newBlock = raw.replace(/\n```$/, CODEBLOCK_BAKE_SEPARATOR + verse.text + "\n```");
+        }
+        result = result.slice(0, offset) + newBlock + result.slice(offset + raw.length);
       }
     }
     return result;
   }
-  /**
-   * Process all markdown files in the vault.
-   */
   async processVault(action, fetchVerse) {
     const files = this.app.vault.getMarkdownFiles();
     let count = 0;
     for (const file of files) {
       const content = await this.app.vault.read(file);
-      const refs = this.extractReferences(content);
-      if (refs.length === 0)
-        continue;
       let newContent;
       if (action === "strip") {
         newContent = this.stripBakedText(content);
@@ -1080,6 +1118,19 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
     new import_obsidian2.Setting(containerEl).setName("Show verse numbers").setDesc("Display verse numbers in the rendered text.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.showVerseNumbers).onChange(async (value) => {
         this.plugin.settings.showVerseNumbers = value;
+        await this.plugin.saveSettings();
+        this.display();
+      })
+    );
+    new import_obsidian2.Setting(containerEl).setName("New line per verse").setDesc("Start each verse on a new line (only if verse numbers are enabled).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.verseNewLine).setDisabled(!this.plugin.settings.showVerseNumbers).onChange(async (value) => {
+        this.plugin.settings.verseNewLine = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian2.Setting(containerEl).setName("Show headings").setDesc("Display section headings from the Bible text.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.showHeadings).onChange(async (value) => {
+        this.plugin.settings.showHeadings = value;
         await this.plugin.saveSettings();
       })
     );
@@ -1495,11 +1546,19 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       if (translations.length >= 2) {
         const id = plugin.resolveTranslationIdPublic(translations[0]);
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
+        verse = await plugin.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: plugin.settings.showVerseNumbers,
+          showHeadings: plugin.settings.showHeadings,
+          verseNewLine: plugin.settings.verseNewLine
+        });
       } else {
         const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, plugin.settings.showVerseNumbers);
+        verse = await plugin.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: plugin.settings.showVerseNumbers,
+          showHeadings: plugin.settings.showHeadings,
+          verseNewLine: plugin.settings.verseNewLine
+        });
       }
       container.empty();
       renderVerse(
@@ -1808,7 +1867,11 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
         ref,
         this.settings.defaultTranslation,
         this.getTranslationAbbr(),
-        this.settings.showVerseNumbers
+        {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine
+        }
       );
       if (verse)
         return verse;
@@ -1899,7 +1962,11 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
    */
   async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style) {
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+        showVerseNumbers: this.settings.showVerseNumbers,
+        showHeadings: this.settings.showHeadings,
+        verseNewLine: this.settings.verseNewLine
+      });
       container.empty();
       renderVerse(
         container,
@@ -1921,7 +1988,11 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
+        const verse = await this.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine
+        });
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -1946,7 +2017,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     const content = await this.app.vault.read(file);
     if (this.baker.hasBakedBlock(content, refMarker))
       return;
-    const newContent = this.baker.bakeVerse(content, refMarker, verse);
+    const newContent = this.baker.bakeVerse(content, refMarker, verse, "inline");
     if (newContent !== content) {
       await this.app.vault.modify(file, newContent);
     }
@@ -1969,7 +2040,14 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       return;
     }
     const config = {};
-    for (let i = 1; i < lines.length; i++) {
+    let cachedText = null;
+    let headerLinesCount = lines.length;
+    const sepIdx = lines.indexOf("---");
+    if (sepIdx > 0) {
+      headerLinesCount = sepIdx;
+      cachedText = lines.slice(sepIdx + 1).join("\n").trim();
+    }
+    for (let i = 1; i < headerLinesCount; i++) {
       const line = lines[i].trim();
       const colonIdx = line.indexOf(":");
       if (colonIdx > 0) {
@@ -1987,7 +2065,23 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
     const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
     const styleOverride = this.resolveStyleKey(config["style"]);
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
+      let verse;
+      if (cachedText) {
+        verse = {
+          reference: formatReference(ref),
+          translation: translationAbbr,
+          bibleId: translationId,
+          text: cachedText,
+          copyright: "",
+          fetchedAt: Date.now()
+        };
+      } else {
+        verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine
+        });
+      }
       renderVerse(
         el,
         ref,
@@ -2022,7 +2116,11 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
+        const verse = await this.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine
+        });
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);

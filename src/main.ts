@@ -217,7 +217,11 @@ export default class BibleVersePlugin extends Plugin {
         ref,
         this.settings.defaultTranslation,
         this.getTranslationAbbr(),
-        this.settings.showVerseNumbers
+        {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine,
+        }
       );
       if (verse) return verse;
     } catch (e) {
@@ -355,7 +359,11 @@ export default class BibleVersePlugin extends Plugin {
     style?: DisplayStyle
   ): Promise<void> {
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
+      const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+        showVerseNumbers: this.settings.showVerseNumbers,
+        showHeadings: this.settings.showHeadings,
+        verseNewLine: this.settings.verseNewLine,
+      });
       container.empty();
       renderVerse(
         container,
@@ -382,7 +390,11 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
+        const verse = await this.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine,
+        });
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
@@ -412,7 +424,7 @@ export default class BibleVersePlugin extends Plugin {
     const content = await this.app.vault.read(file);
     if (this.baker.hasBakedBlock(content, refMarker)) return;
 
-    const newContent = this.baker.bakeVerse(content, refMarker, verse);
+    const newContent = this.baker.bakeVerse(content, refMarker, verse, "inline");
     if (newContent !== content) {
       await this.app.vault.modify(file, newContent);
     }
@@ -445,9 +457,18 @@ export default class BibleVersePlugin extends Plugin {
       return;
     }
 
-    // Parse key:value config from remaining lines
+    // Parse key:value config from remaining lines (up to a separator if present)
     const config: Record<string, string> = {};
-    for (let i = 1; i < lines.length; i++) {
+    let cachedText: string | null = null;
+    let headerLinesCount = lines.length;
+
+    const sepIdx = lines.indexOf("---");
+    if (sepIdx > 0) {
+      headerLinesCount = sepIdx;
+      cachedText = lines.slice(sepIdx + 1).join("\n").trim();
+    }
+
+    for (let i = 1; i < headerLinesCount; i++) {
       const line = lines[i].trim();
       const colonIdx = line.indexOf(":");
       if (colonIdx > 0) {
@@ -477,7 +498,24 @@ export default class BibleVersePlugin extends Plugin {
     const styleOverride = this.resolveStyleKey(config["style"]);
 
     try {
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr, this.settings.showVerseNumbers);
+      let verse: CachedVerse;
+      if (cachedText) {
+        verse = {
+          reference: formatReference(ref),
+          translation: translationAbbr,
+          bibleId: translationId,
+          text: cachedText,
+          copyright: "",
+          fetchedAt: Date.now(),
+        };
+      } else {
+        verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine,
+        });
+      }
+
       renderVerse(
         el,
         ref,
@@ -518,7 +556,11 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, this.settings.showVerseNumbers);
+        const verse = await this.api.getPassage(ref, id, abbr, {
+          showVerseNumbers: this.settings.showVerseNumbers,
+          showHeadings: this.settings.showHeadings,
+          verseNewLine: this.settings.verseNewLine,
+        });
         verses.push(verse);
       } catch (e) {
         console.error(`Bible Verse: Failed to fetch ${trans}`, e);
