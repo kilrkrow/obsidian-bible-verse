@@ -24,27 +24,31 @@ export class BibleApi {
    * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
    */
   private extractVerseText(content: unknown[]): string {
-    return content
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (typeof item === "object" && item !== null) {
-          const obj = item as Record<string, unknown>;
-          if ("text" in obj) {
-            let text = obj.text as string;
-            // Handle poetic indentation if present
-            if (obj.poem) {
-              const indent = "\u00A0".repeat(Number(obj.poem) * 2);
-              text = "\n" + indent + text;
-            }
-            return text;
+    const parts: string[] = [];
+    for (const item of content) {
+      if (typeof item === "string") {
+        parts.push(item);
+      } else if (typeof item === "object" && item !== null) {
+        const obj = item as Record<string, unknown>;
+        if ("text" in obj) {
+          let text = obj.text as string;
+          if (obj.poem) {
+            const indent = "\u00A0".repeat(Number(obj.poem) * 2);
+            // Only add newline if we already have text in this verse
+            const prefix = parts.length > 0 ? "\n" : "";
+            text = prefix + indent + text;
           }
-          if (obj.lineBreak || obj.type === "line_break") return "\n";
+          parts.push(text);
+        } else if (obj.lineBreak || obj.type === "line_break") {
+          parts.push("\n");
         }
-        return "";
-      })
-      .filter((s) => s.length > 0)
+      }
+    }
+
+    return parts
       .join(" ")
-      .replace(/\s?\n\s?/g, "\n"); // Clean up spacing around manual line breaks
+      .replace(/\s?\n\s?/g, "\n")
+      .trim();
   }
 
   /**
