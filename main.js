@@ -703,7 +703,7 @@ var BibleApi = class {
           }
           return text;
         }
-        if (obj.lineBreak)
+        if (obj.lineBreak || obj.type === "line_break")
           return "\n";
       }
       return "";
@@ -775,7 +775,7 @@ var BibleApi = class {
             verseParts.push(text2);
           }
         }
-      } else if (obj.type === "line_break") {
+      } else if (obj.type === "line_break" || obj.type === "paragraph" || obj.type === "stanza" || obj.type === "stanza_break") {
         verseParts.push("\n");
       }
     }

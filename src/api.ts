@@ -38,7 +38,7 @@ export class BibleApi {
             }
             return text;
           }
-          if (obj.lineBreak) return "\n";
+          if (obj.lineBreak || obj.type === "line_break") return "\n";
         }
         return "";
       })
@@ -137,7 +137,12 @@ export class BibleApi {
             verseParts.push(text);
           }
         }
-      } else if (obj.type === "line_break") {
+      } else if (
+        obj.type === "line_break" ||
+        obj.type === "paragraph" ||
+        obj.type === "stanza" ||
+        obj.type === "stanza_break"
+      ) {
         verseParts.push("\n");
       }
     }

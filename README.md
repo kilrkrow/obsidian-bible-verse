@@ -11,7 +11,9 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 - **Multiple display styles** — Sidebar, Callout, Blockquote, or Inline
 - **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
 - **Local caching** — Fetched verses are cached locally to reduce API calls
-- **Bake mode** — Optionally persist verse text directly in your note source for offline access
+- **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
+- **Verse Numbers** — Optional display of verse numbers (e.g. `[16]`) for easy reference
+- **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
 - **No API key needed** — Uses the free HelloAO Bible API with no registration required
 
 ## Installation
@@ -145,20 +147,23 @@ Some commercially-licensed translations (NIV, NLT, NKJV, ESV, etc.) are not avai
 | Default Translation | Which translation to use by default | KJV |
 | Preferred Website | Which Bible website to link to | BibleGateway |
 | Display Style | Visual presentation of verses | Callout |
-| Persist Verse Text | Automatically bake verse text into notes | Off |
+| Show Verse Numbers | Toggle verse numbers (e.g. `[1]`) | On |
+| New Line Per Verse | Each verse starts on a new line (requires verse numbers) | Off |
+| Persist Verse Text | Automatically bake verse text when rendering | Off |
+| Bake Inline References | Convert `{ref}` to code block when baking | Off |
 
-## Bake Mode
+When "Persist Verse Text" is enabled, fetched verse text is stored directly inside the ` ```bible ` code block:
 
-When "Persist Verse Text" is enabled, fetched verse text is written directly into your note source:
-
+```bible
+John 3:16
+translation: KJV
+---
+[16] For God so loved the world...
 ```
-{John 3:16}
-%%bible-baked|KJV%%
-For God so loved the world...
-%%end-bible%%
-```
 
-The baked block is hidden in Reading view — only the rendered verse is shown. It ensures verse text is available even without an internet connection.
+**Smart Inline Baking**: If "Bake Inline References" is enabled, the plugin will automatically convert `{John 3:16}` into a code block like the one above when baking. If disabled, inline references remain dynamic and are never baked, keeping your sentences clean.
+
+Baking ensures your notes are **offline-ready** and **readable by anyone**, even if they don't have the plugin installed.
 
 ### Quick Lookup
 
