@@ -8,8 +8,8 @@ import {
   TFile,
 } from "obsidian";
 import type BibleVersePlugin from "./main";
-import { BOOK_ALIASES, USFM_CODES } from "./constants";
-import { parseReference, formatReference } from "./parser";
+import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
+import { parseReference, formatReference, KNOWN_STYLES } from "./parser";
 
 /**
  * Provides IntelliSense for Bible references inside {curly braces}.
@@ -78,6 +78,35 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
 
     // If the query contains a digit it might already be a complete reference
     if (/\d/.test(query)) {
+      // Check for translation/style modifiers after a comma
+      if (query.includes(",")) {
+        const parts = query.split(",");
+        const refPart = parts.slice(0, -1).join(",").trim();
+        const modPart = parts[parts.length - 1].trim().toLowerCase();
+        
+        const ref = parseReference(refPart);
+        if (ref) {
+          // It's a valid reference, suggest translations and styles
+          const suggestions: string[] = [];
+          
+          // Suggest translations
+          for (const trans of HELLOAO_TRANSLATIONS) {
+            if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
+              suggestions.push(`${refPart}, ${trans.abbreviation}`);
+            }
+          }
+          
+          // Suggest styles
+          for (const style of KNOWN_STYLES) {
+            if (style.toLowerCase().startsWith(modPart)) {
+              suggestions.push(`${refPart}, ${style}`);
+            }
+          }
+          
+          return suggestions.slice(0, this.limit);
+        }
+      }
+
       const ref = parseReference(query);
       if (ref) {
         return [formatReference(ref)];

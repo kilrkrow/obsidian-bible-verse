@@ -15,7 +15,7 @@ import { BOOK_ALIASES } from "./constants";
  *   6: Additional comma-separated verses (optional, e.g., ",25,30")
  */
 const REF_REGEX =
-  /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(\d+))?((?:,\s*\d+)*))?$/;
+  /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(eoc|\d+|-))?((?:,\s*\d+)*))?$/i;
 
 /**
  * Normalize a book name to its canonical form using the alias table.
@@ -34,6 +34,7 @@ export function normalizeBookName(raw: string): string | null {
  *   - "John 3:16-21,25"
  *   - "Psalm 23" (whole chapter)
  *   - "John 3:16-4:3" (multi-chapter)
+ *   - "John 3:16-eoc" or "John 3:16-" (Issue #17)
  */
 export function parseReference(input: string): BibleReference | null {
   const trimmed = input.trim();
@@ -76,8 +77,16 @@ export function parseReference(input: string): BibleReference | null {
     };
   }
 
-  // Simple range: "John 3:16-21"
-  const endVerse = match[6] !== undefined ? parseInt(match[6], 10) : null;
+  // Simple range: "John 3:16-21" or "John 3:16-eoc"
+  let endVerse: number | null = null;
+  if (match[6] !== undefined) {
+    const val = match[6].toLowerCase();
+    if (val === "eoc" || val === "-") {
+      endVerse = 999; // Special marker for "End of Chapter"
+    } else {
+      endVerse = parseInt(val, 10);
+    }
+  }
 
   // Additional verses: ",25,30"
   const additionalVerses: number[] = [];
@@ -128,7 +137,7 @@ export interface InlineSpec {
 const TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 /** The complete set of display-style names recognized inline. */
-const KNOWN_STYLES: readonly DisplayStyle[] = [
+export const KNOWN_STYLES: readonly DisplayStyle[] = [
   "sidebar",
   "callout",
   "blockquote",

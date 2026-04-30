@@ -59,18 +59,17 @@ export class BibleApi {
     // Whole chapter — return null to indicate "all verses"
     if (ref.startVerse === null) return null;
 
-    const verses = new Set<number>();
+    // Special marker for "End of Chapter" (Issue #17)
+    if (ref.endVerse === 999) return null;
 
+    const verses = new Set<number>();
     if (ref.endVerse !== null && ref.endChapter === null) {
-      // Simple range within one chapter: e.g. John 3:16-21
       for (let v = ref.startVerse; v <= ref.endVerse; v++) {
         verses.add(v);
       }
     } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-      // Single verse
       verses.add(ref.startVerse);
     } else {
-      // Has additional verses or is a range
       if (ref.endVerse !== null) {
         for (let v = ref.startVerse; v <= ref.endVerse; v++) {
           verses.add(v);
@@ -82,7 +81,6 @@ export class BibleApi {
         verses.add(v);
       }
     }
-
     return verses;
   }
 
@@ -132,7 +130,11 @@ export class BibleApi {
 
       if (obj.type === "verse") {
         const verseItem = item as { type: string; number: number; content: unknown[] };
-        if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
+        const isIncluded = requestedVerses === null 
+          ? (ref.startVerse === null || verseItem.number >= ref.startVerse)
+          : requestedVerses.has(verseItem.number);
+
+        if (isIncluded) {
           let text = this.extractVerseText(verseItem.content);
           if (text) {
             if (settings.showVerseNumbers) {

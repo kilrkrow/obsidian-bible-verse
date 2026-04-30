@@ -552,7 +552,7 @@ var BOOK_ALIASES = {
 };
 
 // src/parser.ts
-var REF_REGEX = /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(\d+))?((?:,\s*\d+)*))?$/;
+var REF_REGEX = /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(eoc|\d+|-))?((?:,\s*\d+)*))?$/i;
 function normalizeBookName(raw) {
   var _a;
   const key = raw.trim().toLowerCase();
@@ -593,7 +593,15 @@ function parseReference(input) {
       raw: trimmed
     };
   }
-  const endVerse = match[6] !== void 0 ? parseInt(match[6], 10) : null;
+  let endVerse = null;
+  if (match[6] !== void 0) {
+    const val = match[6].toLowerCase();
+    if (val === "eoc" || val === "-") {
+      endVerse = 999;
+    } else {
+      endVerse = parseInt(val, 10);
+    }
+  }
   const additionalVerses = [];
   if (match[7]) {
     const parts = match[7].split(",").filter((s) => s.trim().length > 0);
@@ -718,6 +726,8 @@ var BibleApi = class {
   getRequestedVerses(ref) {
     if (ref.startVerse === null)
       return null;
+    if (ref.endVerse === 999)
+      return null;
     const verses = /* @__PURE__ */ new Set();
     if (ref.endVerse !== null && ref.endChapter === null) {
       for (let v = ref.startVerse; v <= ref.endVerse; v++) {
@@ -768,7 +778,8 @@ var BibleApi = class {
       const obj = item;
       if (obj.type === "verse") {
         const verseItem = item;
-        if (requestedVerses === null || requestedVerses.has(verseItem.number)) {
+        const isIncluded = requestedVerses === null ? ref.startVerse === null || verseItem.number >= ref.startVerse : requestedVerses.has(verseItem.number);
+        if (isIncluded) {
           let text2 = this.extractVerseText(verseItem.content);
           if (text2) {
             if (settings.showVerseNumbers) {
@@ -1373,6 +1384,26 @@ var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
     if (query.length === 0)
       return [];
     if (/\d/.test(query)) {
+      if (query.includes(",")) {
+        const parts = query.split(",");
+        const refPart = parts.slice(0, -1).join(",").trim();
+        const modPart = parts[parts.length - 1].trim().toLowerCase();
+        const ref2 = parseReference(refPart);
+        if (ref2) {
+          const suggestions = [];
+          for (const trans of HELLOAO_TRANSLATIONS) {
+            if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
+              suggestions.push(`${refPart}, ${trans.abbreviation}`);
+            }
+          }
+          for (const style of KNOWN_STYLES) {
+            if (style.toLowerCase().startsWith(modPart)) {
+              suggestions.push(`${refPart}, ${style}`);
+            }
+          }
+          return suggestions.slice(0, this.limit);
+        }
+      }
       const ref = parseReference(query);
       if (ref) {
         return [formatReference(ref)];
