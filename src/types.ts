@@ -23,8 +23,8 @@ export interface BibleVerseSettings {
   persistVerseText: boolean;
   sidebarTopPadding: number;
   showVerseNumbers: boolean;
-  showHeadings: boolean;
   verseNewLine: boolean;
+  bakeInline: boolean;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -34,8 +34,8 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   persistVerseText: false,
   sidebarTopPadding: 0.5,
   showVerseNumbers: true,
-  showHeadings: true,
   verseNewLine: false,
+  bakeInline: false,
 };
 
 /** Cached verse entry */

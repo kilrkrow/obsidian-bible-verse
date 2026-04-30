@@ -93,7 +93,6 @@ export class BibleApi {
     translationAbbr: string,
     settings: {
       showVerseNumbers: boolean;
-      showHeadings: boolean;
       verseNewLine: boolean;
     }
   ): Promise<CachedVerse> {
@@ -137,12 +136,6 @@ export class BibleApi {
             }
             verseParts.push(text);
           }
-        }
-      } else if (obj.type === "heading" && settings.showHeadings) {
-        const headingItem = item as { content: string[] };
-        const headingText = headingItem.content.join(" ").trim();
-        if (headingText) {
-          verseParts.push(`\n**${headingText}**\n`);
         }
       } else if (obj.type === "line_break") {
         verseParts.push("\n");

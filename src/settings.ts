@@ -124,13 +124,13 @@ export class BibleVerseSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show headings")
-      .setDesc("Display section headings from the Bible text.")
+      .setName("Bake inline references")
+      .setDesc("If enabled, baking a note will convert {ref} into a bible code block. If disabled, only code blocks are baked.")
       .addToggle((toggle) =>
         toggle
-          .setValue(this.plugin.settings.showHeadings)
+          .setValue(this.plugin.settings.bakeInline)
           .onChange(async (value) => {
-            this.plugin.settings.showHeadings = value;
+            this.plugin.settings.bakeInline = value;
             await this.plugin.saveSettings();
           })
       );

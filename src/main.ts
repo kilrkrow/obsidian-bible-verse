@@ -54,8 +54,10 @@ export default class BibleVersePlugin extends Plugin {
       name: "Bake all verses in this note",
       editorCallback: async (editor) => {
         const content = editor.getValue();
-        const newContent = await this.baker.bakeFile(content, (ref) =>
-          this.fetchVerse(ref)
+        const newContent = await this.baker.bakeFile(
+          content,
+          this.settings.bakeInline,
+          (ref) => this.fetchVerse(ref)
         );
         if (newContent !== content) {
           editor.setValue(newContent);
@@ -73,8 +75,10 @@ export default class BibleVersePlugin extends Plugin {
         let content = editor.getValue();
         // Strip then re-bake
         content = this.baker.stripBakedText(content);
-        const newContent = await this.baker.bakeFile(content, (ref) =>
-          this.fetchVerse(ref)
+        const newContent = await this.baker.bakeFile(
+          content,
+          this.settings.bakeInline,
+          (ref) => this.fetchVerse(ref)
         );
         editor.setValue(newContent);
         new Notice("Bible verses refreshed.");
@@ -85,8 +89,10 @@ export default class BibleVersePlugin extends Plugin {
       id: "refresh-vault",
       name: "Refresh all baked verses in vault",
       callback: async () => {
-        const count = await this.baker.processVault("bake", (ref) =>
-          this.fetchVerse(ref)
+        const count = await this.baker.processVault(
+          "bake",
+          this.settings.bakeInline,
+          (ref) => this.fetchVerse(ref)
         );
         new Notice(`Refreshed baked verses in ${count} files.`);
       },
@@ -96,8 +102,10 @@ export default class BibleVersePlugin extends Plugin {
       id: "bake-vault",
       name: "Bake all existing verses across vault",
       callback: async () => {
-        const count = await this.baker.processVault("bake", (ref) =>
-          this.fetchVerse(ref)
+        const count = await this.baker.processVault(
+          "bake",
+          this.settings.bakeInline,
+          (ref) => this.fetchVerse(ref)
         );
         new Notice(`Baked verses in ${count} files.`);
       },
@@ -107,7 +115,7 @@ export default class BibleVersePlugin extends Plugin {
       id: "strip-vault",
       name: "Strip baked text from all notes",
       callback: async () => {
-        const count = await this.baker.processVault("strip");
+        const count = await this.baker.processVault("strip", false);
         new Notice(`Stripped baked text from ${count} files.`);
       },
     });
@@ -219,36 +227,12 @@ export default class BibleVersePlugin extends Plugin {
         this.getTranslationAbbr(),
         {
           showVerseNumbers: this.settings.showVerseNumbers,
-          showHeadings: this.settings.showHeadings,
           verseNewLine: this.settings.verseNewLine,
         }
       );
       if (verse) return verse;
     } catch (e) {
-      console.error("Bible Verse: Network fetch failed, checking for baked fallback", e);
-    }
-
-    // Fallback: Check for baked text in the current file
-    const activeFile = this.app.workspace.getActiveFile();
-    if (activeFile) {
-      const content = await this.app.vault.read(activeFile);
-      // We don't have the raw marker here, but we can try to find ANY baked block for this ref
-      const baked = this.baker.extractBakedText(content, formatReference(ref));
-      if (!baked) {
-        // Try again with just the book/chapter if verse-specific match failed
-        // (Baker needs a bit more work to match flex-refs reliably)
-      }
-      
-      if (baked) {
-        return {
-          text: baked.text,
-          translation: baked.translation,
-          bibleId: this.resolveTranslationId(baked.translation),
-          reference: formatReference(ref),
-          copyright: "",
-          fetchedAt: Date.now(),
-        };
-      }
+      console.error("Bible Verse: Fetch failed", e);
     }
 
     return null;
@@ -361,7 +345,6 @@ export default class BibleVersePlugin extends Plugin {
     try {
       const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
         showVerseNumbers: this.settings.showVerseNumbers,
-        showHeadings: this.settings.showHeadings,
         verseNewLine: this.settings.verseNewLine,
       });
       container.empty();
@@ -392,7 +375,6 @@ export default class BibleVersePlugin extends Plugin {
       try {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
-          showHeadings: this.settings.showHeadings,
           verseNewLine: this.settings.verseNewLine,
         });
         verses.push(verse);
@@ -407,9 +389,6 @@ export default class BibleVersePlugin extends Plugin {
     }
   }
 
-  /**
-   * Handle automatic baking when persistVerseText is on.
-   */
   private async handleBake(
     ctx: MarkdownPostProcessorContext,
     refMarker: string,
@@ -418,12 +397,12 @@ export default class BibleVersePlugin extends Plugin {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof TFile)) return;
 
+    if (!this.settings.bakeInline) return;
+
     const verse = await this.fetchVerse(ref);
     if (!verse) return;
 
     const content = await this.app.vault.read(file);
-    if (this.baker.hasBakedBlock(content, refMarker)) return;
-
     const newContent = this.baker.bakeVerse(content, refMarker, verse, "inline");
     if (newContent !== content) {
       await this.app.vault.modify(file, newContent);
@@ -511,7 +490,6 @@ export default class BibleVersePlugin extends Plugin {
       } else {
         verse = await this.api.getPassage(ref, translationId, translationAbbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
-          showHeadings: this.settings.showHeadings,
           verseNewLine: this.settings.verseNewLine,
         });
       }
@@ -558,7 +536,6 @@ export default class BibleVersePlugin extends Plugin {
       try {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
-          showHeadings: this.settings.showHeadings,
           verseNewLine: this.settings.verseNewLine,
         });
         verses.push(verse);

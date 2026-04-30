@@ -94,7 +94,6 @@ class BibleVerseWidget extends WidgetType {
         const abbr = plugin.getTranslationAbbrPublic(id);
         verse = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: plugin.settings.showVerseNumbers,
-          showHeadings: plugin.settings.showHeadings,
           verseNewLine: plugin.settings.verseNewLine,
         });
       } else {
@@ -104,7 +103,6 @@ class BibleVerseWidget extends WidgetType {
         const abbr = plugin.getTranslationAbbrPublic(id);
         verse = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: plugin.settings.showVerseNumbers,
-          showHeadings: plugin.settings.showHeadings,
           verseNewLine: plugin.settings.verseNewLine,
         });
       }
