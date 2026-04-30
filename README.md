@@ -14,6 +14,7 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 - **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
 - **Verse Numbers** — Optional display of verse numbers (e.g. `[16]`) for easy reference
 - **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
+- **IntelliSense Autocomplete** — Suggestions for books, complete references, **and translations**
 - **No API key needed** — Uses the free HelloAO Bible API with no registration required
 
 ## Installation
@@ -53,6 +54,7 @@ Typing inside `{…}` activates autocomplete suggestions:
 - **Book names** — type a few letters (e.g. `{co`) to see matching books like `Colossians`, `1 Corinthians`, `2 Corinthians`
 - **Alias support** — common abbreviations work too (e.g. `{1co` → `1 Corinthians`)
 - **Complete reference** — once you have typed a full reference like `{John 3:16`, the formatted reference appears as a single suggestion; press **Enter** or **Tab** to confirm and close the braces
+- **Translations & Styles** — After a reference, type a comma and space (e.g., `{John 3:16, `) to see a list of all supported translations and display styles.
 
 Selecting a book-only suggestion inserts it with a trailing space so you can continue typing the chapter and verse number.
 
@@ -109,6 +111,7 @@ compare: KJV, BSB, ASV
 |--------|---------|
 | Simple verse | `John 3:16` |
 | Verse range | `John 3:16-21` |
+| End of Chapter | `John 3:16-eoc` or `John 3:16-` |
 | Multiple verses | `John 3:16-21,25` |
 | Whole chapter | `Psalm 23` |
 | Multi-chapter range | `John 3:16-4:3` |
