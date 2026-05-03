@@ -106,6 +106,14 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
               }
             }
           }
+
+          // Suggest formatting flags
+          const flags = ["nl", "no-nl", "v", "no-v"];
+          for (const flag of flags) {
+            if (flag.startsWith(modPart)) {
+              suggestions.push(`${prefix}, ${flag}`);
+            }
+          }
           
           if (suggestions.length > 0) {
             return suggestions.slice(0, this.limit);

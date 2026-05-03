@@ -1,3 +1,4 @@
+import { App, Component, MarkdownRenderer } from "obsidian";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { formatReference } from "./parser";
 import { generateLink } from "./linker";
@@ -5,37 +6,47 @@ import { generateLink } from "./linker";
 /**
  * Render a single verse result into an HTML element.
  */
-export function renderVerse(
+export async function renderVerse(
   container: HTMLElement,
   ref: BibleReference,
   verse: CachedVerse,
   style: DisplayStyle,
   website: BibleWebsite,
-  showAttribution: boolean
-): void {
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
   const wrapper = container.createDiv({ cls: `bible-verse bible-verse-${style}` });
   const refStr = formatReference(ref);
   const url = generateLink(ref, verse.translation, website);
 
   switch (style) {
     case "sidebar":
-      renderSidebar(wrapper, refStr, verse, url, showAttribution);
+      await renderSidebar(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
     case "callout":
-      renderCallout(wrapper, refStr, verse, url, showAttribution);
+      await renderCallout(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
     case "blockquote":
-      renderBlockquote(wrapper, refStr, verse, url, showAttribution);
+      await renderBlockquote(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
     case "inline":
-      renderInline(wrapper, refStr, verse, url, showAttribution);
+      await renderInline(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
   }
 }
 
-function renderSidebar(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
+async function renderSidebar(
+  el: HTMLElement, 
+  ref: string, 
+  verse: CachedVerse, 
+  url: string, 
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
   const body = el.createDiv({ cls: "bible-verse-body" });
-  body.createEl("p", { cls: "bible-verse-text", text: verse.text });
+  await renderText(body, verse.text, app, component);
 
   const footer = el.createDiv({ cls: "bible-verse-footer" });
   const link = footer.createEl("a", {
@@ -51,7 +62,15 @@ function renderSidebar(el: HTMLElement, ref: string, verse: CachedVerse, url: st
   }
 }
 
-function renderCallout(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
+async function renderCallout(
+  el: HTMLElement, 
+  ref: string, 
+  verse: CachedVerse, 
+  url: string, 
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
   const header = el.createDiv({ cls: "bible-verse-header" });
   header.createSpan({ cls: "bible-verse-icon", text: "\uD83D\uDCD6" }); // 📖
   const link = header.createEl("a", {
@@ -63,16 +82,24 @@ function renderCallout(el: HTMLElement, ref: string, verse: CachedVerse, url: st
   link.setAttr("rel", "noopener");
 
   const body = el.createDiv({ cls: "bible-verse-body" });
-  body.createEl("p", { cls: "bible-verse-text", text: verse.text });
+  await renderText(body, verse.text, app, component);
 
   if (showAttribution && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
-function renderBlockquote(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
+async function renderBlockquote(
+  el: HTMLElement, 
+  ref: string, 
+  verse: CachedVerse, 
+  url: string, 
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
   const body = el.createDiv({ cls: "bible-verse-body" });
-  body.createEl("p", { cls: "bible-verse-text", text: verse.text });
+  await renderText(body, verse.text, app, component);
 
   const footer = el.createDiv({ cls: "bible-verse-footer" });
   footer.createSpan({ text: "\u2014 " });
@@ -89,8 +116,20 @@ function renderBlockquote(el: HTMLElement, ref: string, verse: CachedVerse, url:
   }
 }
 
-function renderInline(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
-  el.createSpan({ cls: "bible-verse-text", text: `"${verse.text}" ` });
+async function renderInline(
+  el: HTMLElement, 
+  ref: string, 
+  verse: CachedVerse, 
+  url: string, 
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
+  const textSpan = el.createSpan({ cls: "bible-verse-text" });
+  textSpan.createSpan({ text: "\"" });
+  await renderText(textSpan, verse.text, app, component, true);
+  textSpan.createSpan({ text: "\" " });
+
   const link = el.createEl("a", {
     cls: "bible-verse-ref",
     text: `(${ref}, ${verse.translation})`,
@@ -101,6 +140,22 @@ function renderInline(el: HTMLElement, ref: string, verse: CachedVerse, url: str
 
   if (showAttribution && verse.copyright) {
     el.createSpan({ cls: "bible-verse-copyright", text: ` ${verse.copyright}` });
+  }
+}
+
+/**
+ * Internal helper to render markdown text.
+ */
+async function renderText(el: HTMLElement, text: string, app: App, component: Component, isInline = false): Promise<void> {
+  const container = isInline ? el.createSpan() : el.createDiv();
+  await MarkdownRenderer.renderMarkdown(text, container, "", component);
+  
+  // If it's inline, we often want to strip the wrapper <p> that renderMarkdown adds
+  if (isInline) {
+    const p = container.querySelector("p");
+    if (p) {
+      container.innerHTML = p.innerHTML;
+    }
   }
 }
 
@@ -129,13 +184,15 @@ export function renderLink(
 /**
  * Render a comparison/parallel view of multiple translations.
  */
-export function renderComparison(
+export async function renderComparison(
   container: HTMLElement,
   ref: BibleReference,
   verses: CachedVerse[],
   website: BibleWebsite,
-  showAttribution: boolean
-): void {
+  showAttribution: boolean,
+  app: App,
+  component: Component
+): Promise<void> {
   const wrapper = container.createDiv({ cls: "bible-verse-comparison" });
   const refStr = formatReference(ref);
 
@@ -159,7 +216,8 @@ export function renderComparison(
     link.setAttr("target", "_blank");
     link.setAttr("rel", "noopener");
 
-    col.createEl("p", { cls: "bible-verse-text", text: verse.text });
+    const textContainer = col.createDiv({ cls: "bible-verse-text" });
+    await renderText(textContainer, verse.text, app, component);
 
     if (showAttribution && verse.copyright) {
       col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });

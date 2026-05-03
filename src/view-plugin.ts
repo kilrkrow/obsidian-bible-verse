@@ -65,7 +65,9 @@ class BibleVerseWidget extends WidgetType {
           this.spec.ref,
           this.spec.cachedVerses,
           this.spec.plugin.settings.preferredWebsite,
-          this.spec.plugin.settings.showAttribution
+          this.spec.plugin.settings.showAttribution,
+          this.spec.plugin.app,
+          this.spec.plugin
         );
       } else {
         this.renderPill(container);
@@ -80,7 +82,9 @@ class BibleVerseWidget extends WidgetType {
           cached,
           this.spec.styleOverride ?? this.spec.plugin.settings.displayStyle,
           this.spec.plugin.settings.preferredWebsite,
-          this.spec.plugin.settings.showAttribution
+          this.spec.plugin.settings.showAttribution,
+          this.spec.plugin.app,
+          this.spec.plugin
         );
       } else {
         this.renderPill(container);
@@ -135,21 +139,25 @@ class BibleVerseWidget extends WidgetType {
       // Update the DOM in place (visible immediately)
       container.empty();
       if (translations.length >= 2) {
-        renderComparison(
+        await renderComparison(
           container,
           ref,
           verses,
           plugin.settings.preferredWebsite,
-          plugin.settings.showAttribution
+          plugin.settings.showAttribution,
+          plugin.app,
+          plugin
         );
       } else {
-        renderVerse(
+        await renderVerse(
           container,
           ref,
           verses[0],
           this.spec.styleOverride ?? plugin.settings.displayStyle,
           plugin.settings.preferredWebsite,
-          plugin.settings.showAttribution
+          plugin.settings.showAttribution,
+          plugin.app,
+          plugin
         );
       }
 
