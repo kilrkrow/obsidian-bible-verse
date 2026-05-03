@@ -1342,7 +1342,10 @@ async function renderText(el, text, app, component, isInline = false) {
   if (isInline) {
     const p = container.querySelector("p");
     if (p) {
-      container.innerHTML = p.innerHTML;
+      while (p.firstChild) {
+        container.appendChild(p.firstChild);
+      }
+      p.remove();
     }
   }
 }
