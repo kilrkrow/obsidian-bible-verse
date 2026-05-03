@@ -131,6 +131,8 @@ export interface InlineSpec {
   ref: BibleReference;
   translations: string[];
   styleOverride: DisplayStyle | null;
+  verseNewLine: boolean | null;
+  showVerseNumbers: boolean | null;
 }
 
 /** A translation code is word-chars only and must start with a letter. */
@@ -154,49 +156,70 @@ function isKnownStyle(token: string): token is DisplayStyle {
  * Supported formats (examples):
  *   "John 3:16"                      → { ref, translations: [], styleOverride: null }
  *   "John 3:16, KJV"                 → { ref, translations: ["KJV"] }
- *   "John 3:16, KJV, DARBY"          → { ref, translations: ["KJV","DARBY"] }
- *   "John 3:16, sidebar"             → { ref, styleOverride: "sidebar" }
+ *   "John 3:16, nl, no-v"            → { ref, verseNewLine: true, showVerseNumbers: false }
  *   "John 3:16, KJV, sidebar"        → { ref, translations: ["KJV"], styleOverride: "sidebar" }
- *   "John 3:16, KJV, DARBY, callout" → { ref, translations: ["KJV","DARBY"], styleOverride: "callout" }
- *   "John 3:16,17, KJV"              → { ref(John 3:16-17), translations: ["KJV"] }
  *
  * Returns null if the content cannot be parsed as a valid reference.
  */
 export function parseInlineSpec(content: string): InlineSpec | null {
   const trimmed = content.trim();
 
-  // 1. Try the entire string as a plain reference first (handles additional
-  //    verse lists like "John 3:16,17" without mis-reading "17" as a trans).
+  // 1. Try the entire string as a plain reference first
   const simpleRef = parseReference(trimmed);
   if (simpleRef) {
-    return { ref: simpleRef, translations: [], styleOverride: null };
+    return {
+      ref: simpleRef,
+      translations: [],
+      styleOverride: null,
+      verseNewLine: null,
+      showVerseNumbers: null,
+    };
   }
 
-  // 2. Split by comma and peel off trailing modifier tokens (translations
-  //    and/or a style override) until we hit something that belongs to the
-  //    reference itself. Whatever remains is then parsed as a reference.
+  // 2. Split by comma and peel off trailing modifier tokens
   const parts = trimmed.split(",").map((p) => p.trim());
   if (parts.length < 2) return null;
 
   const translations: string[] = [];
   let styleOverride: DisplayStyle | null = null;
+  let verseNewLine: boolean | null = null;
+  let showVerseNumbers: boolean | null = null;
   let cut = parts.length;
 
   while (cut > 1) {
     const tok = parts[cut - 1];
+    const low = tok.toLowerCase();
+
+    // Check for formatting flags
+    if (low === "nl") {
+      if (verseNewLine === null) verseNewLine = true;
+      cut--;
+      continue;
+    }
+    if (low === "no-nl") {
+      if (verseNewLine === null) verseNewLine = false;
+      cut--;
+      continue;
+    }
+    if (low === "v") {
+      if (showVerseNumbers === null) showVerseNumbers = true;
+      cut--;
+      continue;
+    }
+    if (low === "no-v") {
+      if (showVerseNumbers === null) showVerseNumbers = false;
+      cut--;
+      continue;
+    }
 
     if (isKnownStyle(tok)) {
-      // Style wins over translation code matching (style names like "inline"
-      // also match TRANS_CODE_RE). Only one style override is allowed; if we
-      // already have one, stop peeling.
       if (styleOverride !== null) break;
-      styleOverride = tok.toLowerCase() as DisplayStyle;
+      styleOverride = low as DisplayStyle;
       cut--;
       continue;
     }
 
     if (TRANS_CODE_RE.test(tok)) {
-      // Up to two translation codes (for side-by-side comparison).
       if (translations.length >= 2) break;
       translations.unshift(tok.toUpperCase());
       cut--;
@@ -213,7 +236,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   const ref = parseReference(refStr);
   if (!ref) return null;
 
-  return { ref, translations, styleOverride };
+  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers };
 }
 
 /**

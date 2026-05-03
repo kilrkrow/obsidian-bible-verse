@@ -20,8 +20,17 @@ export class Baker {
   /**
    * Extract all bakeable references from note content.
    */
-  extractReferences(content: string, includeInline: boolean): { raw: string; ref: BibleReference | null; offset: number; type: "inline" | "block"; body?: string }[] {
-    const results: { raw: string; ref: BibleReference | null; offset: number; type: "inline" | "block"; body?: string }[] = [];
+  extractReferences(content: string, includeInline: boolean): { 
+    raw: string; 
+    ref: BibleReference | null; 
+    offset: number; 
+    type: "inline" | "block"; 
+    body?: string;
+    translations?: string[];
+    verseNewLine?: boolean | null;
+    showVerseNumbers?: boolean | null;
+  }[] {
+    const results: any[] = [];
     
     // 1. Find inline references (only if requested)
     if (includeInline) {
@@ -34,7 +43,10 @@ export class Baker {
             raw: match[0],
             ref: spec.ref,
             offset: match.index,
-            type: "inline"
+            type: "inline",
+            translations: spec.translations,
+            verseNewLine: spec.verseNewLine,
+            showVerseNumbers: spec.showVerseNumbers
           });
         }
       }
@@ -45,15 +57,34 @@ export class Baker {
     const blockRegex = new RegExp(CODEBLOCK_REGEX.source, "g");
     while ((match = blockRegex.exec(content)) !== null) {
       const body = match[1];
-      const lines = body.split("\n");
+      const header = body.split(CODEBLOCK_BAKE_SEPARATOR)[0];
+      const lines = header.split("\n");
       if (lines.length > 0) {
         const ref = parseReference(lines[0].trim());
+        
+        // Parse config from block body
+        const config: any = {};
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          const colonIdx = line.indexOf(":");
+          if (colonIdx > 0) {
+            const key = line.substring(0, colonIdx).trim().toLowerCase();
+            const value = line.substring(colonIdx + 1).trim().toLowerCase();
+            config[key] = value;
+          }
+        }
+
         results.push({
           raw: match[0],
           ref: ref,
           offset: match.index,
           type: "block",
-          body: body
+          body: body,
+          translations: config.translation ? [config.translation] : (config.compare ? config.compare.split(",").map((s:any) => s.trim()) : []),
+          verseNewLine: config.newline !== undefined ? config.newline === "true" : null,
+          showVerseNumbers: (config.numbers !== undefined || config["verse-numbers"] !== undefined) 
+            ? (config.numbers ?? config["verse-numbers"]) === "true" 
+            : null
         });
       }
     }
@@ -101,17 +132,32 @@ export class Baker {
   async bakeFile(
     content: string,
     bakeInline: boolean,
-    fetchVerse: (ref: BibleReference) => Promise<CachedVerse | null>
+    fetchVerse: (
+      ref: BibleReference, 
+      transId?: string, 
+      transAbbr?: string, 
+      nl?: boolean, 
+      vn?: boolean
+    ) => Promise<CachedVerse | null>
   ): Promise<string> {
     const refs = this.extractReferences(content, bakeInline);
     if (refs.length === 0) return content;
 
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset, type } = refs[i];
+      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers } = refs[i];
       if (!ref) continue;
 
-      const verse = await fetchVerse(ref);
+      // We only bake single translation blocks for now
+      const trans = (translations && translations.length === 1) ? translations[0] : undefined;
+
+      const verse = await fetchVerse(
+        ref, 
+        trans, 
+        undefined, 
+        verseNewLine ?? undefined, 
+        showVerseNumbers ?? undefined
+      );
       if (!verse) continue;
 
       if (type === "inline") {
@@ -135,7 +181,13 @@ export class Baker {
   async processVault(
     action: "bake" | "strip",
     bakeInline: boolean,
-    fetchVerse?: (ref: BibleReference) => Promise<CachedVerse | null>
+    fetchVerse?: (
+      ref: BibleReference, 
+      transId?: string, 
+      transAbbr?: string, 
+      nl?: boolean, 
+      vn?: boolean
+    ) => Promise<CachedVerse | null>
   ): Promise<number> {
     const files = this.app.vault.getMarkdownFiles();
     let count = 0;

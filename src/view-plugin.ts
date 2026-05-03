@@ -42,6 +42,8 @@ class BibleVerseWidget extends WidgetType {
       ref: BibleReference;
       translations: string[];
       styleOverride: DisplayStyle | null;
+      verseNewLine: boolean | null;
+      showVerseNumbers: boolean | null;
       cachedVerses: CachedVerse[];
       plugin: BibleVersePlugin;
     }
@@ -52,6 +54,9 @@ class BibleVerseWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
+
+    const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
+    const sVN = this.spec.showVerseNumbers ?? this.spec.plugin.settings.showVerseNumbers;
 
     if (this.spec.translations.length >= 2) {
       if (this.spec.cachedVerses.length === this.spec.translations.length) {
@@ -98,7 +103,9 @@ class BibleVerseWidget extends WidgetType {
   }
 
   private async fetchAndUpdate(container: HTMLElement, view: EditorView): Promise<void> {
-    const { plugin, ref, translations } = this.spec;
+    const { plugin, ref, translations, verseNewLine, showVerseNumbers } = this.spec;
+    const vnL = verseNewLine ?? plugin.settings.verseNewLine;
+    const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
 
     try {
       const verses: CachedVerse[] = [];
@@ -108,8 +115,8 @@ class BibleVerseWidget extends WidgetType {
           const id = plugin.resolveTranslationIdPublic(trans);
           const abbr = plugin.getTranslationAbbrPublic(id);
           const v = await plugin.api.getPassage(ref, id, abbr, {
-            showVerseNumbers: plugin.settings.showVerseNumbers,
-            verseNewLine: plugin.settings.verseNewLine,
+            showVerseNumbers: sVN,
+            verseNewLine: vnL,
           });
           verses.push(v);
         }
@@ -119,8 +126,8 @@ class BibleVerseWidget extends WidgetType {
           : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
         const v = await plugin.api.getPassage(ref, id, abbr, {
-          showVerseNumbers: plugin.settings.showVerseNumbers,
-          verseNewLine: plugin.settings.verseNewLine,
+          showVerseNumbers: sVN,
+          verseNewLine: vnL,
         });
         verses.push(v);
       }
@@ -165,7 +172,9 @@ class BibleVerseWidget extends WidgetType {
       this.spec.label === other.spec.label &&
       this.spec.cachedVerses.length === other.spec.cachedVerses.length &&
       this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) &&
-      this.spec.styleOverride === other.spec.styleOverride
+      this.spec.styleOverride === other.spec.styleOverride &&
+      this.spec.verseNewLine === other.spec.verseNewLine &&
+      this.spec.showVerseNumbers === other.spec.showVerseNumbers
     );
   }
 
@@ -273,8 +282,12 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const spec = parseInlineSpec(content);
             if (!spec) continue;
 
-            const { ref, translations, styleOverride } = spec;
+            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers } = spec;
             const refLabel = formatReference(ref);
+
+            // Resolve formatting settings with overrides
+            const vnL = verseNewLine ?? plugin.settings.verseNewLine;
+            const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
 
             // Resolve translation and check cache
             const cachedVerses: CachedVerse[] = [];
@@ -282,7 +295,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
-                const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
+                const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
                 if (cached) cachedVerses.push(cached);
               }
             } else {
@@ -290,7 +303,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
                 ? plugin.resolveTranslationIdPublic(translations[0])
                 : plugin.settings.defaultTranslation;
               const abbr = plugin.getTranslationAbbrPublic(id);
-              const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
+              const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
               if (cached) cachedVerses.push(cached);
             }
 
@@ -317,6 +330,8 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               ref,
               translations,
               styleOverride,
+              verseNewLine,
+              showVerseNumbers,
               cachedVerses,
               plugin,
             });

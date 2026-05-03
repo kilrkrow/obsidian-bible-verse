@@ -78,8 +78,20 @@ any trailing position. When both a comparison (two translations) and a style
 are present, the style is ignored because comparisons are always rendered as a
 grid.
 
-### Code Block
+#### Formatting Overrides
 
+You can override your global settings for verse numbers and line breaks on a per-quote basis using these keywords:
+
+*   `v` / `no-v` — Force verse numbers on or off.
+*   `nl` / `no-nl` — Force each verse onto a new line (nl) or keep them in a single paragraph (no-nl).
+
+```
+{John 3:16-17, no-v}             -- hide verse numbers for this quote
+{John 3:16-17, KJV, nl}          -- KJV with each verse on a new line
+{John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
+```
+
+### Code Block
 
 Use a `bible` code block for full verse display:
 
@@ -88,11 +100,13 @@ Use a `bible` code block for full verse display:
 John 3:16
 translation: KJV
 style: sidebar
+newline: true      -- override: each verse on a new line
+numbers: false     -- override: hide verse numbers
 ```
 ````
 
 The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and
-overrides the global display style for this block only.
+overrides the global display style for this block only. The `newline:` and `numbers:` keys accept `true` or `false`.
 
 ### Comparison View
 
