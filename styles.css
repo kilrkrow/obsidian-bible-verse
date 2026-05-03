@@ -85,23 +85,27 @@
 }
 
 .bible-verse-callout .bible-verse-header {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--background-secondary-alt);
   padding: 0.4em 0.75em;
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.6em;
   border-bottom: 1px solid var(--background-modifier-border);
   font-weight: 600;
   color: var(--text-normal);
 }
 
-/* Dark theme: lighter overlay for header */
-.theme-dark .bible-verse-callout .bible-verse-header {
-  background: rgba(255, 255, 255, 0.05);
+.bible-verse-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
-.bible-verse-callout .bible-verse-icon {
-  font-size: 1.1em;
+.bible-verse-icon svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .bible-verse-callout .bible-verse-body {

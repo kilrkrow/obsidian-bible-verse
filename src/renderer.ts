@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer } from "obsidian";
+import { App, Component, MarkdownRenderer, setIcon } from "obsidian";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { formatReference } from "./parser";
 import { generateLink } from "./linker";
@@ -72,7 +72,8 @@ async function renderCallout(
   component: Component
 ): Promise<void> {
   const header = el.createDiv({ cls: "bible-verse-header" });
-  header.createSpan({ cls: "bible-verse-icon", text: "\uD83D\uDCD6" }); // 📖
+  const iconSpan = header.createSpan({ cls: "bible-verse-icon" });
+  setIcon(iconSpan, "book-open");
   const link = header.createEl("a", {
     cls: "bible-verse-ref",
     text: `${ref} (${verse.translation})`,
@@ -172,9 +173,12 @@ export function renderLink(
   const url = generateLink(ref, translation, website);
 
   const span = container.createSpan({ cls: "bible-verse bible-verse-link" });
+  const iconSpan = span.createSpan({ cls: "bible-verse-icon" });
+  setIcon(iconSpan, "book-open");
+  
   const link = span.createEl("a", {
     cls: "bible-verse-ref",
-    text: `\uD83D\uDCD6 ${refStr}`,
+    text: ` ${refStr}`,
     href: url,
   });
   link.setAttr("target", "_blank");

@@ -1289,7 +1289,8 @@ async function renderSidebar(el, ref, verse, url, showAttribution, app, componen
 }
 async function renderCallout(el, ref, verse, url, showAttribution, app, component) {
   const header = el.createDiv({ cls: "bible-verse-header" });
-  header.createSpan({ cls: "bible-verse-icon", text: "\u{1F4D6}" });
+  const iconSpan = header.createSpan({ cls: "bible-verse-icon" });
+  (0, import_obsidian3.setIcon)(iconSpan, "book-open");
   const link = header.createEl("a", {
     cls: "bible-verse-ref",
     text: `${ref} (${verse.translation})`,
@@ -1349,9 +1350,11 @@ function renderLink(container, ref, translation, website) {
   const refStr = formatReference(ref);
   const url = generateLink(ref, translation, website);
   const span = container.createSpan({ cls: "bible-verse bible-verse-link" });
+  const iconSpan = span.createSpan({ cls: "bible-verse-icon" });
+  (0, import_obsidian3.setIcon)(iconSpan, "book-open");
   const link = span.createEl("a", {
     cls: "bible-verse-ref",
-    text: `\u{1F4D6} ${refStr}`,
+    text: ` ${refStr}`,
     href: url
   });
   link.setAttr("target", "_blank");
