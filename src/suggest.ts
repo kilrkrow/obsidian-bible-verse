@@ -176,9 +176,10 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
       // Add translation name if it's a translation modifier
       const trans = HELLOAO_TRANSLATIONS.find(t => t.abbreviation.toUpperCase() === modifier.toUpperCase());
       if (trans) {
+        const text = trans.isLinkOnly ? ` — ${trans.name} (🔗 Link only)` : ` — ${trans.name}`;
         el.createEl("span", { 
           cls: "bible-suggest-name", 
-          text: ` — ${trans.name}`, 
+          text: text, 
           attr: { style: "opacity: 0.5; font-size: 0.9em; margin-left: 8px;" } 
         });
       }

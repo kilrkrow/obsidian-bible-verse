@@ -268,16 +268,21 @@ var HELLOAO_TRANSLATIONS = [
   { id: "eng_dby", name: "Darby Translation (DARBY)", abbreviation: "DARBY" },
   { id: "eng_dra", name: "Douay-Rheims 1899 (DRB)", abbreviation: "DRB" },
   { id: "eng_rv5", name: "Revised Version (ERV)", abbreviation: "ERV" },
-  { id: "eng_kja", name: "King James + Apocrypha (KJV+)", abbreviation: "KJV+" },
-  { id: "eng_wbs", name: "Webster Bible (WBT)", abbreviation: "WBT" },
   { id: "eng_ylt", name: "Young's Literal Translation (YLT)", abbreviation: "YLT" },
   { id: "eng_bbe", name: "Bible in Basic English (BBE)", abbreviation: "BBE" },
   { id: "eng_fbv", name: "Free Bible Version (FBV)", abbreviation: "FBV" },
   { id: "eng_lsv", name: "Literal Standard Version (LSV)", abbreviation: "LSV" },
   { id: "eng_msb", name: "Majority Standard Bible (MSB)", abbreviation: "MSB" },
-  { id: "ENGWEBP", name: "World English Bible (WEB-P)", abbreviation: "WEBP" },
   { id: "eng_gnv", name: "Geneva Bible 1599 (GNV)", abbreviation: "GNV" },
-  { id: "eng_ojb", name: "Orthodox Jewish Bible (OJB)", abbreviation: "OJB" }
+  { id: "eng_ojb", name: "Orthodox Jewish Bible (OJB)", abbreviation: "OJB" },
+  // Link-only translations (Restricted licensing)
+  { id: "NIV", name: "New International Version (NIV)", abbreviation: "NIV", isLinkOnly: true },
+  { id: "ESV", name: "English Standard Version (ESV)", abbreviation: "ESV", isLinkOnly: true },
+  { id: "NLT", name: "New Living Translation (NLT)", abbreviation: "NLT", isLinkOnly: true },
+  { id: "NKJV", name: "New King James Version (NKJV)", abbreviation: "NKJV", isLinkOnly: true },
+  { id: "NASB", name: "New American Standard Bible (NASB)", abbreviation: "NASB", isLinkOnly: true },
+  { id: "AMP", name: "Amplified Bible (AMP)", abbreviation: "AMP", isLinkOnly: true },
+  { id: "CSB", name: "Christian Standard Bible (CSB)", abbreviation: "CSB", isLinkOnly: true }
 ];
 var HELLOAO_ABBREV = Object.fromEntries(
   HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation])
@@ -1568,9 +1573,10 @@ var BibleReferenceSuggest = class extends import_obsidian5.EditorSuggest {
       span.createSpan({ text: modifier, attr: { style: "font-weight: 600;" } });
       const trans = HELLOAO_TRANSLATIONS.find((t) => t.abbreviation.toUpperCase() === modifier.toUpperCase());
       if (trans) {
+        const text = trans.isLinkOnly ? ` \u2014 ${trans.name} (\u{1F517} Link only)` : ` \u2014 ${trans.name}`;
         el.createEl("span", {
           cls: "bible-suggest-name",
-          text: ` \u2014 ${trans.name}`,
+          text,
           attr: { style: "opacity: 0.5; font-size: 0.9em; margin-left: 8px;" }
         });
       }
@@ -1637,6 +1643,10 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     container.className = "bible-verse-livepreview";
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
     const sVN = (_b = this.spec.showVerseNumbers) != null ? _b : this.spec.plugin.settings.showVerseNumbers;
+    if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
+      this.renderPill(container);
+      return container;
+    }
     if (this.spec.translations.length >= 2) {
       if (this.spec.cachedVerses.length === this.spec.translations.length) {
         renderComparison(
@@ -2044,6 +2054,16 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
     return (_a = HELLOAO_ABBREV[id]) != null ? _a : id;
   }
   /**
+   * Public helper to check if a translation is link-only.
+   */
+  isTranslationLinkOnly(idOrAbbr) {
+    var _a;
+    const t = HELLOAO_TRANSLATIONS.find(
+      (t2) => t2.id === idOrAbbr || t2.abbreviation.toUpperCase() === idOrAbbr.toUpperCase()
+    );
+    return (_a = t == null ? void 0 : t.isLinkOnly) != null ? _a : false;
+  }
+  /**
    * Fetch a verse using the current settings.
    * If network fetch fails, attempts to find a baked block in the active file as a fallback.
    */
@@ -2063,7 +2083,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
     }
   }
   /**
-   * Inline markdown postprocessor: finds bib:ref in rendered text and replaces them.
+   * Inline markdown postprocessor: finds {ref} in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
     var _a, _b, _c, _d;
@@ -2095,6 +2115,8 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
           span.className = "bible-verse-container";
           if (translations.length >= 2) {
             this.renderInlineComparison(span, ref, translations);
+          } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
+            renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
           } else {
             const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
@@ -2124,9 +2146,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       (_d = node2.parentNode) == null ? void 0 : _d.replaceChild(frag, node2);
     }
   }
-  /**
-   * Fetch a verse with a specific translation and update the rendered element.
-   */
   async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style, verseNewLineOverride, showVerseNumbersOverride) {
     try {
       const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
@@ -2150,9 +2169,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       console.error("Bible Verse: Failed to fetch verse", e);
     }
   }
-  /**
-   * Render an inline comparison block for {ref, TRANS1, TRANS2} syntax.
-   */
   async renderInlineComparison(container, ref, translations) {
     const verses = [];
     for (const trans of translations) {
@@ -2192,9 +2208,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       await this.app.vault.modify(file, newContent);
     }
   }
-  /**
-   * Code block processor for ```bible blocks.
-   */
   async codeBlockProcessor(source, el, ctx) {
     var _a;
     el.empty();
@@ -2268,11 +2281,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);
     }
   }
-  /**
-   * Map a raw `style:` config value (e.g. "sidebar", "CALLOUT") to a valid
-   * DisplayStyle. Returns null for undefined or unrecognized values so the
-   * caller can fall back to the plugin default.
-   */
   resolveStyleKey(raw) {
     if (!raw)
       return null;
@@ -2282,9 +2290,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
     }
     return null;
   }
-  /**
-   * Render a comparison block with multiple translations.
-   */
   async renderComparisonBlock(el, ref, translations, verseNewLineOverride, showVerseNumbersOverride) {
     const verses = [];
     const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
@@ -2308,31 +2313,15 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       renderError(el, "Failed to fetch any translations for comparison.");
     }
   }
-  // ─── Public helpers for ViewPlugin ──────────────────────────────────────────
-  /**
-   * Public wrapper so the CM6 ViewPlugin can access translation abbreviations
-   * without needing to import private method details.
-   */
   getTranslationAbbrPublic(translationId) {
     return this.getTranslationAbbr(translationId);
   }
-  /**
-   * Public wrapper so the CM6 ViewPlugin can resolve translation IDs.
-   */
   resolveTranslationIdPublic(abbr) {
     return this.resolveTranslationId(abbr);
   }
-  /**
-   * Public wrapper so the CM6 ViewPlugin can generate Bible website links.
-   */
   generateLinkPublic(ref, translationAbbr) {
     return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
   }
-  // ─────────────────────────────────────────────────────────────────────────────
-  /**
-   * Resolve a translation abbreviation to a HelloAO translation ID.
-   * Searches the curated list by abbreviation, then by ID directly.
-   */
   resolveTranslationId(abbr) {
     const upper = abbr.toUpperCase();
     const match = HELLOAO_TRANSLATIONS.find(
@@ -2340,11 +2329,6 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
     );
     if (match)
       return match.id;
-    const byId = HELLOAO_TRANSLATIONS.find(
-      (t) => t.id.toUpperCase() === upper
-    );
-    if (byId)
-      return byId.id;
     return abbr;
   }
 };

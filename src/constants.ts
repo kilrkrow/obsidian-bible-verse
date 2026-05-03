@@ -232,9 +232,10 @@ export const BIBLE_COM_TRANSLATION_IDS: Record<string, number> = {
 };
 
 /**
- * Curated list of HelloAO Bible translations for the settings dropdown.
+ * Curated list of Bible translations.
+ * Restricted translations (NIV, ESV, etc.) are marked as isLinkOnly.
  */
-export const HELLOAO_TRANSLATIONS: { id: string; name: string; abbreviation: string }[] = [
+export const HELLOAO_TRANSLATIONS: { id: string; name: string; abbreviation: string; isLinkOnly?: boolean }[] = [
   { id: "eng_kjv",   name: "King James Version (KJV)",          abbreviation: "KJV" },
   { id: "BSB",       name: "Berean Standard Bible (BSB)",       abbreviation: "BSB" },
   { id: "eng_asv",   name: "American Standard Version (ASV)",   abbreviation: "ASV" },
@@ -243,16 +244,22 @@ export const HELLOAO_TRANSLATIONS: { id: string; name: string; abbreviation: str
   { id: "eng_dby",   name: "Darby Translation (DARBY)",         abbreviation: "DARBY" },
   { id: "eng_dra",   name: "Douay-Rheims 1899 (DRB)",           abbreviation: "DRB" },
   { id: "eng_rv5",   name: "Revised Version (ERV)",             abbreviation: "ERV" },
-  { id: "eng_kja",   name: "King James + Apocrypha (KJV+)",     abbreviation: "KJV+" },
-  { id: "eng_wbs",   name: "Webster Bible (WBT)",               abbreviation: "WBT" },
   { id: "eng_ylt",   name: "Young's Literal Translation (YLT)", abbreviation: "YLT" },
   { id: "eng_bbe",   name: "Bible in Basic English (BBE)",      abbreviation: "BBE" },
   { id: "eng_fbv",   name: "Free Bible Version (FBV)",          abbreviation: "FBV" },
   { id: "eng_lsv",   name: "Literal Standard Version (LSV)",    abbreviation: "LSV" },
   { id: "eng_msb",   name: "Majority Standard Bible (MSB)",     abbreviation: "MSB" },
-  { id: "ENGWEBP",   name: "World English Bible (WEB-P)",       abbreviation: "WEBP" },
   { id: "eng_gnv",   name: "Geneva Bible 1599 (GNV)",           abbreviation: "GNV" },
   { id: "eng_ojb",   name: "Orthodox Jewish Bible (OJB)",       abbreviation: "OJB" },
+
+  // Link-only translations (Restricted licensing)
+  { id: "NIV",  name: "New International Version (NIV)", abbreviation: "NIV",  isLinkOnly: true },
+  { id: "ESV",  name: "English Standard Version (ESV)",  abbreviation: "ESV",  isLinkOnly: true },
+  { id: "NLT",  name: "New Living Translation (NLT)",   abbreviation: "NLT",  isLinkOnly: true },
+  { id: "NKJV", name: "New King James Version (NKJV)", abbreviation: "NKJV", isLinkOnly: true },
+  { id: "NASB", name: "New American Standard Bible (NASB)", abbreviation: "NASB", isLinkOnly: true },
+  { id: "AMP",  name: "Amplified Bible (AMP)",          abbreviation: "AMP",  isLinkOnly: true },
+  { id: "CSB",  name: "Christian Standard Bible (CSB)",  abbreviation: "CSB",  isLinkOnly: true },
 ];
 
 /**

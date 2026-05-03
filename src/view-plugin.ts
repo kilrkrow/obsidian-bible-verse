@@ -58,6 +58,11 @@ class BibleVerseWidget extends WidgetType {
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
     const sVN = this.spec.showVerseNumbers ?? this.spec.plugin.settings.showVerseNumbers;
 
+    if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
+      this.renderPill(container);
+      return container;
+    }
+
     if (this.spec.translations.length >= 2) {
       if (this.spec.cachedVerses.length === this.spec.translations.length) {
         renderComparison(
