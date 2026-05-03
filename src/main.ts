@@ -121,6 +121,15 @@ export default class BibleVersePlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "clear-cache",
+      name: "Clear verse cache",
+      callback: async () => {
+        await this.cache.clear();
+        new Notice("Bible verse cache cleared.");
+      },
+    });
+
+    this.addCommand({
       id: "quick-insert",
       name: "Quick insert reference",
       callback: () => {

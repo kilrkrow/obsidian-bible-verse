@@ -138,7 +138,7 @@ export class BibleApi {
           let text = this.extractVerseText(verseItem.content);
           if (text) {
             if (settings.showVerseNumbers) {
-              text = `[${verseItem.number}] ${text}`;
+              text = `${verseItem.number}. ${text}`;
             }
             verseParts.push(text);
           }
