@@ -14,7 +14,7 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 - **Markdown Support** — Bold, italics, and highlights are preserved within "baked" scripture text
 - **Link-Only Mode** — Access restricted translations (NIV, ESV, NLT, etc.) via beautiful hyperlinked "pills"
 - **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
-- **Verse Numbers** — Optional display of verse numbers (e.g. `[16]`) for easy reference
+- **Verse Numbers** — Optional display of verse numbers (e.g. `1.`) for easy reference
 - **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
 - **IntelliSense Autocomplete** — Suggestions for books, complete references, **and translations**
 - **Theme Integrated** — Uses native Obsidian design tokens for a premium look in both Light and Dark mode
@@ -162,7 +162,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Default Translation | Which translation to use by default | KJV |
 | Preferred Website | Which Bible website to link to | BibleGateway |
 | Display Style | Visual presentation of verses | Callout |
-| Show Verse Numbers | Toggle verse numbers (e.g. `[1]`) | On |
+| Show Verse Numbers | Toggle verse numbers (e.g. `1.`) | On |
 | New Line Per Verse | Each verse starts on a new line | Off |
 | Persist Verse Text | Automatically bake verse text when rendering | Off |
 | Bake Inline References | Convert `{ref}` to code block when baking | Off |
@@ -170,6 +170,13 @@ The following translations render as a hyperlink to your preferred Bible website
 ## Baking and Persisting Text
 
 When "Persist Verse Text" is enabled, fetched verse text is stored directly inside the ` ```bible ` code block. This ensures your notes are **offline-ready** and **readable by anyone**, even if they don't have the plugin installed.
+
+```bible
+John 3:16
+translation: KJV
+---
+16. For God so loved the world...
+```
 
 **Markdown Support**: You can use **bold**, *italics*, and ==highlights== within baked scripture text. These styles will be preserved if you refresh the verse later.
 
