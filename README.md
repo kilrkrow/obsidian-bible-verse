@@ -11,10 +11,13 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 - **Multiple display styles** — Sidebar, Callout, Blockquote, or Inline
 - **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
 - **Local caching** — Fetched verses are cached locally to reduce API calls
+- **Markdown Support** — Bold, italics, and highlights are preserved within "baked" scripture text
+- **Link-Only Mode** — Access restricted translations (NIV, ESV, NLT, etc.) via beautiful hyperlinked "pills"
 - **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
 - **Verse Numbers** — Optional display of verse numbers (e.g. `[16]`) for easy reference
 - **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
 - **IntelliSense Autocomplete** — Suggestions for books, complete references, **and translations**
+- **Theme Integrated** — Uses native Obsidian design tokens for a premium look in both Light and Dark mode
 - **No API key needed** — Uses the free HelloAO Bible API with no registration required
 
 ## Installation
@@ -54,16 +57,13 @@ Typing inside `{…}` activates autocomplete suggestions:
 - **Book names** — type a few letters (e.g. `{co`) to see matching books like `Colossians`, `1 Corinthians`, `2 Corinthians`
 - **Alias support** — common abbreviations work too (e.g. `{1co` → `1 Corinthians`)
 - **Complete reference** — once you have typed a full reference like `{John 3:16`, the formatted reference appears as a single suggestion; press **Enter** or **Tab** to confirm and close the braces
-- **Translations & Styles** — After a reference, type a comma and space (e.g., `{John 3:16, `) to see a list of all supported translations and display styles.
+- **Translations & Styles** — After a reference, type a comma and space (e.g., `{John 3:16, `) to see a list of all supported translations (including "🔗 Link-only" versions) and display styles.
 
 Selecting a book-only suggestion inserts it with a trailing space so you can continue typing the chapter and verse number.
 
 ### Inline Translation and Style Overrides
 
-Both a translation and a display style can be specified inside the braces by
-appending comma-separated tokens after the reference. Translation codes are
-matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`,
-`inline`) wins when ambiguous.
+Both a translation and a display style can be specified inside the braces by appending comma-separated tokens after the reference. Translation codes are matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`, `inline`) wins when ambiguous.
 
 ```
 {John 3:16, KJV}                  -- override translation
@@ -72,11 +72,6 @@ matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`,
 {John 3:16, KJV, sidebar}         -- KJV in sidebar style
 {John 3:16, KJV, DARBY, callout}  -- comparison (style is ignored here)
 ```
-
-The order of translation tokens is preserved; the style token can be placed in
-any trailing position. When both a comparison (two translations) and a style
-are present, the style is ignored because comparisons are always rendered as a
-grid.
 
 #### Formatting Overrides
 
@@ -89,6 +84,14 @@ You can override your global settings for verse numbers and line breaks on a per
 {John 3:16-17, no-v}             -- hide verse numbers for this quote
 {John 3:16-17, KJV, nl}          -- KJV with each verse on a new line
 {John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
+```
+
+### Link-Only Translations
+
+Some commercially licensed translations (NIV, ESV, NLT, NKJV, NASB, AMP, CSB) cannot be fetched as text due to licensing restrictions. When these are selected, the plugin renders a beautiful "Link Pill" that takes you directly to the verse on your preferred Bible website.
+
+```
+{John 3:16, NIV}                 -- Renders as a hyperlink pill
 ```
 
 ### Code Block
@@ -105,8 +108,7 @@ numbers: false     -- override: hide verse numbers
 ```
 ````
 
-The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and
-overrides the global display style for this block only. The `newline:` and `numbers:` keys accept `true` or `false`.
+The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and overrides the global display style for this block only. The `newline:` and `numbers:` keys accept `true` or `false`.
 
 ### Comparison View
 
@@ -119,23 +121,9 @@ compare: KJV, BSB, ASV
 ```
 ````
 
-### Supported Reference Formats
-
-| Format | Example |
-|--------|---------|
-| Simple verse | `John 3:16` |
-| Verse range | `John 3:16-21` |
-| End of Chapter | `John 3:16-eoc` or `John 3:16-` |
-| Multiple verses | `John 3:16-21,25` |
-| Whole chapter | `Psalm 23` |
-| Multi-chapter range | `John 3:16-4:3` |
-| Numbered books | `1 Corinthians 13:4-7` |
-
-Book name variations are supported (e.g., "Psalm" / "Psalms", "Song of Solomon" / "Song of Songs").
-
 ## Available Translations
 
-The plugin includes a curated set of freely available English translations:
+### Text-Display Translations (Freely Available)
 
 | Abbreviation | Translation |
 |-------------|-------------|
@@ -155,7 +143,17 @@ The plugin includes a curated set of freely available English translations:
 | GNV | Geneva Bible 1599 |
 | OJB | Orthodox Jewish Bible |
 
-Some commercially-licensed translations (NIV, NLT, NKJV, ESV, etc.) are not available for text display due to licensing restrictions. Link-only support for these translations may be added in a future version.
+### Link-Only Translations (Commercially Licensed)
+
+The following translations render as a hyperlink to your preferred Bible website:
+
+- **NIV** — New International Version
+- **ESV** — English Standard Version
+- **NLT** — New Living Translation
+- **NKJV** — New King James Version
+- **NASB** — New American Standard Bible
+- **AMP** — Amplified Bible
+- **CSB** — Christian Standard Bible
 
 ## Settings
 
@@ -165,30 +163,15 @@ Some commercially-licensed translations (NIV, NLT, NKJV, ESV, etc.) are not avai
 | Preferred Website | Which Bible website to link to | BibleGateway |
 | Display Style | Visual presentation of verses | Callout |
 | Show Verse Numbers | Toggle verse numbers (e.g. `[1]`) | On |
-| New Line Per Verse | Each verse starts on a new line (requires verse numbers) | Off |
+| New Line Per Verse | Each verse starts on a new line | Off |
 | Persist Verse Text | Automatically bake verse text when rendering | Off |
 | Bake Inline References | Convert `{ref}` to code block when baking | Off |
 
-When "Persist Verse Text" is enabled, fetched verse text is stored directly inside the ` ```bible ` code block:
+## Baking and Persisting Text
 
-```bible
-John 3:16
-translation: KJV
----
-[16] For God so loved the world...
-```
+When "Persist Verse Text" is enabled, fetched verse text is stored directly inside the ` ```bible ` code block. This ensures your notes are **offline-ready** and **readable by anyone**, even if they don't have the plugin installed.
 
-**Smart Inline Baking**: If "Bake Inline References" is enabled, the plugin will automatically convert `{John 3:16}` into a code block like the one above when baking. If disabled, inline references remain dynamic and are never baked, keeping your sentences clean.
-
-Baking ensures your notes are **offline-ready** and **readable by anyone**, even if they don't have the plugin installed.
-
-### Quick Lookup
-
-Three commands for fast Bible reference workflows. Assign hotkeys in **Settings → Hotkeys**.
-
-- **Quick insert reference** — Opens a modal where you type a Bible reference (e.g., `John 3:16`) with real-time validation. On Enter, inserts `{reference}` at the cursor. Optionally opens the verse on your preferred Bible site.
-- **Search Bible for selected text** — Select any text in your note, then run this command to copy it to the clipboard and open a search on your preferred Bible website.
-- **Open reference at cursor on Bible site** — Place your cursor inside a `{ref}` marker and run this command to open that reference on your preferred Bible website.
+**Markdown Support**: You can use **bold**, *italics*, and ==highlights== within baked scripture text. These styles will be preserved if you refresh the verse later.
 
 ### Commands
 
@@ -197,13 +180,7 @@ Three commands for fast Bible reference workflows. Assign hotkeys in **Settings 
 - **Refresh all baked verses in vault** — Re-fetch across all notes
 - **Bake all existing verses across vault** — Bake all `{ref}` markers in every note
 - **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
-
-## Supported Bible Websites
-
-- [BibleHub](https://biblehub.com)
-- [BibleGateway](https://www.biblegateway.com)
-- [Blue Letter Bible](https://www.blueletterbible.org)
-- [Bible.com (YouVersion)](https://www.bible.com)
+- **Clear verse cache** — Clear the local verse cache to free up space
 
 ## Data Source
 
