@@ -10,7 +10,8 @@ export function renderVerse(
   ref: BibleReference,
   verse: CachedVerse,
   style: DisplayStyle,
-  website: BibleWebsite
+  website: BibleWebsite,
+  showAttribution: boolean
 ): void {
   const wrapper = container.createDiv({ cls: `bible-verse bible-verse-${style}` });
   const refStr = formatReference(ref);
@@ -18,21 +19,21 @@ export function renderVerse(
 
   switch (style) {
     case "sidebar":
-      renderSidebar(wrapper, refStr, verse, url);
+      renderSidebar(wrapper, refStr, verse, url, showAttribution);
       break;
     case "callout":
-      renderCallout(wrapper, refStr, verse, url);
+      renderCallout(wrapper, refStr, verse, url, showAttribution);
       break;
     case "blockquote":
-      renderBlockquote(wrapper, refStr, verse, url);
+      renderBlockquote(wrapper, refStr, verse, url, showAttribution);
       break;
     case "inline":
-      renderInline(wrapper, refStr, verse, url);
+      renderInline(wrapper, refStr, verse, url, showAttribution);
       break;
   }
 }
 
-function renderSidebar(el: HTMLElement, ref: string, verse: CachedVerse, url: string): void {
+function renderSidebar(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
 
@@ -45,12 +46,12 @@ function renderSidebar(el: HTMLElement, ref: string, verse: CachedVerse, url: st
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
-function renderCallout(el: HTMLElement, ref: string, verse: CachedVerse, url: string): void {
+function renderCallout(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
   const header = el.createDiv({ cls: "bible-verse-header" });
   header.createSpan({ cls: "bible-verse-icon", text: "\uD83D\uDCD6" }); // 📖
   const link = header.createEl("a", {
@@ -64,12 +65,12 @@ function renderCallout(el: HTMLElement, ref: string, verse: CachedVerse, url: st
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
 
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
-function renderBlockquote(el: HTMLElement, ref: string, verse: CachedVerse, url: string): void {
+function renderBlockquote(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
 
@@ -83,12 +84,12 @@ function renderBlockquote(el: HTMLElement, ref: string, verse: CachedVerse, url:
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
-function renderInline(el: HTMLElement, ref: string, verse: CachedVerse, url: string): void {
+function renderInline(el: HTMLElement, ref: string, verse: CachedVerse, url: string, showAttribution: boolean): void {
   el.createSpan({ cls: "bible-verse-text", text: `"${verse.text}" ` });
   const link = el.createEl("a", {
     cls: "bible-verse-ref",
@@ -98,7 +99,7 @@ function renderInline(el: HTMLElement, ref: string, verse: CachedVerse, url: str
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createSpan({ cls: "bible-verse-copyright", text: ` ${verse.copyright}` });
   }
 }
@@ -132,7 +133,8 @@ export function renderComparison(
   container: HTMLElement,
   ref: BibleReference,
   verses: CachedVerse[],
-  website: BibleWebsite
+  website: BibleWebsite,
+  showAttribution: boolean
 ): void {
   const wrapper = container.createDiv({ cls: "bible-verse-comparison" });
   const refStr = formatReference(ref);
@@ -159,7 +161,7 @@ export function renderComparison(
 
     col.createEl("p", { cls: "bible-verse-text", text: verse.text });
 
-    if (verse.copyright) {
+    if (showAttribution && verse.copyright) {
       col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
     }
   }

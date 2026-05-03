@@ -38,6 +38,7 @@ var DEFAULT_SETTINGS = {
   sidebarTopPadding: 0.5,
   showVerseNumbers: true,
   verseNewLine: false,
+  showAttribution: false,
   bakeInline: false
 };
 
@@ -717,7 +718,7 @@ var BibleApi = class {
         }
       }
     }
-    return parts.join(" ").replace(/\s?\n\s?/g, "\n").trim();
+    return parts.join(" ").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
   }
   /**
    * Determine which verses from the chapter are needed for this reference.
@@ -795,7 +796,7 @@ var BibleApi = class {
     if (verseParts.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const text = verseParts.join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ").replace(/\s?\n\s?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const text = verseParts.join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -1083,6 +1084,12 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
         this.display();
       })
     );
+    new import_obsidian2.Setting(containerEl).setName("Show attribution").setDesc("Display license and copyright links below verses.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.showAttribution).onChange(async (value) => {
+        this.plugin.settings.showAttribution = value;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian2.Setting(containerEl).setName("New line per verse").setDesc("Start each verse on a new line (only if verse numbers are enabled).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.verseNewLine).setDisabled(!this.plugin.settings.showVerseNumbers).onChange(async (value) => {
         this.plugin.settings.verseNewLine = value;
@@ -1095,6 +1102,24 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    containerEl.createEl("h2", { text: "Data Source & Licensing" });
+    const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
+    info.createEl("p", {
+      text: "Bible data is provided by the HelloAO Bible API. Most translations are Public Domain or have open licenses (Creative Commons)."
+    });
+    const list = info.createEl("ul");
+    list.createEl("li").createEl("a", {
+      text: "HelloAO Bible API",
+      href: "https://bible.helloao.org/"
+    });
+    list.createEl("li").createEl("a", {
+      text: "Translation License Info",
+      href: "https://bible.helloao.org/api/available_translations.json"
+    });
+    info.createEl("p", {
+      text: "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.",
+      attr: { style: "font-size: 0.85em; opacity: 0.7;" }
+    });
   }
 };
 
@@ -1163,26 +1188,26 @@ function bibleComUrl(ref, translation) {
 }
 
 // src/renderer.ts
-function renderVerse(container, ref, verse, style, website) {
+function renderVerse(container, ref, verse, style, website, showAttribution) {
   const wrapper = container.createDiv({ cls: `bible-verse bible-verse-${style}` });
   const refStr = formatReference(ref);
   const url = generateLink(ref, verse.translation, website);
   switch (style) {
     case "sidebar":
-      renderSidebar(wrapper, refStr, verse, url);
+      renderSidebar(wrapper, refStr, verse, url, showAttribution);
       break;
     case "callout":
-      renderCallout(wrapper, refStr, verse, url);
+      renderCallout(wrapper, refStr, verse, url, showAttribution);
       break;
     case "blockquote":
-      renderBlockquote(wrapper, refStr, verse, url);
+      renderBlockquote(wrapper, refStr, verse, url, showAttribution);
       break;
     case "inline":
-      renderInline(wrapper, refStr, verse, url);
+      renderInline(wrapper, refStr, verse, url, showAttribution);
       break;
   }
 }
-function renderSidebar(el, ref, verse, url) {
+function renderSidebar(el, ref, verse, url, showAttribution) {
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
   const footer = el.createDiv({ cls: "bible-verse-footer" });
@@ -1193,11 +1218,11 @@ function renderSidebar(el, ref, verse, url) {
   });
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
-function renderCallout(el, ref, verse, url) {
+function renderCallout(el, ref, verse, url, showAttribution) {
   const header = el.createDiv({ cls: "bible-verse-header" });
   header.createSpan({ cls: "bible-verse-icon", text: "\u{1F4D6}" });
   const link = header.createEl("a", {
@@ -1209,11 +1234,11 @@ function renderCallout(el, ref, verse, url) {
   link.setAttr("rel", "noopener");
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
-function renderBlockquote(el, ref, verse, url) {
+function renderBlockquote(el, ref, verse, url, showAttribution) {
   const body = el.createDiv({ cls: "bible-verse-body" });
   body.createEl("p", { cls: "bible-verse-text", text: verse.text });
   const footer = el.createDiv({ cls: "bible-verse-footer" });
@@ -1225,11 +1250,11 @@ function renderBlockquote(el, ref, verse, url) {
   });
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
-function renderInline(el, ref, verse, url) {
+function renderInline(el, ref, verse, url, showAttribution) {
   el.createSpan({ cls: "bible-verse-text", text: `"${verse.text}" ` });
   const link = el.createEl("a", {
     cls: "bible-verse-ref",
@@ -1238,7 +1263,7 @@ function renderInline(el, ref, verse, url) {
   });
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
-  if (verse.copyright) {
+  if (showAttribution && verse.copyright) {
     el.createSpan({ cls: "bible-verse-copyright", text: ` ${verse.copyright}` });
   }
 }
@@ -1254,7 +1279,7 @@ function renderLink(container, ref, translation, website) {
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 }
-function renderComparison(container, ref, verses, website) {
+function renderComparison(container, ref, verses, website, showAttribution) {
   const wrapper = container.createDiv({ cls: "bible-verse-comparison" });
   const refStr = formatReference(ref);
   wrapper.createEl("div", {
@@ -1273,7 +1298,7 @@ function renderComparison(container, ref, verses, website) {
     link.setAttr("target", "_blank");
     link.setAttr("rel", "noopener");
     col.createEl("p", { cls: "bible-verse-text", text: verse.text });
-    if (verse.copyright) {
+    if (showAttribution && verse.copyright) {
       col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
     }
   }
@@ -1386,22 +1411,28 @@ var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
     if (/\d/.test(query)) {
       if (query.includes(",")) {
         const parts = query.split(",");
-        const refPart = parts.slice(0, -1).join(",").trim();
         const modPart = parts[parts.length - 1].trim().toLowerCase();
-        const ref2 = parseReference(refPart);
-        if (ref2) {
+        const prefix = parts.slice(0, -1).join(",").trim();
+        const spec = parseInlineSpec(prefix);
+        if (spec) {
           const suggestions = [];
-          for (const trans of HELLOAO_TRANSLATIONS) {
-            if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
-              suggestions.push(`${refPart}, ${trans.abbreviation}`);
+          if (spec.translations.length < 2) {
+            for (const trans of HELLOAO_TRANSLATIONS) {
+              if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
+                suggestions.push(`${prefix}, ${trans.abbreviation}`);
+              }
             }
           }
-          for (const style of KNOWN_STYLES) {
-            if (style.toLowerCase().startsWith(modPart)) {
-              suggestions.push(`${refPart}, ${style}`);
+          if (spec.styleOverride === null) {
+            for (const style of KNOWN_STYLES) {
+              if (style.toLowerCase().startsWith(modPart)) {
+                suggestions.push(`${prefix}, ${style}`);
+              }
             }
           }
-          return suggestions.slice(0, this.limit);
+          if (suggestions.length > 0) {
+            return suggestions.slice(0, this.limit);
+          }
         }
       }
       const ref = parseReference(query);
@@ -1436,8 +1467,26 @@ var BibleReferenceSuggest = class extends import_obsidian4.EditorSuggest {
   }
   /** Render a single suggestion row in the dropdown. */
   renderSuggestion(value, el) {
-    el.createEl("span", { cls: "bible-suggest-icon", text: "\u{1F4D6} " });
-    el.createEl("span", { cls: "bible-suggest-text", text: value });
+    if (value.includes(",")) {
+      el.createEl("span", { cls: "bible-suggest-icon", text: "\u2699\uFE0F " });
+      const parts = value.split(",");
+      const modifier = parts[parts.length - 1].trim();
+      const prefix = parts.slice(0, -1).join(",").trim();
+      const span = el.createEl("span", { cls: "bible-suggest-text" });
+      span.createSpan({ text: prefix + ", ", attr: { style: "opacity: 0.5;" } });
+      span.createSpan({ text: modifier, attr: { style: "font-weight: 600;" } });
+      const trans = HELLOAO_TRANSLATIONS.find((t) => t.abbreviation.toUpperCase() === modifier.toUpperCase());
+      if (trans) {
+        el.createEl("span", {
+          cls: "bible-suggest-name",
+          text: ` \u2014 ${trans.name}`,
+          attr: { style: "opacity: 0.5; font-size: 0.9em; margin-left: 8px;" }
+        });
+      }
+    } else {
+      el.createEl("span", { cls: "bible-suggest-icon", text: "\u{1F4D6} " });
+      el.createEl("span", { cls: "bible-suggest-text", text: value });
+    }
   }
   /**
    * Insert the selected suggestion into the editor.
@@ -1495,17 +1544,34 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     var _a;
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
-    if (this.spec.cachedVerse) {
-      renderVerse(
-        container,
-        this.spec.ref,
-        this.spec.cachedVerse,
-        (_a = this.spec.styleOverride) != null ? _a : this.spec.plugin.settings.displayStyle,
-        this.spec.plugin.settings.preferredWebsite
-      );
+    if (this.spec.translations.length >= 2) {
+      if (this.spec.cachedVerses.length === this.spec.translations.length) {
+        renderComparison(
+          container,
+          this.spec.ref,
+          this.spec.cachedVerses,
+          this.spec.plugin.settings.preferredWebsite,
+          this.spec.plugin.settings.showAttribution
+        );
+      } else {
+        this.renderPill(container);
+        this.fetchAndUpdate(container, view);
+      }
     } else {
-      this.renderPill(container);
-      this.fetchAndUpdate(container, view);
+      const cached = this.spec.cachedVerses[0];
+      if (cached) {
+        renderVerse(
+          container,
+          this.spec.ref,
+          cached,
+          (_a = this.spec.styleOverride) != null ? _a : this.spec.plugin.settings.displayStyle,
+          this.spec.plugin.settings.preferredWebsite,
+          this.spec.plugin.settings.showAttribution
+        );
+      } else {
+        this.renderPill(container);
+        this.fetchAndUpdate(container, view);
+      }
     }
     return container;
   }
@@ -1523,30 +1589,45 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     var _a;
     const { plugin, ref, translations } = this.spec;
     try {
-      let verse;
+      const verses = [];
       if (translations.length >= 2) {
-        const id = plugin.resolveTranslationIdPublic(translations[0]);
-        const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, {
-          showVerseNumbers: plugin.settings.showVerseNumbers,
-          verseNewLine: plugin.settings.verseNewLine
-        });
+        for (const trans of translations) {
+          const id = plugin.resolveTranslationIdPublic(trans);
+          const abbr = plugin.getTranslationAbbrPublic(id);
+          const v = await plugin.api.getPassage(ref, id, abbr, {
+            showVerseNumbers: plugin.settings.showVerseNumbers,
+            verseNewLine: plugin.settings.verseNewLine
+          });
+          verses.push(v);
+        }
       } else {
         const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, {
+        const v = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: plugin.settings.showVerseNumbers,
           verseNewLine: plugin.settings.verseNewLine
         });
+        verses.push(v);
       }
       container.empty();
-      renderVerse(
-        container,
-        ref,
-        verse,
-        (_a = this.spec.styleOverride) != null ? _a : plugin.settings.displayStyle,
-        plugin.settings.preferredWebsite
-      );
+      if (translations.length >= 2) {
+        renderComparison(
+          container,
+          ref,
+          verses,
+          plugin.settings.preferredWebsite,
+          plugin.settings.showAttribution
+        );
+      } else {
+        renderVerse(
+          container,
+          ref,
+          verses[0],
+          (_a = this.spec.styleOverride) != null ? _a : plugin.settings.displayStyle,
+          plugin.settings.preferredWebsite,
+          plugin.settings.showAttribution
+        );
+      }
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
     } catch (e) {
       console.error("Bible Verse Live Preview: fetch failed", e);
@@ -1560,7 +1641,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
    * the same object is returned on subsequent lookups.
    */
   eq(other) {
-    return this.spec.label === other.spec.label && this.spec.cachedVerse === other.spec.cachedVerse && this.spec.styleOverride === other.spec.styleOverride;
+    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride;
   }
   /**
    * Controls which events CodeMirror handles vs. what the widget DOM handles.
@@ -1609,7 +1690,6 @@ function buildViewPlugin(plugin) {
         }
       }
       buildDecorations(view) {
-        var _a;
         const builder = new import_state.RangeSetBuilder();
         const selections = view.state.selection.ranges;
         for (const { from, to } of view.visibleRanges) {
@@ -1627,16 +1707,22 @@ function buildViewPlugin(plugin) {
               continue;
             const { ref, translations, styleOverride } = spec;
             const refLabel = formatReference(ref);
-            let translationId;
-            let abbr;
-            if (translations.length >= 1) {
-              translationId = plugin.resolveTranslationIdPublic(translations[0]);
-              abbr = plugin.getTranslationAbbrPublic(translationId);
+            const cachedVerses = [];
+            if (translations.length >= 2) {
+              for (const trans of translations) {
+                const id = plugin.resolveTranslationIdPublic(trans);
+                const abbr = plugin.getTranslationAbbrPublic(id);
+                const cached = plugin.cache.get(abbr, refLabel);
+                if (cached)
+                  cachedVerses.push(cached);
+              }
             } else {
-              translationId = plugin.settings.defaultTranslation;
-              abbr = plugin.getTranslationAbbrPublic();
+              const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+              const abbr = plugin.getTranslationAbbrPublic(id);
+              const cached = plugin.cache.get(abbr, refLabel);
+              if (cached)
+                cachedVerses.push(cached);
             }
-            const cachedVerse = (_a = plugin.cache.get(abbr, refLabel)) != null ? _a : null;
             let label;
             if (translations.length === 0) {
               label = refLabel;
@@ -1645,14 +1731,16 @@ function buildViewPlugin(plugin) {
             } else {
               label = `${refLabel} (${translations.join(" | ")})`;
             }
-            const href = plugin.generateLinkPublic(ref, abbr);
+            const primaryId = translations.length >= 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+            const primaryAbbr = plugin.getTranslationAbbrPublic(primaryId);
+            const href = plugin.generateLinkPublic(ref, primaryAbbr);
             const widget = new BibleVerseWidget({
               label,
               href,
               ref,
               translations,
               styleOverride,
-              cachedVerse,
+              cachedVerses,
               plugin
             });
             builder.add(
@@ -1909,7 +1997,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
             const style = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
             const cached = this.cache.get(abbr, formatReference(ref));
             if (cached) {
-              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
@@ -1945,7 +2033,8 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
         ref,
         verse,
         style != null ? style : this.settings.displayStyle,
-        this.settings.preferredWebsite
+        this.settings.preferredWebsite,
+        this.settings.showAttribution
       );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
@@ -1970,7 +2059,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       }
     }
     if (verses.length > 0) {
-      renderComparison(container, ref, verses, this.settings.preferredWebsite);
+      renderComparison(container, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution);
     } else {
       renderError(container, `Could not fetch translations for ${formatReference(ref)}.`);
     }
@@ -2054,7 +2143,8 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
         ref,
         verse,
         styleOverride != null ? styleOverride : this.settings.displayStyle,
-        this.settings.preferredWebsite
+        this.settings.preferredWebsite,
+        this.settings.showAttribution
       );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);
@@ -2093,7 +2183,7 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       }
     }
     if (verses.length > 0) {
-      renderComparison(el, ref, verses, this.settings.preferredWebsite);
+      renderComparison(el, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution);
     } else {
       renderError(el, "Failed to fetch any translations for comparison.");
     }

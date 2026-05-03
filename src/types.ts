@@ -24,6 +24,7 @@ export interface BibleVerseSettings {
   sidebarTopPadding: number;
   showVerseNumbers: boolean;
   verseNewLine: boolean;
+  showAttribution: boolean;
   bakeInline: boolean;
 }
 
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   sidebarTopPadding: 0.5,
   showVerseNumbers: true,
   verseNewLine: false,
+  showAttribution: false,
   bakeInline: false,
 };
 

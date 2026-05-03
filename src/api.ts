@@ -47,7 +47,7 @@ export class BibleApi {
 
     return parts
       .join(" ")
-      .replace(/\s?\n\s?/g, "\n")
+      .replace(/[ \t]*\n[ \t]*/g, "\n")
       .trim();
   }
 
@@ -159,7 +159,7 @@ export class BibleApi {
 
     const text = verseParts
       .join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ")
-      .replace(/\s?\n\s?/g, "\n")
+      .replace(/[ \t]*\n[ \t]*/g, "\n")
       .replace(/\n{3,}/g, "\n\n") // Max double newline
       .trim();
 

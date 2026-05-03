@@ -312,7 +312,7 @@ export default class BibleVersePlugin extends Plugin {
             // fetch asynchronously to avoid blocking the render.
             const cached = this.cache.get(abbr, formatReference(ref));
             if (cached) {
-              renderVerse(span, ref, cached, style, this.settings.preferredWebsite);
+              renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style);
@@ -362,7 +362,8 @@ export default class BibleVersePlugin extends Plugin {
         ref,
         verse,
         style ?? this.settings.displayStyle,
-        this.settings.preferredWebsite
+        this.settings.preferredWebsite,
+        this.settings.showAttribution
       );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
@@ -392,7 +393,7 @@ export default class BibleVersePlugin extends Plugin {
       }
     }
     if (verses.length > 0) {
-      renderComparison(container, ref, verses, this.settings.preferredWebsite);
+      renderComparison(container, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution);
     } else {
       renderError(container, `Could not fetch translations for ${formatReference(ref)}.`);
     }
@@ -508,7 +509,8 @@ export default class BibleVersePlugin extends Plugin {
         ref,
         verse,
         styleOverride ?? this.settings.displayStyle,
-        this.settings.preferredWebsite
+        this.settings.preferredWebsite,
+        this.settings.showAttribution
       );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${(e as Error).message}`);
@@ -554,7 +556,7 @@ export default class BibleVersePlugin extends Plugin {
     }
 
     if (verses.length > 0) {
-      renderComparison(el, ref, verses, this.settings.preferredWebsite);
+      renderComparison(el, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution);
     } else {
       renderError(el, "Failed to fetch any translations for comparison.");
     }

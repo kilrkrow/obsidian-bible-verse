@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
-import { parseReference, formatReference, KNOWN_STYLES } from "./parser";
+import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec } from "./parser";
 
 /**
  * Provides IntelliSense for Bible references inside {curly braces}.
@@ -81,29 +81,35 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
       // Check for translation/style modifiers after a comma
       if (query.includes(",")) {
         const parts = query.split(",");
-        const refPart = parts.slice(0, -1).join(",").trim();
         const modPart = parts[parts.length - 1].trim().toLowerCase();
+        const prefix = parts.slice(0, -1).join(",").trim();
         
-        const ref = parseReference(refPart);
-        if (ref) {
-          // It's a valid reference, suggest translations and styles
+        // Use parseInlineSpec to handle cases where we already have modifiers
+        const spec = parseInlineSpec(prefix);
+        if (spec) {
           const suggestions: string[] = [];
           
-          // Suggest translations
-          for (const trans of HELLOAO_TRANSLATIONS) {
-            if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
-              suggestions.push(`${refPart}, ${trans.abbreviation}`);
+          // Suggest translations (up to 2 allowed)
+          if (spec.translations.length < 2) {
+            for (const trans of HELLOAO_TRANSLATIONS) {
+              if (trans.abbreviation.toLowerCase().startsWith(modPart)) {
+                suggestions.push(`${prefix}, ${trans.abbreviation}`);
+              }
             }
           }
           
-          // Suggest styles
-          for (const style of KNOWN_STYLES) {
-            if (style.toLowerCase().startsWith(modPart)) {
-              suggestions.push(`${refPart}, ${style}`);
+          // Suggest styles (only if not already specified)
+          if (spec.styleOverride === null) {
+            for (const style of KNOWN_STYLES) {
+              if (style.toLowerCase().startsWith(modPart)) {
+                suggestions.push(`${prefix}, ${style}`);
+              }
             }
           }
           
-          return suggestions.slice(0, this.limit);
+          if (suggestions.length > 0) {
+            return suggestions.slice(0, this.limit);
+          }
         }
       }
 
@@ -148,8 +154,30 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
 
   /** Render a single suggestion row in the dropdown. */
   renderSuggestion(value: string, el: HTMLElement): void {
-    el.createEl("span", { cls: "bible-suggest-icon", text: "📖 " });
-    el.createEl("span", { cls: "bible-suggest-text", text: value });
+    if (value.includes(",")) {
+      el.createEl("span", { cls: "bible-suggest-icon", text: "⚙️ " });
+      
+      const parts = value.split(",");
+      const modifier = parts[parts.length - 1].trim();
+      const prefix = parts.slice(0, -1).join(",").trim();
+      
+      const span = el.createEl("span", { cls: "bible-suggest-text" });
+      span.createSpan({ text: prefix + ", ", attr: { style: "opacity: 0.5;" } });
+      span.createSpan({ text: modifier, attr: { style: "font-weight: 600;" } });
+      
+      // Add translation name if it's a translation modifier
+      const trans = HELLOAO_TRANSLATIONS.find(t => t.abbreviation.toUpperCase() === modifier.toUpperCase());
+      if (trans) {
+        el.createEl("span", { 
+          cls: "bible-suggest-name", 
+          text: ` — ${trans.name}`, 
+          attr: { style: "opacity: 0.5; font-size: 0.9em; margin-left: 8px;" } 
+        });
+      }
+    } else {
+      el.createEl("span", { cls: "bible-suggest-icon", text: "📖 " });
+      el.createEl("span", { cls: "bible-suggest-text", text: value });
+    }
   }
 
   /**

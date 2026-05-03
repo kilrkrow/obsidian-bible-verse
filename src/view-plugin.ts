@@ -10,7 +10,7 @@ import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import type BibleVersePlugin from "./main";
 import { parseInlineSpec, formatReference } from "./parser";
 import { BibleReference, CachedVerse, DisplayStyle } from "./types";
-import { renderVerse, renderError } from "./renderer";
+import { renderVerse, renderComparison, renderError } from "./renderer";
 
 // Matches {…} inline tokens (same pattern as inlinePostProcessor)
 const INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
@@ -42,7 +42,7 @@ class BibleVerseWidget extends WidgetType {
       ref: BibleReference;
       translations: string[];
       styleOverride: DisplayStyle | null;
-      cachedVerse: CachedVerse | null;
+      cachedVerses: CachedVerse[];
       plugin: BibleVersePlugin;
     }
   ) {
@@ -53,19 +53,34 @@ class BibleVerseWidget extends WidgetType {
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
 
-    if (this.spec.cachedVerse) {
-      renderVerse(
-        container,
-        this.spec.ref,
-        this.spec.cachedVerse,
-        this.spec.styleOverride ?? this.spec.plugin.settings.displayStyle,
-        this.spec.plugin.settings.preferredWebsite
-      );
+    if (this.spec.translations.length >= 2) {
+      if (this.spec.cachedVerses.length === this.spec.translations.length) {
+        renderComparison(
+          container,
+          this.spec.ref,
+          this.spec.cachedVerses,
+          this.spec.plugin.settings.preferredWebsite,
+          this.spec.plugin.settings.showAttribution
+        );
+      } else {
+        this.renderPill(container);
+        this.fetchAndUpdate(container, view);
+      }
     } else {
-      // Placeholder pill
-      this.renderPill(container);
-      // Async fetch — update DOM in place, then signal the ViewPlugin
-      this.fetchAndUpdate(container, view);
+      const cached = this.spec.cachedVerses[0];
+      if (cached) {
+        renderVerse(
+          container,
+          this.spec.ref,
+          cached,
+          this.spec.styleOverride ?? this.spec.plugin.settings.displayStyle,
+          this.spec.plugin.settings.preferredWebsite,
+          this.spec.plugin.settings.showAttribution
+        );
+      } else {
+        this.renderPill(container);
+        this.fetchAndUpdate(container, view);
+      }
     }
 
     return container;
@@ -86,36 +101,50 @@ class BibleVerseWidget extends WidgetType {
     const { plugin, ref, translations } = this.spec;
 
     try {
-      let verse: CachedVerse;
+      const verses: CachedVerse[] = [];
 
       if (translations.length >= 2) {
-        // For comparison mode in live preview we just show the first translation
-        const id = plugin.resolveTranslationIdPublic(translations[0]);
-        const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, {
-          showVerseNumbers: plugin.settings.showVerseNumbers,
-          verseNewLine: plugin.settings.verseNewLine,
-        });
+        for (const trans of translations) {
+          const id = plugin.resolveTranslationIdPublic(trans);
+          const abbr = plugin.getTranslationAbbrPublic(id);
+          const v = await plugin.api.getPassage(ref, id, abbr, {
+            showVerseNumbers: plugin.settings.showVerseNumbers,
+            verseNewLine: plugin.settings.verseNewLine,
+          });
+          verses.push(v);
+        }
       } else {
         const id = translations.length === 1
           ? plugin.resolveTranslationIdPublic(translations[0])
           : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        verse = await plugin.api.getPassage(ref, id, abbr, {
+        const v = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: plugin.settings.showVerseNumbers,
           verseNewLine: plugin.settings.verseNewLine,
         });
+        verses.push(v);
       }
 
       // Update the DOM in place (visible immediately)
       container.empty();
-      renderVerse(
-        container,
-        ref,
-        verse,
-        this.spec.styleOverride ?? plugin.settings.displayStyle,
-        plugin.settings.preferredWebsite
-      );
+      if (translations.length >= 2) {
+        renderComparison(
+          container,
+          ref,
+          verses,
+          plugin.settings.preferredWebsite,
+          plugin.settings.showAttribution
+        );
+      } else {
+        renderVerse(
+          container,
+          ref,
+          verses[0],
+          this.spec.styleOverride ?? plugin.settings.displayStyle,
+          plugin.settings.preferredWebsite,
+          plugin.settings.showAttribution
+        );
+      }
 
       // Signal the ViewPlugin so future decoration builds use the cache
       view.dispatch({ effects: verseFetchedEffect.of(undefined) });
@@ -134,7 +163,8 @@ class BibleVerseWidget extends WidgetType {
   eq(other: BibleVerseWidget): boolean {
     return (
       this.spec.label === other.spec.label &&
-      this.spec.cachedVerse === other.spec.cachedVerse &&
+      this.spec.cachedVerses.length === other.spec.cachedVerses.length &&
+      this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) &&
       this.spec.styleOverride === other.spec.styleOverride
     );
   }
@@ -247,17 +277,22 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const refLabel = formatReference(ref);
 
             // Resolve translation and check cache
-            let translationId: string;
-            let abbr: string;
-            if (translations.length >= 1) {
-              translationId = plugin.resolveTranslationIdPublic(translations[0]);
-              abbr = plugin.getTranslationAbbrPublic(translationId);
+            const cachedVerses: CachedVerse[] = [];
+            if (translations.length >= 2) {
+              for (const trans of translations) {
+                const id = plugin.resolveTranslationIdPublic(trans);
+                const abbr = plugin.getTranslationAbbrPublic(id);
+                const cached = plugin.cache.get(abbr, refLabel);
+                if (cached) cachedVerses.push(cached);
+              }
             } else {
-              translationId = plugin.settings.defaultTranslation;
-              abbr = plugin.getTranslationAbbrPublic();
+              const id = translations.length === 1
+                ? plugin.resolveTranslationIdPublic(translations[0])
+                : plugin.settings.defaultTranslation;
+              const abbr = plugin.getTranslationAbbrPublic(id);
+              const cached = plugin.cache.get(abbr, refLabel);
+              if (cached) cachedVerses.push(cached);
             }
-
-            const cachedVerse = plugin.cache.get(abbr, refLabel) ?? null;
 
             // Build display label and href for the placeholder/widget header
             let label: string;
@@ -269,7 +304,12 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               label = `${refLabel} (${translations.join(" | ")})`;
             }
 
-            const href = plugin.generateLinkPublic(ref, abbr);
+            // Primary translation for the pill link
+            const primaryId = translations.length >= 1
+              ? plugin.resolveTranslationIdPublic(translations[0])
+              : plugin.settings.defaultTranslation;
+            const primaryAbbr = plugin.getTranslationAbbrPublic(primaryId);
+            const href = plugin.generateLinkPublic(ref, primaryAbbr);
 
             const widget = new BibleVerseWidget({
               label,
@@ -277,7 +317,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               ref,
               translations,
               styleOverride,
-              cachedVerse,
+              cachedVerses,
               plugin,
             });
 

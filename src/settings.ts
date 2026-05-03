@@ -111,6 +111,18 @@ export class BibleVerseSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Show attribution")
+      .setDesc("Display license and copyright links below verses.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showAttribution)
+          .onChange(async (value) => {
+            this.plugin.settings.showAttribution = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("New line per verse")
       .setDesc("Start each verse on a new line (only if verse numbers are enabled).")
       .addToggle((toggle) =>
@@ -134,5 +146,24 @@ export class BibleVerseSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    containerEl.createEl("h2", { text: "Data Source & Licensing" });
+    const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
+    info.createEl("p", {
+      text: "Bible data is provided by the HelloAO Bible API. Most translations are Public Domain or have open licenses (Creative Commons).",
+    });
+    const list = info.createEl("ul");
+    list.createEl("li").createEl("a", {
+      text: "HelloAO Bible API",
+      href: "https://bible.helloao.org/",
+    });
+    list.createEl("li").createEl("a", {
+      text: "Translation License Info",
+      href: "https://bible.helloao.org/api/available_translations.json",
+    });
+    info.createEl("p", {
+      text: "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.",
+      attr: { style: "font-size: 0.85em; opacity: 0.7;" },
+    });
   }
 }
