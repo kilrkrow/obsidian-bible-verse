@@ -783,7 +783,7 @@ var BibleApi = class {
           let text2 = this.extractVerseText(verseItem.content);
           if (text2) {
             if (settings.showVerseNumbers) {
-              text2 = `[${verseItem.number}] ${text2}`;
+              text2 = `${verseItem.number}. ${text2}`;
             }
             verseParts.push(text2);
           }
@@ -1753,6 +1753,14 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
       callback: async () => {
         const count = await this.baker.processVault("strip", false);
         new import_obsidian5.Notice(`Stripped baked text from ${count} files.`);
+      }
+    });
+    this.addCommand({
+      id: "clear-cache",
+      name: "Clear verse cache",
+      callback: async () => {
+        await this.cache.clear();
+        new import_obsidian5.Notice("Bible verse cache cleared.");
       }
     });
     this.addCommand({

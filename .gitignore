@@ -11,3 +11,7 @@ Thumbs.db
 
 # Plugin data
 data.json
+
+# Local scripts
+deploy.ps1
+
