@@ -758,7 +758,7 @@ var BibleApi = class {
   async getPassage(ref, translationId, translationAbbr, settings) {
     var _a;
     const refStr = formatReference(ref);
-    const cached = this.cache.get(translationAbbr, refStr);
+    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers);
     if (cached)
       return cached;
     const usfm = USFM_CODES[ref.book];
@@ -796,7 +796,7 @@ var BibleApi = class {
     if (verseParts.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const text = verseParts.join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const text = verseParts.join(settings.verseNewLine ? "\n" : " ").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -824,12 +824,14 @@ var VerseCache = class {
     this.plugin = plugin;
     this.cacheDir = `${plugin.manifest.dir}/cache`;
   }
-  /** Build a cache key from translation and reference */
-  key(translation, reference) {
-    return `${translation}_${reference}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
+  /** Build a cache key from translation, reference, and formatting settings */
+  key(translation, reference, nl = false, vn = true) {
+    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}`;
+    return `${translation}_${reference}_${suffix}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
   /** Load the full cache index from disk */
   async load() {
+    var _a;
     if (this.loaded)
       return;
     const adapter = this.plugin.app.vault.adapter;
@@ -844,21 +846,23 @@ var VerseCache = class {
       try {
         const data = await adapter.read(file);
         const entry = JSON.parse(data);
-        const k = this.key(entry.translation, entry.reference);
-        this.cache.set(k, entry);
+        const fileName = (_a = file.split("/").pop()) == null ? void 0 : _a.replace(".json", "");
+        if (fileName) {
+          this.cache.set(fileName, entry);
+        }
       } catch (e) {
       }
     }
     this.loaded = true;
   }
   /** Get a cached verse, or null if not cached */
-  get(translation, reference) {
+  get(translation, reference, nl = false, vn = true) {
     var _a;
-    return (_a = this.cache.get(this.key(translation, reference))) != null ? _a : null;
+    return (_a = this.cache.get(this.key(translation, reference, nl, vn))) != null ? _a : null;
   }
   /** Store a verse in the cache */
-  async set(entry) {
-    const k = this.key(entry.translation, entry.reference);
+  async set(entry, nl = false, vn = true) {
+    const k = this.key(entry.translation, entry.reference, nl, vn);
     this.cache.set(k, entry);
     const adapter = this.plugin.app.vault.adapter;
     const exists = await adapter.exists(this.cacheDir);
@@ -876,8 +880,8 @@ var VerseCache = class {
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
   /** Check if a verse is cached */
-  has(translation, reference) {
-    return this.cache.has(this.key(translation, reference));
+  has(translation, reference, nl = false, vn = true) {
+    return this.cache.has(this.key(translation, reference, nl, vn));
   }
   /** Clear the entire cache */
   async clear() {
@@ -1712,14 +1716,14 @@ function buildViewPlugin(plugin) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
-                const cached = plugin.cache.get(abbr, refLabel);
+                const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
                 if (cached)
                   cachedVerses.push(cached);
               }
             } else {
               const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
               const abbr = plugin.getTranslationAbbrPublic(id);
-              const cached = plugin.cache.get(abbr, refLabel);
+              const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
               if (cached)
                 cachedVerses.push(cached);
             }
@@ -1995,7 +1999,12 @@ var BibleVersePlugin = class extends import_obsidian5.Plugin {
             const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
             const style = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
-            const cached = this.cache.get(abbr, formatReference(ref));
+            const cached = this.cache.get(
+              abbr,
+              formatReference(ref),
+              this.settings.verseNewLine,
+              this.settings.showVerseNumbers
+            );
             if (cached) {
               renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution);
             } else {

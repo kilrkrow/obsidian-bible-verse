@@ -17,9 +17,10 @@ export class VerseCache {
     this.cacheDir = `${plugin.manifest.dir}/cache`;
   }
 
-  /** Build a cache key from translation and reference */
-  private key(translation: string, reference: string): string {
-    return `${translation}_${reference}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
+  /** Build a cache key from translation, reference, and formatting settings */
+  private key(translation: string, reference: string, nl = false, vn = true): string {
+    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}`;
+    return `${translation}_${reference}_${suffix}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
 
   /** Load the full cache index from disk */
@@ -39,8 +40,13 @@ export class VerseCache {
       try {
         const data = await adapter.read(file);
         const entry: CachedVerse = JSON.parse(data);
-        const k = this.key(entry.translation, entry.reference);
-        this.cache.set(k, entry);
+        // Note: Old cache entries won't have the new naming scheme but will be
+        // re-cached correctly when fetched. We'll derive the key from the filename
+        // if possible, or just let it re-cache.
+        const fileName = file.split("/").pop()?.replace(".json", "");
+        if (fileName) {
+          this.cache.set(fileName, entry);
+        }
       } catch {
         // Skip corrupted cache entries
       }
@@ -49,13 +55,13 @@ export class VerseCache {
   }
 
   /** Get a cached verse, or null if not cached */
-  get(translation: string, reference: string): CachedVerse | null {
-    return this.cache.get(this.key(translation, reference)) ?? null;
+  get(translation: string, reference: string, nl = false, vn = true): CachedVerse | null {
+    return this.cache.get(this.key(translation, reference, nl, vn)) ?? null;
   }
 
   /** Store a verse in the cache */
-  async set(entry: CachedVerse): Promise<void> {
-    const k = this.key(entry.translation, entry.reference);
+  async set(entry: CachedVerse, nl = false, vn = true): Promise<void> {
+    const k = this.key(entry.translation, entry.reference, nl, vn);
     this.cache.set(k, entry);
 
     const adapter = this.plugin.app.vault.adapter;
@@ -77,8 +83,8 @@ export class VerseCache {
   }
 
   /** Check if a verse is cached */
-  has(translation: string, reference: string): boolean {
-    return this.cache.has(this.key(translation, reference));
+  has(translation: string, reference: string, nl = false, vn = true): boolean {
+    return this.cache.has(this.key(translation, reference, nl, vn));
   }
 
   /** Clear the entire cache */

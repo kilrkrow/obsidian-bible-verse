@@ -310,7 +310,12 @@ export default class BibleVersePlugin extends Plugin {
 
             // Serve from cache instantly; otherwise show a link placeholder and
             // fetch asynchronously to avoid blocking the render.
-            const cached = this.cache.get(abbr, formatReference(ref));
+            const cached = this.cache.get(
+              abbr,
+              formatReference(ref),
+              this.settings.verseNewLine,
+              this.settings.showVerseNumbers
+            );
             if (cached) {
               renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution);
             } else {

@@ -101,7 +101,7 @@ export class BibleApi {
     const refStr = formatReference(ref);
 
     // Check cache first
-    const cached = this.cache.get(translationAbbr, refStr);
+    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers);
     if (cached) return cached;
 
     const usfm = USFM_CODES[ref.book];
@@ -158,7 +158,7 @@ export class BibleApi {
     }
 
     const text = verseParts
-      .join(settings.verseNewLine && settings.showVerseNumbers ? "\n" : " ")
+      .join(settings.verseNewLine ? "\n" : " ")
       .replace(/[ \t]*\n[ \t]*/g, "\n")
       .replace(/\n{3,}/g, "\n\n") // Max double newline
       .trim();

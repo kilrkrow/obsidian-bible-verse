@@ -282,7 +282,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
-                const cached = plugin.cache.get(abbr, refLabel);
+                const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
                 if (cached) cachedVerses.push(cached);
               }
             } else {
@@ -290,7 +290,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
                 ? plugin.resolveTranslationIdPublic(translations[0])
                 : plugin.settings.defaultTranslation;
               const abbr = plugin.getTranslationAbbrPublic(id);
-              const cached = plugin.cache.get(abbr, refLabel);
+              const cached = plugin.cache.get(abbr, refLabel, plugin.settings.verseNewLine, plugin.settings.showVerseNumbers);
               if (cached) cachedVerses.push(cached);
             }
 
