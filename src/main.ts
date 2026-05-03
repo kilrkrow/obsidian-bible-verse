@@ -1,4 +1,5 @@
-import { MarkdownPostProcessorContext, MarkdownRenderChild, Notice, Plugin, TFile } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownView, Notice, Plugin, TFile } from "obsidian";
+import { EditorView } from "@codemirror/view";
 import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
 import { parseReference, parseInlineSpec, formatReference, InlineSpec } from "./parser";
 import { BibleApi } from "./api";
@@ -16,6 +17,7 @@ import { QuickInsertModal } from "./quick-insert-modal";
 import { BibleReferenceSuggest } from "./suggest";
 import { buildViewPlugin } from "./view-plugin";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
+import { verseFetchedEffect } from "./effects";
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
@@ -576,6 +578,20 @@ export default class BibleVersePlugin extends Plugin {
 
   generateLinkPublic(ref: BibleReference, translationAbbr: string): string {
     return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
+  }
+
+  /**
+   * Force a refresh of all Live Preview widgets in all open editors.
+   */
+  refreshLivePreview(): void {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.view instanceof MarkdownView) {
+        const cm = (leaf.view as any).editor?.cm as EditorView;
+        if (cm && cm.dispatch) {
+          cm.dispatch({ effects: verseFetchedEffect.of(undefined) });
+        }
+      }
+    });
   }
 
   private resolveTranslationId(abbr: string): string {

@@ -47,6 +47,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.preferredWebsite = value as BibleWebsite;
             await this.plugin.saveSettings();
+            this.plugin.refreshLivePreview();
           })
       );
 

@@ -50,8 +50,17 @@ export function generateSearchUrl(
 function bibleHubUrl(ref: BibleReference, translation: string): string {
   const slug = BIBLEHUB_SLUGS[ref.book] || ref.book.toLowerCase().replace(/\s+/g, "_");
   const trans = translation.toLowerCase();
-  const verse = ref.startVerse ?? 1;
-  return `https://biblehub.com/${trans}/${slug}/${ref.chapter}-${verse}.htm`;
+  
+  // Single verse if no endVerse and no additional verses
+  const isSingleVerse = ref.startVerse !== null && ref.endVerse === null && ref.additionalVerses.length === 0;
+
+  if (isSingleVerse) {
+    // Single verse -> Parallel view (shows all versions)
+    return `https://biblehub.com/${slug}/${ref.chapter}-${ref.startVerse}.htm`;
+  } else {
+    // Range or complex reference -> Whole chapter in specific translation
+    return `https://biblehub.com/${trans}/${slug}/${ref.chapter}.htm`;
+  }
 }
 
 function bibleGatewayUrl(ref: BibleReference, translation: string): string {

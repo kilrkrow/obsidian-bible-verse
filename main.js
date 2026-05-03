@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => BibleVersePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -1121,6 +1121,7 @@ var BibleVerseSettingTab = class extends import_obsidian2.PluginSettingTab {
       (dropdown) => dropdown.addOption("BibleHub", "BibleHub").addOption("BibleGateway", "BibleGateway").addOption("BlueLetter", "Blue Letter Bible").addOption("BibleCom", "Bible.com").setValue(this.plugin.settings.preferredWebsite).onChange(async (value) => {
         this.plugin.settings.preferredWebsite = value;
         await this.plugin.saveSettings();
+        this.plugin.refreshLivePreview();
       })
     );
     new import_obsidian2.Setting(containerEl).setName("Display Style").setDesc("How verses are visually presented").addDropdown(
@@ -1220,11 +1221,14 @@ function generateSearchUrl(query, translation, website) {
   }
 }
 function bibleHubUrl(ref, translation) {
-  var _a;
   const slug = BIBLEHUB_SLUGS[ref.book] || ref.book.toLowerCase().replace(/\s+/g, "_");
   const trans = translation.toLowerCase();
-  const verse = (_a = ref.startVerse) != null ? _a : 1;
-  return `https://biblehub.com/${trans}/${slug}/${ref.chapter}-${verse}.htm`;
+  const isSingleVerse = ref.startVerse !== null && ref.endVerse === null && ref.additionalVerses.length === 0;
+  if (isSingleVerse) {
+    return `https://biblehub.com/${slug}/${ref.chapter}-${ref.startVerse}.htm`;
+  } else {
+    return `https://biblehub.com/${trans}/${slug}/${ref.chapter}.htm`;
+  }
 }
 function bibleGatewayUrl(ref, translation) {
   let search = ref.book + "+" + ref.chapter;
@@ -1629,9 +1633,15 @@ var BibleReferenceSuggest = class extends import_obsidian5.EditorSuggest {
 
 // src/view-plugin.ts
 var import_view = require("@codemirror/view");
+var import_state2 = require("@codemirror/state");
+var import_obsidian6 = require("obsidian");
+
+// src/effects.ts
 var import_state = require("@codemirror/state");
-var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var verseFetchedEffect = import_state.StateEffect.define();
+
+// src/view-plugin.ts
+var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var BibleVerseWidget = class extends import_view.WidgetType {
   constructor(spec) {
     super();
@@ -1653,7 +1663,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           container,
           this.spec.ref,
           this.spec.cachedVerses,
-          this.spec.plugin.settings.preferredWebsite,
+          this.spec.preferredWebsite,
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin
@@ -1670,7 +1680,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.ref,
           cached,
           (_c = this.spec.styleOverride) != null ? _c : this.spec.plugin.settings.displayStyle,
-          this.spec.plugin.settings.preferredWebsite,
+          this.spec.preferredWebsite,
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin
@@ -1685,7 +1695,9 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   renderPill(container) {
     const a = document.createElement("a");
     a.className = "bible-verse-pill";
-    a.textContent = "\u{1F4D6} " + this.spec.label;
+    const iconSpan = a.createSpan({ cls: "bible-verse-icon" });
+    (0, import_obsidian6.setIcon)(iconSpan, "book-open");
+    a.createSpan({ text: " " + this.spec.label });
     a.href = this.spec.href;
     a.target = "_blank";
     a.rel = "noopener";
@@ -1724,7 +1736,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           container,
           ref,
           verses,
-          plugin.settings.preferredWebsite,
+          this.spec.preferredWebsite,
           plugin.settings.showAttribution,
           plugin.app,
           plugin
@@ -1735,7 +1747,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           ref,
           verses[0],
           (_a = this.spec.styleOverride) != null ? _a : plugin.settings.displayStyle,
-          plugin.settings.preferredWebsite,
+          this.spec.preferredWebsite,
           plugin.settings.showAttribution,
           plugin.app,
           plugin
@@ -1748,30 +1760,9 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       renderError(container, `Could not load ${formatReference(ref)}.`);
     }
   }
-  /**
-   * Two widgets are equal if they would render identically.
-   * Comparing cachedVerse reference is enough — once a verse enters the cache
-   * the same object is returned on subsequent lookups.
-   */
   eq(other) {
-    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers;
+    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers && this.spec.preferredWebsite === other.spec.preferredWebsite;
   }
-  /**
-   * Controls which events CodeMirror handles vs. what the widget DOM handles.
-   *
-   * Default CM6 behavior on mousedown inside a replace-decoration is to place
-   * the caret at the token position, which un-replaces the widget. That made
-   * clicking the rendered reference anchor feel broken — the user clicked
-   * "John 3:16 (KJV)" expecting BibleHub to open, but instead saw raw "{John 3:16}".
-   *
-   * Fix: when a pointer event originates on an <a> inside the widget, return true
-   * so CM leaves the event alone and the browser navigates the link normally.
-   * For non-anchor targets (verse body text, callout background, etc.) mousedown
-   * still returns false so the caret can move into the token for editing.
-   *
-   * click/auxclick always return true so left-click, middle-click (open in new
-   * tab), and Ctrl/Cmd+click all reach the anchor default handler.
-   */
   ignoreEvent(event) {
     const target = event.target;
     const isAnchorEvent = !!(target && target.closest("a"));
@@ -1803,7 +1794,7 @@ function buildViewPlugin(plugin) {
         }
       }
       buildDecorations(view) {
-        const builder = new import_state.RangeSetBuilder();
+        const builder = new import_state2.RangeSetBuilder();
         const selections = view.state.selection.ranges;
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.doc.sliceString(from, to);
@@ -1858,6 +1849,7 @@ function buildViewPlugin(plugin) {
               verseNewLine,
               showVerseNumbers,
               cachedVerses,
+              preferredWebsite: plugin.settings.preferredWebsite,
               plugin
             });
             builder.add(
@@ -1875,7 +1867,7 @@ function buildViewPlugin(plugin) {
 }
 
 // src/main.ts
-var BibleVersePlugin = class extends import_obsidian6.Plugin {
+var BibleVersePlugin = class extends import_obsidian7.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
@@ -1907,9 +1899,9 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
         );
         if (newContent !== content) {
           editor.setValue(newContent);
-          new import_obsidian6.Notice("Bible verses baked into note.");
+          new import_obsidian7.Notice("Bible verses baked into note.");
         } else {
-          new import_obsidian6.Notice("No verses to bake.");
+          new import_obsidian7.Notice("No verses to bake.");
         }
       }
     });
@@ -1925,7 +1917,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
           (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
         );
         editor.setValue(newContent);
-        new import_obsidian6.Notice("Bible verses refreshed.");
+        new import_obsidian7.Notice("Bible verses refreshed.");
       }
     });
     this.addCommand({
@@ -1937,7 +1929,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
         );
-        new import_obsidian6.Notice(`Refreshed baked verses in ${count} files.`);
+        new import_obsidian7.Notice(`Refreshed baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1949,7 +1941,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
         );
-        new import_obsidian6.Notice(`Baked verses in ${count} files.`);
+        new import_obsidian7.Notice(`Baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -1957,7 +1949,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       name: "Strip baked text from all notes",
       callback: async () => {
         const count = await this.baker.processVault("strip", false);
-        new import_obsidian6.Notice(`Stripped baked text from ${count} files.`);
+        new import_obsidian7.Notice(`Stripped baked text from ${count} files.`);
       }
     });
     this.addCommand({
@@ -1965,7 +1957,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       name: "Clear verse cache",
       callback: async () => {
         await this.cache.clear();
-        new import_obsidian6.Notice("Bible verse cache cleared.");
+        new import_obsidian7.Notice("Bible verse cache cleared.");
       }
     });
     this.addCommand({
@@ -1997,11 +1989,11 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
       editorCallback: (editor) => {
         const selection = editor.getSelection();
         if (!selection || selection.trim().length === 0) {
-          new import_obsidian6.Notice("No text selected.");
+          new import_obsidian7.Notice("No text selected.");
           return;
         }
         navigator.clipboard.writeText(selection.trim());
-        new import_obsidian6.Notice("Copied to clipboard. Opening search...");
+        new import_obsidian7.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
         window.open(url, "_blank");
@@ -2028,7 +2020,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
             }
           }
         }
-        new import_obsidian6.Notice("No Bible reference found at cursor.");
+        new import_obsidian7.Notice("No Bible reference found at cursor.");
       }
     });
   }
@@ -2192,7 +2184,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
   }
   async handleBake(ctx, refMarker, spec) {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-    if (!(file instanceof import_obsidian6.TFile))
+    if (!(file instanceof import_obsidian7.TFile))
       return;
     if (!this.settings.bakeInline)
       return;
@@ -2211,7 +2203,7 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
   async codeBlockProcessor(source, el, ctx) {
     var _a;
     el.empty();
-    ctx.addChild(new import_obsidian6.MarkdownRenderChild(el));
+    ctx.addChild(new import_obsidian7.MarkdownRenderChild(el));
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");
@@ -2321,6 +2313,20 @@ var BibleVersePlugin = class extends import_obsidian6.Plugin {
   }
   generateLinkPublic(ref, translationAbbr) {
     return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
+  }
+  /**
+   * Force a refresh of all Live Preview widgets in all open editors.
+   */
+  refreshLivePreview() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      var _a;
+      if (leaf.view instanceof import_obsidian7.MarkdownView) {
+        const cm = (_a = leaf.view.editor) == null ? void 0 : _a.cm;
+        if (cm && cm.dispatch) {
+          cm.dispatch({ effects: verseFetchedEffect.of(void 0) });
+        }
+      }
+    });
   }
   resolveTranslationId(abbr) {
     const upper = abbr.toUpperCase();
