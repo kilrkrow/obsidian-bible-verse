@@ -30,6 +30,7 @@ class BibleVerseWidget extends WidgetType {
       styleOverride: DisplayStyle | null;
       verseNewLine: boolean | null;
       showVerseNumbers: boolean | null;
+      paragraphBreaks: boolean | null;
       cachedVerses: CachedVerse[];
       preferredWebsite: BibleWebsite;
       plugin: BibleVersePlugin;
@@ -44,6 +45,7 @@ class BibleVerseWidget extends WidgetType {
 
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
     const sVN = this.spec.showVerseNumbers ?? this.spec.plugin.settings.showVerseNumbers;
+    const pb = this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks;
 
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
@@ -103,9 +105,10 @@ class BibleVerseWidget extends WidgetType {
   }
 
   private async fetchAndUpdate(container: HTMLElement, view: EditorView): Promise<void> {
-    const { plugin, ref, translations, verseNewLine, showVerseNumbers } = this.spec;
+    const { plugin, ref, translations, verseNewLine, showVerseNumbers, paragraphBreaks } = this.spec;
     const vnL = verseNewLine ?? plugin.settings.verseNewLine;
     const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
+    const pb = paragraphBreaks ?? plugin.settings.paragraphBreaks;
 
     try {
       const verses: CachedVerse[] = [];
@@ -117,6 +120,7 @@ class BibleVerseWidget extends WidgetType {
           const v = await plugin.api.getPassage(ref, id, abbr, {
             showVerseNumbers: sVN,
             verseNewLine: vnL,
+            paragraphBreaks: pb,
           });
           verses.push(v);
         }
@@ -128,6 +132,7 @@ class BibleVerseWidget extends WidgetType {
         const v = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
+          paragraphBreaks: pb,
         });
         verses.push(v);
       }
@@ -172,6 +177,7 @@ class BibleVerseWidget extends WidgetType {
       this.spec.styleOverride === other.spec.styleOverride &&
       this.spec.verseNewLine === other.spec.verseNewLine &&
       this.spec.showVerseNumbers === other.spec.showVerseNumbers &&
+      this.spec.paragraphBreaks === other.spec.paragraphBreaks &&
       this.spec.preferredWebsite === other.spec.preferredWebsite
     );
   }
@@ -241,17 +247,18 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const spec = parseInlineSpec(content);
             if (!spec) continue;
 
-            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers } = spec;
+            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine ?? plugin.settings.verseNewLine;
             const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
+            const pb = paragraphBreaks ?? plugin.settings.paragraphBreaks;
 
             const cachedVerses: CachedVerse[] = [];
             if (translations.length >= 2) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
-                const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
+                const cached = plugin.cache.get(abbr, refLabel, vnL, sVN, pb);
                 if (cached) cachedVerses.push(cached);
               }
             } else {
@@ -259,7 +266,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
                 ? plugin.resolveTranslationIdPublic(translations[0])
                 : plugin.settings.defaultTranslation;
               const abbr = plugin.getTranslationAbbrPublic(id);
-              const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
+              const cached = plugin.cache.get(abbr, refLabel, vnL, sVN, pb);
               if (cached) cachedVerses.push(cached);
             }
 
@@ -286,6 +293,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               styleOverride,
               verseNewLine,
               showVerseNumbers,
+              paragraphBreaks,
               cachedVerses,
               preferredWebsite: plugin.settings.preferredWebsite,
               plugin,

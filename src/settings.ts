@@ -146,6 +146,30 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl)
+      .setName("Reading sections")
+      .setDesc("Group verses by their natural paragraph breaks from the source text. Use the 'para' modifier in {ref} to override per-reference.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.paragraphBreaks)
+          .onChange(async (value) => {
+            this.plugin.settings.paragraphBreaks = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("IntelliSense helper mode")
+      .setDesc("When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.helperMode)
+          .onChange(async (value) => {
+            this.plugin.settings.helperMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     new Setting(containerEl).setName("Data source and licensing").setHeading();
     const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
     info.createEl("p", {

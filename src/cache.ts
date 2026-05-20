@@ -18,8 +18,8 @@ export class VerseCache {
   }
 
   /** Build a cache key from translation, reference, and formatting settings */
-  private key(translation: string, reference: string, nl = false, vn = true): string {
-    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}`;
+  private key(translation: string, reference: string, nl = false, vn = true, pb = false): string {
+    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}_${pb ? "pb" : "np"}`;
     return `${translation}_${reference}_${suffix}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
 
@@ -55,13 +55,13 @@ export class VerseCache {
   }
 
   /** Get a cached verse, or null if not cached */
-  get(translation: string, reference: string, nl = false, vn = true): CachedVerse | null {
-    return this.cache.get(this.key(translation, reference, nl, vn)) ?? null;
+  get(translation: string, reference: string, nl = false, vn = true, pb = false): CachedVerse | null {
+    return this.cache.get(this.key(translation, reference, nl, vn, pb)) ?? null;
   }
 
   /** Store a verse in the cache */
-  async set(entry: CachedVerse, nl = false, vn = true): Promise<void> {
-    const k = this.key(entry.translation, entry.reference, nl, vn);
+  async set(entry: CachedVerse, nl = false, vn = true, pb = false): Promise<void> {
+    const k = this.key(entry.translation, entry.reference, nl, vn, pb);
     this.cache.set(k, entry);
 
     const adapter = this.plugin.app.vault.adapter;
@@ -75,8 +75,8 @@ export class VerseCache {
   }
 
   /** Check if a verse is cached */
-  has(translation: string, reference: string, nl = false, vn = true): boolean {
-    return this.cache.has(this.key(translation, reference, nl, vn));
+  has(translation: string, reference: string, nl = false, vn = true, pb = false): boolean {
+    return this.cache.has(this.key(translation, reference, nl, vn, pb));
   }
 
   /** Clear the entire cache */

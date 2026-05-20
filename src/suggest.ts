@@ -12,6 +12,11 @@ import type BibleVersePlugin from "./main";
 import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
 import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec } from "./parser";
 
+interface BibleSuggestion {
+  value: string;
+  label?: string;
+}
+
 /**
  * Provides IntelliSense for Bible references inside {curly braces}.
  *
@@ -20,10 +25,11 @@ import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec } from "
  * Behaviour:
  *   - Typing {J        → suggests book names starting with "J"
  *   - Typing {1co      → suggests "1 Corinthians" (via alias lookup)
- *   - Typing {John 3:16 → suggests the completed reference "John 3:16"
+ *   - Typing {John 3:16 → confirms the reference; in helper mode shows all
+ *     available modifiers (style, format flags, reading sections) as a menu
  *     (pressing Enter closes the braces and moves the cursor past })
  */
-export class BibleReferenceSuggest extends EditorSuggest<string> {
+export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
   private plugin: BibleVersePlugin;
 
   // Canonical book list in canonical order (Genesis → Revelation)
@@ -70,10 +76,10 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
    * Return matching suggestions for the current query.
    *
    * If the query already parses as a valid Bible reference, returns it as a
-   * single "confirm" suggestion so the user can press Enter to close the block.
+   * confirm suggestion. In helper mode, also returns the full modifier menu.
    * Otherwise, returns matching book names.
    */
-  getSuggestions(context: EditorSuggestContext): string[] {
+  getSuggestions(context: EditorSuggestContext): BibleSuggestion[] {
     const query = context.query.trim();
     if (query.length === 0) return [];
 
@@ -84,12 +90,11 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
         const parts = query.split(",");
         const modPart = parts[parts.length - 1].trim().toLowerCase();
         const prefix = parts.slice(0, -1).join(",").trim();
-        
-        // Use parseInlineSpec to handle cases where we already have modifiers
+
         const spec = parseInlineSpec(prefix);
         if (spec) {
           const suggestions: string[] = [];
-          
+
           // Suggest translations (up to 2 allowed)
           if (spec.translations.length < 2) {
             for (const trans of HELLOAO_TRANSLATIONS) {
@@ -98,7 +103,7 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
               }
             }
           }
-          
+
           // Suggest styles (only if not already specified)
           if (spec.styleOverride === null) {
             for (const style of KNOWN_STYLES) {
@@ -109,22 +114,37 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
           }
 
           // Suggest formatting flags
-          const flags = ["nl", "no-nl", "v", "no-v"];
+          const flags = ["nl", "no-nl", "v", "no-v", "para", "no-para"];
           for (const flag of flags) {
             if (flag.startsWith(modPart)) {
               suggestions.push(`${prefix}, ${flag}`);
             }
           }
-          
+
           if (suggestions.length > 0) {
-            return suggestions.slice(0, this.limit);
+            return suggestions.slice(0, this.limit).map(s => ({ value: s }));
           }
         }
       }
 
       const ref = parseReference(query);
       if (ref) {
-        return [formatReference(ref)];
+        const refStr = formatReference(ref);
+        if (this.plugin.settings.helperMode) {
+          return [
+            { value: refStr, label: "Confirm" },
+            { value: `${refStr}, callout`, label: "Callout" },
+            { value: `${refStr}, sidebar`, label: "Sidebar" },
+            { value: `${refStr}, blockquote`, label: "Blockquote" },
+            { value: `${refStr}, inline`, label: "Inline" },
+            { value: `${refStr}, nl`, label: "New line per verse" },
+            { value: `${refStr}, no-nl`, label: "Single paragraph" },
+            { value: `${refStr}, no-v`, label: "Hide verse numbers" },
+            { value: `${refStr}, v`, label: "Show verse numbers" },
+            { value: `${refStr}, para`, label: "Reading sections" },
+          ];
+        }
+        return [{ value: refStr }];
       }
     }
 
@@ -158,16 +178,32 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
       }
     }
 
-    return results.slice(0, this.limit);
+    return results.slice(0, this.limit).map(book => ({ value: book }));
   }
 
   /** Render a single suggestion row in the dropdown. */
-  renderSuggestion(value: string, el: HTMLElement): void {
-    if (value.includes(",")) {
+  renderSuggestion(item: BibleSuggestion, el: HTMLElement): void {
+    // Helper-mode suggestion: show value with optional modifier highlight + right-side label
+    if (item.label !== undefined) {
+      if (item.value.includes(",")) {
+        const commaIdx = item.value.lastIndexOf(",");
+        const ref = item.value.substring(0, commaIdx);
+        const mod = item.value.substring(commaIdx + 1).trim();
+        el.createEl("span", { cls: "bible-suggest-prefix", text: ref + ", " });
+        el.createEl("span", { cls: "bible-suggest-modifier", text: mod });
+      } else {
+        el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+      }
+      el.createEl("span", { cls: "bible-suggest-label", text: item.label });
+      return;
+    }
+
+    // Modifier suggestion (user typed a comma themselves)
+    if (item.value.includes(",")) {
       const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
       setIcon(iconEl, "sliders-horizontal");
 
-      const parts = value.split(",");
+      const parts = item.value.split(",");
       const modifier = parts[parts.length - 1].trim();
       const prefix = parts.slice(0, -1).join(",").trim();
 
@@ -181,9 +217,10 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
         el.createEl("span", { cls: "bible-suggest-name", text: text });
       }
     } else {
+      // Book name suggestion
       const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
       setIcon(iconEl, "book-open");
-      el.createEl("span", { cls: "bible-suggest-text", text: value });
+      el.createEl("span", { cls: "bible-suggest-text", text: item.value });
     }
   }
 
@@ -195,7 +232,8 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
    * - Book name only: replaces the typed content with "Book " so the user can
    *   continue typing the chapter and verse.
    */
-  selectSuggestion(value: string, _evt: MouseEvent | KeyboardEvent): void {
+  selectSuggestion(item: BibleSuggestion, _evt: MouseEvent | KeyboardEvent): void {
+    const value = item.value;
     const { context } = this;
     if (!context) return;
 

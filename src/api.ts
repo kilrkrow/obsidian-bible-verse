@@ -96,12 +96,13 @@ export class BibleApi {
     settings: {
       showVerseNumbers: boolean;
       verseNewLine: boolean;
+      paragraphBreaks: boolean;
     }
   ): Promise<CachedVerse> {
     const refStr = formatReference(ref);
 
     // Check cache first
-    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers);
+    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     if (cached) return cached;
 
     const usfm = USFM_CODES[ref.book];
@@ -121,8 +122,9 @@ export class BibleApi {
     const chapterContent: unknown[] = data.chapter.content;
     const requestedVerses = this.getRequestedVerses(ref);
 
-    // Extract text from matching verses and structural elements
-    const verseParts: string[] = [];
+    // Collect verses into paragraphs. Each paragraph is an array of verse strings.
+    // A new paragraph begins when the API emits a "paragraph" or "stanza_break" marker.
+    const paragraphs: string[][] = [[]];
 
     for (const item of chapterContent) {
       if (typeof item !== "object" || item === null) continue;
@@ -130,7 +132,7 @@ export class BibleApi {
 
       if (obj.type === "verse") {
         const verseItem = item as { type: string; number: number; content: unknown[] };
-        const isIncluded = requestedVerses === null 
+        const isIncluded = requestedVerses === null
           ? (ref.startVerse === null || verseItem.number >= ref.startVerse)
           : requestedVerses.has(verseItem.number);
 
@@ -140,28 +142,29 @@ export class BibleApi {
             if (settings.showVerseNumbers) {
               text = `${verseItem.number}. ${text}`;
             }
-            verseParts.push(text);
+            paragraphs[paragraphs.length - 1].push(text);
           }
         }
-      } else if (
-        obj.type === "line_break" ||
-        obj.type === "paragraph" ||
-        obj.type === "stanza" ||
-        obj.type === "stanza_break"
-      ) {
-        verseParts.push("\n");
+      } else if (obj.type === "paragraph" || obj.type === "stanza_break") {
+        if (paragraphs[paragraphs.length - 1].length > 0) {
+          paragraphs.push([]);
+        }
       }
     }
 
-    if (verseParts.length === 0) {
+    const filledParagraphs = paragraphs.filter(p => p.length > 0);
+
+    if (filledParagraphs.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
 
-    const text = verseParts
-      .join(settings.verseNewLine ? "\n" : " ")
-      .replace(/[ \t]*\n[ \t]*/g, "\n")
-      .replace(/\n{3,}/g, "\n\n") // Max double newline
-      .trim();
+    const verseSep = settings.verseNewLine ? "\n" : " ";
+    const text = (settings.paragraphBreaks && filledParagraphs.length > 1
+      ? filledParagraphs.map(p => p.join(verseSep)).join("\n\n")
+      : filledParagraphs.flat().join(verseSep)
+    ).replace(/[ \t]*\n[ \t]*/g, "\n")
+     .replace(/\n{3,}/g, "\n\n")
+     .trim();
 
     // Build copyright from license URL
     const licenseUrl: string | undefined = data.translation?.licenseUrl;
@@ -178,7 +181,7 @@ export class BibleApi {
 
     // Cache write failure should never prevent verse display
     try {
-      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers);
+      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     } catch (e) {
       console.warn("Bible Verse: Failed to cache verse", e);
     }

@@ -39,7 +39,9 @@ var DEFAULT_SETTINGS = {
   showVerseNumbers: true,
   verseNewLine: false,
   showAttribution: false,
-  bakeInline: false
+  bakeInline: false,
+  paragraphBreaks: false,
+  helperMode: true
 };
 
 // src/constants.ts
@@ -646,7 +648,8 @@ function parseInlineSpec(content) {
       translations: [],
       styleOverride: null,
       verseNewLine: null,
-      showVerseNumbers: null
+      showVerseNumbers: null,
+      paragraphBreaks: null
     };
   }
   const parts = trimmed.split(",").map((p) => p.trim());
@@ -656,6 +659,7 @@ function parseInlineSpec(content) {
   let styleOverride = null;
   let verseNewLine = null;
   let showVerseNumbers = null;
+  let paragraphBreaks = null;
   let cut = parts.length;
   while (cut > 1) {
     const tok = parts[cut - 1];
@@ -684,6 +688,18 @@ function parseInlineSpec(content) {
       cut--;
       continue;
     }
+    if (low === "para") {
+      if (paragraphBreaks === null)
+        paragraphBreaks = true;
+      cut--;
+      continue;
+    }
+    if (low === "no-para") {
+      if (paragraphBreaks === null)
+        paragraphBreaks = false;
+      cut--;
+      continue;
+    }
     if (isKnownStyle(tok)) {
       if (styleOverride !== null)
         break;
@@ -706,7 +722,7 @@ function parseInlineSpec(content) {
   const ref = parseReference(refStr);
   if (!ref)
     return null;
-  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers };
+  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks };
 }
 function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
@@ -796,7 +812,7 @@ var BibleApi = class {
   async getPassage(ref, translationId, translationAbbr, settings) {
     var _a;
     const refStr = formatReference(ref);
-    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers);
+    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     if (cached)
       return cached;
     const usfm = USFM_CODES[ref.book];
@@ -810,7 +826,7 @@ var BibleApi = class {
     const data = response.json;
     const chapterContent = data.chapter.content;
     const requestedVerses = this.getRequestedVerses(ref);
-    const verseParts = [];
+    const paragraphs = [[]];
     for (const item of chapterContent) {
       if (typeof item !== "object" || item === null)
         continue;
@@ -824,17 +840,21 @@ var BibleApi = class {
             if (settings.showVerseNumbers) {
               text2 = `${verseItem.number}. ${text2}`;
             }
-            verseParts.push(text2);
+            paragraphs[paragraphs.length - 1].push(text2);
           }
         }
-      } else if (obj.type === "line_break" || obj.type === "paragraph" || obj.type === "stanza" || obj.type === "stanza_break") {
-        verseParts.push("\n");
+      } else if (obj.type === "paragraph" || obj.type === "stanza_break") {
+        if (paragraphs[paragraphs.length - 1].length > 0) {
+          paragraphs.push([]);
+        }
       }
     }
-    if (verseParts.length === 0) {
+    const filledParagraphs = paragraphs.filter((p) => p.length > 0);
+    if (filledParagraphs.length === 0) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const text = verseParts.join(settings.verseNewLine ? "\n" : " ").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const verseSep = settings.verseNewLine ? "\n" : " ";
+    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -846,7 +866,7 @@ var BibleApi = class {
       fetchedAt: Date.now()
     };
     try {
-      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers);
+      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     } catch (e) {
       console.warn("Bible Verse: Failed to cache verse", e);
     }
@@ -864,8 +884,8 @@ var VerseCache = class {
     this.cacheDir = (0, import_obsidian2.normalizePath)(`${plugin.manifest.dir}/cache`);
   }
   /** Build a cache key from translation, reference, and formatting settings */
-  key(translation, reference, nl = false, vn = true) {
-    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}`;
+  key(translation, reference, nl = false, vn = true, pb = false) {
+    const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}_${pb ? "pb" : "np"}`;
     return `${translation}_${reference}_${suffix}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
   /** Load the full cache index from disk */
@@ -895,13 +915,13 @@ var VerseCache = class {
     this.loaded = true;
   }
   /** Get a cached verse, or null if not cached */
-  get(translation, reference, nl = false, vn = true) {
+  get(translation, reference, nl = false, vn = true, pb = false) {
     var _a;
-    return (_a = this.cache.get(this.key(translation, reference, nl, vn))) != null ? _a : null;
+    return (_a = this.cache.get(this.key(translation, reference, nl, vn, pb))) != null ? _a : null;
   }
   /** Store a verse in the cache */
-  async set(entry, nl = false, vn = true) {
-    const k = this.key(entry.translation, entry.reference, nl, vn);
+  async set(entry, nl = false, vn = true, pb = false) {
+    const k = this.key(entry.translation, entry.reference, nl, vn, pb);
     this.cache.set(k, entry);
     const adapter = this.plugin.app.vault.adapter;
     const exists = await adapter.exists(this.cacheDir);
@@ -912,8 +932,8 @@ var VerseCache = class {
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
   /** Check if a verse is cached */
-  has(translation, reference, nl = false, vn = true) {
-    return this.cache.has(this.key(translation, reference, nl, vn));
+  has(translation, reference, nl = false, vn = true, pb = false) {
+    return this.cache.has(this.key(translation, reference, nl, vn, pb));
   }
   /** Clear the entire cache */
   async clear() {
@@ -1160,6 +1180,18 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
     new import_obsidian3.Setting(containerEl).setName("Bake inline references").setDesc("If enabled, baking a note will convert {ref} into a bible code block. If disabled, only code blocks are baked.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.bakeInline).onChange(async (value) => {
         this.plugin.settings.bakeInline = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian3.Setting(containerEl).setName("Reading sections").setDesc("Group verses by their natural paragraph breaks from the source text. Use the 'para' modifier in {ref} to override per-reference.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.paragraphBreaks).onChange(async (value) => {
+        this.plugin.settings.paragraphBreaks = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian3.Setting(containerEl).setName("IntelliSense helper mode").setDesc("When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.helperMode).onChange(async (value) => {
+        this.plugin.settings.helperMode = value;
         await this.plugin.saveSettings();
       })
     );
@@ -1490,7 +1522,7 @@ var BibleReferenceSuggest = class extends import_obsidian6.EditorSuggest {
    * Return matching suggestions for the current query.
    *
    * If the query already parses as a valid Bible reference, returns it as a
-   * single "confirm" suggestion so the user can press Enter to close the block.
+   * confirm suggestion. In helper mode, also returns the full modifier menu.
    * Otherwise, returns matching book names.
    */
   getSuggestions(context) {
@@ -1519,20 +1551,35 @@ var BibleReferenceSuggest = class extends import_obsidian6.EditorSuggest {
               }
             }
           }
-          const flags = ["nl", "no-nl", "v", "no-v"];
+          const flags = ["nl", "no-nl", "v", "no-v", "para", "no-para"];
           for (const flag of flags) {
             if (flag.startsWith(modPart)) {
               suggestions.push(`${prefix}, ${flag}`);
             }
           }
           if (suggestions.length > 0) {
-            return suggestions.slice(0, this.limit);
+            return suggestions.slice(0, this.limit).map((s) => ({ value: s }));
           }
         }
       }
       const ref = parseReference(query);
       if (ref) {
-        return [formatReference(ref)];
+        const refStr = formatReference(ref);
+        if (this.plugin.settings.helperMode) {
+          return [
+            { value: refStr, label: "Confirm" },
+            { value: `${refStr}, callout`, label: "Callout" },
+            { value: `${refStr}, sidebar`, label: "Sidebar" },
+            { value: `${refStr}, blockquote`, label: "Blockquote" },
+            { value: `${refStr}, inline`, label: "Inline" },
+            { value: `${refStr}, nl`, label: "New line per verse" },
+            { value: `${refStr}, no-nl`, label: "Single paragraph" },
+            { value: `${refStr}, no-v`, label: "Hide verse numbers" },
+            { value: `${refStr}, v`, label: "Show verse numbers" },
+            { value: `${refStr}, para`, label: "Reading sections" }
+          ];
+        }
+        return [{ value: refStr }];
       }
     }
     const typed = query.toLowerCase();
@@ -1558,14 +1605,27 @@ var BibleReferenceSuggest = class extends import_obsidian6.EditorSuggest {
         }
       }
     }
-    return results.slice(0, this.limit);
+    return results.slice(0, this.limit).map((book) => ({ value: book }));
   }
   /** Render a single suggestion row in the dropdown. */
-  renderSuggestion(value, el) {
-    if (value.includes(",")) {
+  renderSuggestion(item, el) {
+    if (item.label !== void 0) {
+      if (item.value.includes(",")) {
+        const commaIdx = item.value.lastIndexOf(",");
+        const ref = item.value.substring(0, commaIdx);
+        const mod = item.value.substring(commaIdx + 1).trim();
+        el.createEl("span", { cls: "bible-suggest-prefix", text: ref + ", " });
+        el.createEl("span", { cls: "bible-suggest-modifier", text: mod });
+      } else {
+        el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+      }
+      el.createEl("span", { cls: "bible-suggest-label", text: item.label });
+      return;
+    }
+    if (item.value.includes(",")) {
       const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
       (0, import_obsidian6.setIcon)(iconEl, "sliders-horizontal");
-      const parts = value.split(",");
+      const parts = item.value.split(",");
       const modifier = parts[parts.length - 1].trim();
       const prefix = parts.slice(0, -1).join(",").trim();
       const span = el.createEl("span", { cls: "bible-suggest-text" });
@@ -1579,7 +1639,7 @@ var BibleReferenceSuggest = class extends import_obsidian6.EditorSuggest {
     } else {
       const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
       (0, import_obsidian6.setIcon)(iconEl, "book-open");
-      el.createEl("span", { cls: "bible-suggest-text", text: value });
+      el.createEl("span", { cls: "bible-suggest-text", text: item.value });
     }
   }
   /**
@@ -1590,7 +1650,8 @@ var BibleReferenceSuggest = class extends import_obsidian6.EditorSuggest {
    * - Book name only: replaces the typed content with "Book " so the user can
    *   continue typing the chapter and verse.
    */
-  selectSuggestion(value, _evt) {
+  selectSuggestion(item, _evt) {
+    const value = item.value;
     const { context } = this;
     if (!context)
       return;
@@ -1641,11 +1702,12 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     this.spec = spec;
   }
   toDOM(view) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
     const sVN = (_b = this.spec.showVerseNumbers) != null ? _b : this.spec.plugin.settings.showVerseNumbers;
+    const pb = (_c = this.spec.paragraphBreaks) != null ? _c : this.spec.plugin.settings.paragraphBreaks;
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
       return container;
@@ -1672,7 +1734,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           container,
           this.spec.ref,
           cached,
-          (_c = this.spec.styleOverride) != null ? _c : this.spec.plugin.settings.displayStyle,
+          (_d = this.spec.styleOverride) != null ? _d : this.spec.plugin.settings.displayStyle,
           this.spec.preferredWebsite,
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
@@ -1699,9 +1761,10 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   }
   async fetchAndUpdate(container, view) {
     var _a;
-    const { plugin, ref, translations, verseNewLine, showVerseNumbers } = this.spec;
+    const { plugin, ref, translations, verseNewLine, showVerseNumbers, paragraphBreaks } = this.spec;
     const vnL = verseNewLine != null ? verseNewLine : plugin.settings.verseNewLine;
     const sVN = showVerseNumbers != null ? showVerseNumbers : plugin.settings.showVerseNumbers;
+    const pb = paragraphBreaks != null ? paragraphBreaks : plugin.settings.paragraphBreaks;
     try {
       const verses = [];
       if (translations.length >= 2) {
@@ -1710,7 +1773,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           const abbr = plugin.getTranslationAbbrPublic(id);
           const v = await plugin.api.getPassage(ref, id, abbr, {
             showVerseNumbers: sVN,
-            verseNewLine: vnL
+            verseNewLine: vnL,
+            paragraphBreaks: pb
           });
           verses.push(v);
         }
@@ -1719,7 +1783,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         const abbr = plugin.getTranslationAbbrPublic(id);
         const v = await plugin.api.getPassage(ref, id, abbr, {
           showVerseNumbers: sVN,
-          verseNewLine: vnL
+          verseNewLine: vnL,
+          paragraphBreaks: pb
         });
         verses.push(v);
       }
@@ -1754,7 +1819,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     }
   }
   eq(other) {
-    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers && this.spec.preferredWebsite === other.spec.preferredWebsite;
+    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers && this.spec.paragraphBreaks === other.spec.paragraphBreaks && this.spec.preferredWebsite === other.spec.preferredWebsite;
   }
   ignoreEvent(event) {
     const target = event.target;
@@ -1802,23 +1867,24 @@ function buildViewPlugin(plugin) {
             const spec = parseInlineSpec(content);
             if (!spec)
               continue;
-            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers } = spec;
+            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine != null ? verseNewLine : plugin.settings.verseNewLine;
             const sVN = showVerseNumbers != null ? showVerseNumbers : plugin.settings.showVerseNumbers;
+            const pb = paragraphBreaks != null ? paragraphBreaks : plugin.settings.paragraphBreaks;
             const cachedVerses = [];
             if (translations.length >= 2) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
-                const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
+                const cached = plugin.cache.get(abbr, refLabel, vnL, sVN, pb);
                 if (cached)
                   cachedVerses.push(cached);
               }
             } else {
               const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
               const abbr = plugin.getTranslationAbbrPublic(id);
-              const cached = plugin.cache.get(abbr, refLabel, vnL, sVN);
+              const cached = plugin.cache.get(abbr, refLabel, vnL, sVN, pb);
               if (cached)
                 cachedVerses.push(cached);
             }
@@ -1841,6 +1907,7 @@ function buildViewPlugin(plugin) {
               styleOverride,
               verseNewLine,
               showVerseNumbers,
+              paragraphBreaks,
               cachedVerses,
               preferredWebsite: plugin.settings.preferredWebsite,
               plugin
@@ -2052,15 +2119,17 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
    * Fetch a verse using the current settings.
    * If network fetch fails, attempts to find a baked block in the active file as a fallback.
    */
-  async fetchVerse(ref, translationId, translationAbbr, verseNewLineOverride, showVerseNumbersOverride) {
+  async fetchVerse(ref, translationId, translationAbbr, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
     try {
       const id = translationId != null ? translationId : this.settings.defaultTranslation;
       const abbr = translationAbbr != null ? translationAbbr : this.getTranslationAbbr(id);
       const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
       const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+      const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
       return await this.api.getPassage(ref, id, abbr, {
         showVerseNumbers: sVN,
-        verseNewLine: vnL
+        verseNewLine: vnL,
+        paragraphBreaks: pb
       });
     } catch (e) {
       console.error("Bible Verse: fetchVerse failed", e);
@@ -2071,7 +2140,7 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
    * Inline markdown postprocessor: finds {ref} in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f;
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
@@ -2099,21 +2168,22 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
           const span = document.createElement("span");
           span.className = "bible-verse-container";
           if (translations.length >= 2) {
-            this.renderInlineComparison(span, ref, translations);
+            this.renderInlineComparison(span, ref, translations, (_a = spec.paragraphBreaks) != null ? _a : void 0);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
           } else {
             const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
-            const style = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
-            const vnL = (_b = spec.verseNewLine) != null ? _b : this.settings.verseNewLine;
-            const sVN = (_c = spec.showVerseNumbers) != null ? _c : this.settings.showVerseNumbers;
-            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN);
+            const style = (_b = spec.styleOverride) != null ? _b : this.settings.displayStyle;
+            const vnL = (_c = spec.verseNewLine) != null ? _c : this.settings.verseNewLine;
+            const sVN = (_d = spec.showVerseNumbers) != null ? _d : this.settings.showVerseNumbers;
+            const pb = (_e = spec.paragraphBreaks) != null ? _e : this.settings.paragraphBreaks;
+            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
           }
           frag.appendChild(span);
@@ -2128,16 +2198,18 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
       if (lastIndex < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastIndex)));
       }
-      (_d = node2.parentNode) == null ? void 0 : _d.replaceChild(frag, node2);
+      (_f = node2.parentNode) == null ? void 0 : _f.replaceChild(frag, node2);
     }
   }
-  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style, verseNewLineOverride, showVerseNumbersOverride) {
+  async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
     try {
       const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
       const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+      const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
       const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
         showVerseNumbers: sVN,
-        verseNewLine: vnL
+        verseNewLine: vnL,
+        paragraphBreaks: pb
       });
       container.empty();
       await renderVerse(
@@ -2154,7 +2226,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
       console.error("Bible Verse: Failed to fetch verse", e);
     }
   }
-  async renderInlineComparison(container, ref, translations) {
+  async renderInlineComparison(container, ref, translations, paragraphBreaksOverride) {
+    const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
     const verses = [];
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
@@ -2162,7 +2235,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
       try {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
-          verseNewLine: this.settings.verseNewLine
+          verseNewLine: this.settings.verseNewLine,
+          paragraphBreaks: pb
         });
         verses.push(verse);
       } catch (e) {
@@ -2176,6 +2250,7 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
     }
   }
   async handleBake(ctx, refMarker, spec) {
+    var _a;
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof import_obsidian8.TFile))
       return;
@@ -2184,7 +2259,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
     const { ref, translations, verseNewLine, showVerseNumbers } = spec;
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : void 0;
     const transAbbr = transId ? this.getTranslationAbbr(transId) : void 0;
-    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine != null ? verseNewLine : void 0, showVerseNumbers != null ? showVerseNumbers : void 0);
+    const pb = (_a = spec.paragraphBreaks) != null ? _a : this.settings.paragraphBreaks;
+    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine != null ? verseNewLine : void 0, showVerseNumbers != null ? showVerseNumbers : void 0, pb);
     if (!verse)
       return;
     await this.app.vault.process(file, (content) => {
@@ -2225,9 +2301,10 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
     }
     const vnL = config["newline"] !== void 0 ? config["newline"].toLowerCase() === "true" : this.settings.verseNewLine;
     const sVN = config["numbers"] !== void 0 || config["verse-numbers"] !== void 0 ? ((_a = config["numbers"]) != null ? _a : config["verse-numbers"]).toLowerCase() === "true" : this.settings.showVerseNumbers;
+    const pb = config["sections"] !== void 0 ? config["sections"].toLowerCase() === "true" : this.settings.paragraphBreaks;
     if (config["compare"]) {
       const translations = config["compare"].split(",").map((s) => s.trim());
-      await this.renderComparisonBlock(el, ref, translations, vnL, sVN);
+      await this.renderComparisonBlock(el, ref, translations, vnL, sVN, pb);
       return;
     }
     const translationId = config["translation"] ? this.resolveTranslationId(config["translation"]) : this.settings.defaultTranslation;
@@ -2247,7 +2324,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
       } else {
         verse = await this.api.getPassage(ref, translationId, translationAbbr, {
           showVerseNumbers: sVN,
-          verseNewLine: vnL
+          verseNewLine: vnL,
+          paragraphBreaks: pb
         });
       }
       await renderVerse(
@@ -2273,17 +2351,19 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
     }
     return null;
   }
-  async renderComparisonBlock(el, ref, translations, verseNewLineOverride, showVerseNumbersOverride) {
+  async renderComparisonBlock(el, ref, translations, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
     const verses = [];
     const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
     const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+    const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: sVN,
-          verseNewLine: vnL
+          verseNewLine: vnL,
+          paragraphBreaks: pb
         });
         verses.push(verse);
       } catch (e) {

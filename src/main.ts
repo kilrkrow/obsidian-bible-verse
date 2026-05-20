@@ -245,17 +245,20 @@ export default class BibleVersePlugin extends Plugin {
     translationId?: string,
     translationAbbr?: string,
     verseNewLineOverride?: boolean,
-    showVerseNumbersOverride?: boolean
+    showVerseNumbersOverride?: boolean,
+    paragraphBreaksOverride?: boolean
   ): Promise<CachedVerse | null> {
     try {
       const id = translationId ?? this.settings.defaultTranslation;
       const abbr = translationAbbr ?? this.getTranslationAbbr(id);
       const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
       const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+      const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
       return await this.api.getPassage(ref, id, abbr, {
         showVerseNumbers: sVN,
         verseNewLine: vnL,
+        paragraphBreaks: pb,
       });
     } catch (e) {
       console.error("Bible Verse: fetchVerse failed", e);
@@ -304,7 +307,7 @@ export default class BibleVersePlugin extends Plugin {
           span.className = "bible-verse-container";
 
           if (translations.length >= 2) {
-            this.renderInlineComparison(span, ref, translations);
+            this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
           } else {
@@ -318,13 +321,14 @@ export default class BibleVersePlugin extends Plugin {
             const style = spec.styleOverride ?? this.settings.displayStyle;
             const vnL = spec.verseNewLine ?? this.settings.verseNewLine;
             const sVN = spec.showVerseNumbers ?? this.settings.showVerseNumbers;
+            const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
 
-            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN);
+            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN);
+              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
           }
 
@@ -355,15 +359,18 @@ export default class BibleVersePlugin extends Plugin {
     translationAbbr: string,
     style?: DisplayStyle,
     verseNewLineOverride?: boolean,
-    showVerseNumbersOverride?: boolean
+    showVerseNumbersOverride?: boolean,
+    paragraphBreaksOverride?: boolean
   ): Promise<void> {
     try {
       const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
       const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+      const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
       const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
         showVerseNumbers: sVN,
         verseNewLine: vnL,
+        paragraphBreaks: pb,
       });
       container.empty();
       await renderVerse(
@@ -384,8 +391,10 @@ export default class BibleVersePlugin extends Plugin {
   private async renderInlineComparison(
     container: HTMLElement,
     ref: BibleReference,
-    translations: string[]
+    translations: string[],
+    paragraphBreaksOverride?: boolean
   ): Promise<void> {
+    const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
     const verses = [];
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
@@ -394,6 +403,7 @@ export default class BibleVersePlugin extends Plugin {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
           verseNewLine: this.settings.verseNewLine,
+          paragraphBreaks: pb,
         });
         verses.push(verse);
       } catch (e) {
@@ -421,7 +431,8 @@ export default class BibleVersePlugin extends Plugin {
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : undefined;
     const transAbbr = transId ? this.getTranslationAbbr(transId) : undefined;
 
-    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined);
+    const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
+    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined, pb);
     if (!verse) return;
 
     await this.app.vault.process(file, (content) => {
@@ -470,16 +481,19 @@ export default class BibleVersePlugin extends Plugin {
       }
     }
 
-    const vnL = config["newline"] !== undefined 
-      ? config["newline"].toLowerCase() === "true" 
+    const vnL = config["newline"] !== undefined
+      ? config["newline"].toLowerCase() === "true"
       : this.settings.verseNewLine;
     const sVN = config["numbers"] !== undefined || config["verse-numbers"] !== undefined
       ? (config["numbers"] ?? config["verse-numbers"]).toLowerCase() === "true"
       : this.settings.showVerseNumbers;
+    const pb = config["sections"] !== undefined
+      ? config["sections"].toLowerCase() === "true"
+      : this.settings.paragraphBreaks;
 
     if (config["compare"]) {
       const translations = config["compare"].split(",").map((s) => s.trim());
-      await this.renderComparisonBlock(el, ref, translations, vnL, sVN);
+      await this.renderComparisonBlock(el, ref, translations, vnL, sVN, pb);
       return;
     }
 
@@ -507,6 +521,7 @@ export default class BibleVersePlugin extends Plugin {
         verse = await this.api.getPassage(ref, translationId, translationAbbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
+          paragraphBreaks: pb,
         });
       }
 
@@ -539,11 +554,13 @@ export default class BibleVersePlugin extends Plugin {
     ref: BibleReference,
     translations: string[],
     verseNewLineOverride?: boolean,
-    showVerseNumbersOverride?: boolean
+    showVerseNumbersOverride?: boolean,
+    paragraphBreaksOverride?: boolean
   ): Promise<void> {
     const verses: CachedVerse[] = [];
     const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
     const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+    const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
@@ -552,6 +569,7 @@ export default class BibleVersePlugin extends Plugin {
         const verse = await this.api.getPassage(ref, id, abbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
+          paragraphBreaks: pb,
         });
         verses.push(verse);
       } catch (e) {

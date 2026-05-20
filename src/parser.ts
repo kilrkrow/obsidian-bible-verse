@@ -133,6 +133,7 @@ export interface InlineSpec {
   styleOverride: DisplayStyle | null;
   verseNewLine: boolean | null;
   showVerseNumbers: boolean | null;
+  paragraphBreaks: boolean | null;
 }
 
 /** A translation code is word-chars only and must start with a letter. */
@@ -173,6 +174,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
       styleOverride: null,
       verseNewLine: null,
       showVerseNumbers: null,
+      paragraphBreaks: null,
     };
   }
 
@@ -184,6 +186,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   let styleOverride: DisplayStyle | null = null;
   let verseNewLine: boolean | null = null;
   let showVerseNumbers: boolean | null = null;
+  let paragraphBreaks: boolean | null = null;
   let cut = parts.length;
 
   while (cut > 1) {
@@ -208,6 +211,16 @@ export function parseInlineSpec(content: string): InlineSpec | null {
     }
     if (low === "no-v") {
       if (showVerseNumbers === null) showVerseNumbers = false;
+      cut--;
+      continue;
+    }
+    if (low === "para") {
+      if (paragraphBreaks === null) paragraphBreaks = true;
+      cut--;
+      continue;
+    }
+    if (low === "no-para") {
+      if (paragraphBreaks === null) paragraphBreaks = false;
       cut--;
       continue;
     }
@@ -236,7 +249,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   const ref = parseReference(refStr);
   if (!ref) return null;
 
-  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers };
+  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks };
 }
 
 /**

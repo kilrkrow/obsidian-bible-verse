@@ -26,6 +26,8 @@ export interface BibleVerseSettings {
   verseNewLine: boolean;
   showAttribution: boolean;
   bakeInline: boolean;
+  paragraphBreaks: boolean;
+  helperMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -38,6 +40,8 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   verseNewLine: false,
   showAttribution: false,
   bakeInline: false,
+  paragraphBreaks: false,
+  helperMode: true,
 };
 
 /** Cached verse entry */
