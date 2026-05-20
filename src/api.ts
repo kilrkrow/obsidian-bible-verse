@@ -47,6 +47,7 @@ export class BibleApi {
 
     return parts
       .join(" ")
+      .replace(/¶\s*/g, "")
       .replace(/[ \t]*\n[ \t]*/g, "\n")
       .trim();
   }
@@ -159,14 +160,10 @@ export class BibleApi {
     }
 
     const verseSep = settings.verseNewLine ? "\n" : " ";
-    const paragraphSep = settings.paragraphBreaks ? "\n\n" : " ";
     const text = (settings.paragraphBreaks && filledParagraphs.length > 1
       ? filledParagraphs.map(p => p.join(verseSep)).join("\n\n")
       : filledParagraphs.flat().join(verseSep)
     )
-    // ¶ is a KJV typographic paragraph marker embedded in verse text —
-    // convert to a paragraph break when reading sections are on, strip otherwise
-    .replace(/¶\s*/g, paragraphSep)
     .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

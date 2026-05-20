@@ -772,7 +772,7 @@ var BibleApi = class {
         }
       }
     }
-    return parts.join(" ").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
+    return parts.join(" ").replace(/¶\s*/g, "").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
   }
   /**
    * Determine which verses from the chapter are needed for this reference.
@@ -854,8 +854,7 @@ var BibleApi = class {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
     const verseSep = settings.verseNewLine ? "\n" : " ";
-    const paragraphSep = settings.paragraphBreaks ? "\n\n" : " ";
-    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/¶\s*/g, paragraphSep).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {

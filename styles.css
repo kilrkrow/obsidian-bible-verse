@@ -264,7 +264,11 @@
 }
 
 /* Paragraph spacing within verse content (reading sections / para modifier).
-   !important to override Obsidian's paragraph margin reset. */
+   Zero out browser default p margins first, then add a single controlled
+   gap between consecutive paragraphs. !important to beat Obsidian resets. */
+.bible-verse p {
+  margin: 0 !important;
+}
 .bible-verse p + p {
   margin-top: 0.75em !important;
 }
