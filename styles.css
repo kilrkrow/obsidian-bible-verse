@@ -282,6 +282,37 @@
   opacity: 0.7;
 }
 
+.bible-verse-settings-ref {
+  margin: 0.5em 0 1em;
+  font-size: 0.9em;
+}
+
+.bible-verse-settings-ref summary {
+  cursor: pointer;
+  opacity: 0.7;
+  user-select: none;
+  margin-bottom: 0.5em;
+}
+
+.bible-verse-settings-ref table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.bible-verse-settings-ref td {
+  padding: 0.2em 0.75em 0.2em 0;
+  vertical-align: top;
+  color: var(--text-normal);
+}
+
+.bible-verse-settings-ref td:first-child {
+  white-space: nowrap;
+}
+
+.bible-verse-settings-ref td code {
+  font-size: 0.85em;
+}
+
 /* ========================
    Quick Insert Modal
    ======================== */

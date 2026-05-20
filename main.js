@@ -1114,6 +1114,17 @@ ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
 
 // src/settings.ts
 var import_obsidian3 = require("obsidian");
+function df(text, ...examples) {
+  const frag = document.createDocumentFragment();
+  frag.appendChild(document.createTextNode(text));
+  for (const ex of examples) {
+    frag.appendChild(document.createTextNode(" "));
+    const code = document.createElement("code");
+    code.textContent = ex;
+    frag.appendChild(code);
+  }
+  return frag;
+}
 var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -1122,7 +1133,7 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian3.Setting(containerEl).setName("Default translation").setDesc("The Bible translation to use by default").addDropdown((dropdown) => {
+    new import_obsidian3.Setting(containerEl).setName("Default translation").setDesc(df("The Bible translation to use by default. Override per-reference:", "{Romans 8:28, KJV}")).addDropdown((dropdown) => {
       for (const t of HELLOAO_TRANSLATIONS) {
         dropdown.addOption(t.id, t.name);
       }
@@ -1138,7 +1149,7 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
         this.plugin.refreshLivePreview();
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Display style").setDesc("How verses are visually presented").addDropdown(
+    new import_obsidian3.Setting(containerEl).setName("Display style").setDesc(df("How verses are visually presented. Override per-reference:", "{Romans 8:28, callout}", "{Romans 8:28, sidebar}", "{Romans 8:28, inline}")).addDropdown(
       (dropdown) => dropdown.addOption("sidebar", "Sidebar").addOption("callout", "Callout").addOption("blockquote", "Blockquote").addOption("inline", "Inline").setValue(this.plugin.settings.displayStyle).onChange(async (value) => {
         this.plugin.settings.displayStyle = value;
         await this.plugin.saveSettings();
@@ -1159,7 +1170,7 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Show verse numbers").setDesc("Display verse numbers in the rendered text.").addToggle(
+    new import_obsidian3.Setting(containerEl).setName("Show verse numbers").setDesc(df("Display verse numbers in the rendered text. Override per-reference:", "{Romans 8:28-30, v}", "{Romans 8:28-30, no-v}")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.showVerseNumbers).onChange(async (value) => {
         this.plugin.settings.showVerseNumbers = value;
         await this.plugin.saveSettings();
@@ -1172,7 +1183,7 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("New line per verse").setDesc("Start each verse on a new line (only if verse numbers are enabled).").addToggle(
+    new import_obsidian3.Setting(containerEl).setName("New line per verse").setDesc(df("Start each verse on a new line. Override per-reference:", "{Romans 8:28-30, nl}", "{Romans 8:28-30, no-nl}")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.verseNewLine).setDisabled(!this.plugin.settings.showVerseNumbers).onChange(async (value) => {
         this.plugin.settings.verseNewLine = value;
         await this.plugin.saveSettings();
@@ -1184,7 +1195,7 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Reading sections").setDesc("Group verses by their natural paragraph breaks from the source text. Use the 'para' modifier in {ref} to override per-reference.").addToggle(
+    new import_obsidian3.Setting(containerEl).setName("Reading sections").setDesc(df("Group verses by natural paragraph breaks. Override per-reference:", "{Luke 19, para}", "{Luke 19, no-para}")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.paragraphBreaks).onChange(async (value) => {
         this.plugin.settings.paragraphBreaks = value;
         await this.plugin.saveSettings();
@@ -1196,6 +1207,28 @@ var BibleVerseSettingTab = class extends import_obsidian3.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian3.Setting(containerEl).setName("Syntax reference").setHeading();
+    const details = containerEl.createEl("details", { cls: "bible-verse-settings-ref" });
+    details.createEl("summary", { text: "Show token syntax" });
+    const refTable = details.createEl("table");
+    const rows = [
+      ["{Romans 8:28}", "Single verse"],
+      ["{Romans 8:28-30}", "Verse range"],
+      ["{Romans 8:28,30,38}", "Non-consecutive verses"],
+      ["{Romans 8}", "Whole chapter"],
+      ["{Romans 8:26-eoc}", "Verse to end of chapter"],
+      ["{Romans 8:28, KJV}", "Translation override"],
+      ["{Romans 8:28, KJV | NIV}", "Side-by-side comparison"],
+      ["{Romans 8:28, callout}", "Style: callout / sidebar / blockquote / inline"],
+      ["{Romans 8:28-30, v} / {\u2026, no-v}", "Verse numbers on / off"],
+      ["{Romans 8:28-30, nl} / {\u2026, no-nl}", "New line per verse on / off"],
+      ["{Romans 8, para} / {\u2026, no-para}", "Reading sections on / off"]
+    ];
+    for (const [token, desc] of rows) {
+      const tr = refTable.createEl("tr");
+      tr.createEl("td").createEl("code", { text: token });
+      tr.createEl("td", { text: desc });
+    }
     new import_obsidian3.Setting(containerEl).setName("Data source and licensing").setHeading();
     const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
     info.createEl("p", {
