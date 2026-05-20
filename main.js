@@ -743,36 +743,31 @@ function formatReference(ref) {
 // src/api.ts
 var import_obsidian = require("obsidian");
 var BASE_URL = "https://bible.helloao.org/api";
+function extractVerseText(content) {
+  const parts = [];
+  for (const item of content) {
+    if (typeof item === "string") {
+      parts.push(item);
+    } else if (typeof item === "object" && item !== null) {
+      const obj = item;
+      if ("text" in obj) {
+        let text = obj.text;
+        if (obj.poem) {
+          const indent = "\xA0".repeat(Number(obj.poem) * 2);
+          const prefix = parts.length > 0 ? "\n" : "";
+          text = prefix + indent + text;
+        }
+        parts.push(text);
+      } else if (obj.lineBreak || obj.type === "line_break") {
+        parts.push("\n");
+      }
+    }
+  }
+  return parts.join(" ").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
+}
 var BibleApi = class {
   constructor(cache) {
     this.cache = cache;
-  }
-  /**
-   * Extract text from a HelloAO verse content array.
-   * Content items can be plain strings or objects with a `text` property
-   * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
-   */
-  extractVerseText(content) {
-    const parts = [];
-    for (const item of content) {
-      if (typeof item === "string") {
-        parts.push(item);
-      } else if (typeof item === "object" && item !== null) {
-        const obj = item;
-        if ("text" in obj) {
-          let text = obj.text;
-          if (obj.poem) {
-            const indent = "\xA0".repeat(Number(obj.poem) * 2);
-            const prefix = parts.length > 0 ? "\n" : "";
-            text = prefix + indent + text;
-          }
-          parts.push(text);
-        } else if (obj.lineBreak || obj.type === "line_break") {
-          parts.push("\n");
-        }
-      }
-    }
-    return parts.join(" ").replace(/¶\s*/g, "").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
   }
   /**
    * Determine which verses from the chapter are needed for this reference.
@@ -835,8 +830,14 @@ var BibleApi = class {
         const verseItem = item;
         const isIncluded = requestedVerses === null ? ref.startVerse === null || verseItem.number >= ref.startVerse : requestedVerses.has(verseItem.number);
         if (isIncluded) {
-          let text2 = this.extractVerseText(verseItem.content);
+          let text2 = extractVerseText(verseItem.content);
           if (text2) {
+            if (text2.startsWith("\xB6")) {
+              text2 = text2.replace(/^¶\s*/, "");
+              if (paragraphs[paragraphs.length - 1].length > 0) {
+                paragraphs.push([]);
+              }
+            }
             if (settings.showVerseNumbers) {
               text2 = `${verseItem.number}. ${text2}`;
             }

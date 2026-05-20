@@ -7,6 +7,39 @@ import { formatReference } from "./parser";
 const BASE_URL = "https://bible.helloao.org/api";
 
 /**
+ * Extract text from a HelloAO verse content array.
+ * Content items can be plain strings or objects with a `text` property
+ * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
+ * Exported for testing.
+ */
+export function extractVerseText(content: unknown[]): string {
+  const parts: string[] = [];
+  for (const item of content) {
+    if (typeof item === "string") {
+      parts.push(item);
+    } else if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+      if ("text" in obj) {
+        let text = obj.text as string;
+        if (obj.poem) {
+          const indent = "\u00A0".repeat(Number(obj.poem) * 2);
+          const prefix = parts.length > 0 ? "\n" : "";
+          text = prefix + indent + text;
+        }
+        parts.push(text);
+      } else if (obj.lineBreak || obj.type === "line_break") {
+        parts.push("\n");
+      }
+    }
+  }
+
+  return parts
+    .join(" ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .trim();
+}
+
+/**
  * Client for the HelloAO Bible API.
  * Fetches whole chapters and extracts specific verses client-side.
  * No API key required.
@@ -16,40 +49,6 @@ export class BibleApi {
 
   constructor(cache: VerseCache) {
     this.cache = cache;
-  }
-
-  /**
-   * Extract text from a HelloAO verse content array.
-   * Content items can be plain strings or objects with a `text` property
-   * (e.g. wordsOfJesus markers, footnotes). We extract only text content.
-   */
-  private extractVerseText(content: unknown[]): string {
-    const parts: string[] = [];
-    for (const item of content) {
-      if (typeof item === "string") {
-        parts.push(item);
-      } else if (typeof item === "object" && item !== null) {
-        const obj = item as Record<string, unknown>;
-        if ("text" in obj) {
-          let text = obj.text as string;
-          if (obj.poem) {
-            const indent = "\u00A0".repeat(Number(obj.poem) * 2);
-            // Only add newline if we already have text in this verse
-            const prefix = parts.length > 0 ? "\n" : "";
-            text = prefix + indent + text;
-          }
-          parts.push(text);
-        } else if (obj.lineBreak || obj.type === "line_break") {
-          parts.push("\n");
-        }
-      }
-    }
-
-    return parts
-      .join(" ")
-      .replace(/¶\s*/g, "")
-      .replace(/[ \t]*\n[ \t]*/g, "\n")
-      .trim();
   }
 
   /**
@@ -138,8 +137,16 @@ export class BibleApi {
           : requestedVerses.has(verseItem.number);
 
         if (isIncluded) {
-          let text = this.extractVerseText(verseItem.content);
+          let text = extractVerseText(verseItem.content);
           if (text) {
+            // KJV embeds ¶ at the start of verse text to mark paragraph boundaries.
+            // Detect it here, before prepending the verse number, then strip it.
+            if (text.startsWith("¶")) {
+              text = text.replace(/^¶\s*/, "");
+              if (paragraphs[paragraphs.length - 1].length > 0) {
+                paragraphs.push([]);
+              }
+            }
             if (settings.showVerseNumbers) {
               text = `${verseItem.number}. ${text}`;
             }
