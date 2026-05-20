@@ -178,7 +178,7 @@ export class BibleApi {
 
     // Cache write failure should never prevent verse display
     try {
-      await this.cache.set(entry);
+      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers);
     } catch (e) {
       console.warn("Bible Verse: Failed to cache verse", e);
     }

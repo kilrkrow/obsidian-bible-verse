@@ -846,7 +846,7 @@ var BibleApi = class {
       fetchedAt: Date.now()
     };
     try {
-      await this.cache.set(entry);
+      await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers);
     } catch (e) {
       console.warn("Bible Verse: Failed to cache verse", e);
     }
