@@ -154,10 +154,10 @@ async function renderText(el: HTMLElement, text: string, app: App, component: Co
   // If it's inline, we want to strip the wrapper <p> that renderMarkdown adds.
   // We move the children out of the <p> and then remove it, avoiding innerHTML.
   if (isInline) {
-    const p = container.querySelector("p");
-    if (p) {
+    // Flatten all <p> wrappers that renderMarkdown adds — inline context can't hold block elements
+    for (const p of Array.from(container.querySelectorAll("p"))) {
       while (p.firstChild) {
-        container.appendChild(p.firstChild);
+        container.insertBefore(p.firstChild, p);
       }
       p.remove();
     }

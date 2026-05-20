@@ -854,7 +854,8 @@ var BibleApi = class {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
     const verseSep = settings.verseNewLine ? "\n" : " ";
-    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    const paragraphSep = settings.paragraphBreaks ? "\n\n" : " ";
+    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/¶\s*/g, paragraphSep).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -1374,10 +1375,9 @@ async function renderText(el, text, app, component, isInline = false) {
   const container = isInline ? el.createSpan() : el.createDiv();
   await import_obsidian4.MarkdownRenderer.render(app, text, container, "", component);
   if (isInline) {
-    const p = container.querySelector("p");
-    if (p) {
+    for (const p of Array.from(container.querySelectorAll("p"))) {
       while (p.firstChild) {
-        container.appendChild(p.firstChild);
+        container.insertBefore(p.firstChild, p);
       }
       p.remove();
     }
