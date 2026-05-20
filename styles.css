@@ -264,12 +264,13 @@
 }
 
 /* Paragraph spacing within verse content (reading sections / para modifier).
-   Zero out browser default p margins first, then add a single controlled
-   gap between consecutive paragraphs. !important to beat Obsidian resets. */
+   Zero out browser default p margins. The gap between consecutive paragraphs
+   is scoped to reading mode only — in edit mode (Live Preview) the widget
+   sits inside the CM6 line flow where extra margin looks like double-spacing. */
 .bible-verse p {
   margin: 0 !important;
 }
-.bible-verse p + p {
+.markdown-reading-view .bible-verse p + p {
   margin-top: 0.75em !important;
 }
 
