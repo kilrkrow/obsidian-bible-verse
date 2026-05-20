@@ -1373,7 +1373,8 @@ async function renderInline(el, ref, verse, url, showAttribution, app, component
 }
 async function renderText(el, text, app, component, isInline = false) {
   const container = isInline ? el.createSpan() : el.createDiv();
-  await import_obsidian4.MarkdownRenderer.render(app, text, container, "", component);
+  const escaped = text.replace(/^(\d+)([.)])\s/gm, "$1\\$2 ");
+  await import_obsidian4.MarkdownRenderer.render(app, escaped, container, "", component);
   if (isInline) {
     for (const p of Array.from(container.querySelectorAll("p"))) {
       while (p.firstChild) {

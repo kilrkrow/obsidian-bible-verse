@@ -149,7 +149,10 @@ async function renderInline(
  */
 async function renderText(el: HTMLElement, text: string, app: App, component: Component, isInline = false): Promise<void> {
   const container = isInline ? el.createSpan() : el.createDiv();
-  await MarkdownRenderer.render(app, text, container, "", component);
+  // Verse numbers like "9. text" are valid markdown ordered-list syntax.
+  // Escape the marker so the renderer treats them as plain text, not list items.
+  const escaped = text.replace(/^(\d+)([.)])\s/gm, "$1\\$2 ");
+  await MarkdownRenderer.render(app, escaped, container, "", component);
   
   // If it's inline, we want to strip the wrapper <p> that renderMarkdown adds.
   // We move the children out of the <p> and then remove it, avoiding innerHTML.

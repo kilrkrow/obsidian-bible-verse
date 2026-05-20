@@ -263,6 +263,11 @@
   }
 }
 
+/* Paragraph spacing within verse content (reading sections / para modifier) */
+.bible-verse p + p {
+  margin-top: 0.75em;
+}
+
 /* ========================
    Settings tab
    ======================== */
