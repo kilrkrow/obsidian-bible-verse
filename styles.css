@@ -263,9 +263,10 @@
   }
 }
 
-/* Paragraph spacing within verse content (reading sections / para modifier) */
+/* Paragraph spacing within verse content (reading sections / para modifier).
+   !important to override Obsidian's paragraph margin reset. */
 .bible-verse p + p {
-  margin-top: 0.75em;
+  margin-top: 0.75em !important;
 }
 
 /* ========================

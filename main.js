@@ -1376,9 +1376,15 @@ async function renderText(el, text, app, component, isInline = false) {
   const escaped = text.replace(/^(\d+)([.)])\s/gm, "$1\\$2 ");
   await import_obsidian4.MarkdownRenderer.render(app, escaped, container, "", component);
   if (isInline) {
-    for (const p of Array.from(container.querySelectorAll("p"))) {
+    const paragraphs = Array.from(container.querySelectorAll("p"));
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
       while (p.firstChild) {
         container.insertBefore(p.firstChild, p);
+      }
+      if (i < paragraphs.length - 1) {
+        container.insertBefore(document.createElement("br"), p);
+        container.insertBefore(document.createElement("br"), p);
       }
       p.remove();
     }

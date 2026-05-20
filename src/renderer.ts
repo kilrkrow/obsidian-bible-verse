@@ -157,10 +157,17 @@ async function renderText(el: HTMLElement, text: string, app: App, component: Co
   // If it's inline, we want to strip the wrapper <p> that renderMarkdown adds.
   // We move the children out of the <p> and then remove it, avoiding innerHTML.
   if (isInline) {
-    // Flatten all <p> wrappers that renderMarkdown adds — inline context can't hold block elements
-    for (const p of Array.from(container.querySelectorAll("p"))) {
+    // Flatten all <p> wrappers — inline context can't hold block elements.
+    // Insert <br><br> between paragraphs to preserve the blank-line gap.
+    const paragraphs = Array.from(container.querySelectorAll("p"));
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
       while (p.firstChild) {
         container.insertBefore(p.firstChild, p);
+      }
+      if (i < paragraphs.length - 1) {
+        container.insertBefore(document.createElement("br"), p);
+        container.insertBefore(document.createElement("br"), p);
       }
       p.remove();
     }
