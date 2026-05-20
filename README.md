@@ -159,13 +159,15 @@ The following translations render as a hyperlink to your preferred Bible website
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| Default Translation | Which translation to use by default | KJV |
-| Preferred Website | Which Bible website to link to | BibleGateway |
-| Display Style | Visual presentation of verses | Callout |
-| Show Verse Numbers | Toggle verse numbers (e.g. `1.`) | On |
-| New Line Per Verse | Each verse starts on a new line | Off |
-| Persist Verse Text | Automatically bake verse text when rendering | Off |
-| Bake Inline References | Convert `{ref}` to code block when baking | Off |
+| Default translation | Which translation to use by default | KJV |
+| Preferred Bible website | Which Bible website to link to | BibleGateway |
+| Display style | Visual presentation of verses | Callout |
+| Sidebar top padding | Top spacing for the Sidebar style (in ems) | 0.5 |
+| Show verse numbers | Toggle verse numbers (e.g. `1.`) | On |
+| New line per verse | Each verse starts on a new line | Off |
+| Persist verse text in notes | Automatically bake verse text when rendering | Off |
+| Show attribution | Display license and copyright links below verses | Off |
+| Bake inline references | Convert `{ref}` to code block when baking | Off |
 
 ## Baking and Persisting Text
 

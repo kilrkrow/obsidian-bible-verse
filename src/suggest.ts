@@ -6,6 +6,7 @@ import {
   EditorSuggestContext,
   EditorSuggestTriggerInfo,
   TFile,
+  setIcon,
 } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
@@ -163,28 +164,25 @@ export class BibleReferenceSuggest extends EditorSuggest<string> {
   /** Render a single suggestion row in the dropdown. */
   renderSuggestion(value: string, el: HTMLElement): void {
     if (value.includes(",")) {
-      el.createEl("span", { cls: "bible-suggest-icon", text: "⚙️ " });
-      
+      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      setIcon(iconEl, "sliders-horizontal");
+
       const parts = value.split(",");
       const modifier = parts[parts.length - 1].trim();
       const prefix = parts.slice(0, -1).join(",").trim();
-      
+
       const span = el.createEl("span", { cls: "bible-suggest-text" });
-      span.createSpan({ text: prefix + ", ", attr: { style: "opacity: 0.5;" } });
-      span.createSpan({ text: modifier, attr: { style: "font-weight: 600;" } });
-      
-      // Add translation name if it's a translation modifier
+      span.createSpan({ text: prefix + ", ", cls: "bible-suggest-prefix" });
+      span.createSpan({ text: modifier, cls: "bible-suggest-modifier" });
+
       const trans = HELLOAO_TRANSLATIONS.find(t => t.abbreviation.toUpperCase() === modifier.toUpperCase());
       if (trans) {
-        const text = trans.isLinkOnly ? ` — ${trans.name} (🔗 Link only)` : ` — ${trans.name}`;
-        el.createEl("span", { 
-          cls: "bible-suggest-name", 
-          text: text, 
-          attr: { style: "opacity: 0.5; font-size: 0.9em; margin-left: 8px;" } 
-        });
+        const text = trans.isLinkOnly ? ` — ${trans.name} (link only)` : ` — ${trans.name}`;
+        el.createEl("span", { cls: "bible-suggest-name", text: text });
       }
     } else {
-      el.createEl("span", { cls: "bible-suggest-icon", text: "📖 " });
+      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      setIcon(iconEl, "book-open");
       el.createEl("span", { cls: "bible-suggest-text", text: value });
     }
   }

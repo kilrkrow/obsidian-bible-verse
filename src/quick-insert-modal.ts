@@ -11,7 +11,7 @@ export class QuickInsertModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h3", { text: "Insert Bible Reference" });
+    this.titleEl.setText("Insert Bible Reference");
 
     let inputValue = "";
     let openInBrowser = false;
@@ -22,25 +22,27 @@ export class QuickInsertModal extends Modal {
       placeholder: "Type a reference... (e.g., John 3:16)",
       cls: "bible-verse-quick-input",
     });
-    inputEl.style.width = "100%";
-    inputEl.style.padding = "8px";
-    inputEl.style.fontSize = "1.1em";
     inputEl.focus();
 
     inputEl.addEventListener("input", () => {
       inputValue = inputEl.value;
       const ref = parseReference(inputValue);
       if (ref) {
-        statusEl.setText("✓ " + formatReference(ref));
-        statusEl.style.color = "var(--text-success, green)";
-        inputEl.style.borderColor = "var(--text-success, green)";
+        statusEl.setText(formatReference(ref));
+        statusEl.classList.remove("is-invalid");
+        statusEl.classList.add("is-valid");
+        inputEl.classList.remove("is-invalid");
+        inputEl.classList.add("is-valid");
       } else if (inputValue.length > 0) {
         statusEl.setText("Invalid reference");
-        statusEl.style.color = "var(--text-error, red)";
-        inputEl.style.borderColor = "var(--text-error, red)";
+        statusEl.classList.remove("is-valid");
+        statusEl.classList.add("is-invalid");
+        inputEl.classList.remove("is-valid");
+        inputEl.classList.add("is-invalid");
       } else {
         statusEl.setText("");
-        inputEl.style.borderColor = "";
+        statusEl.classList.remove("is-valid", "is-invalid");
+        inputEl.classList.remove("is-valid", "is-invalid");
       }
     });
 

@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Plugin, normalizePath } from "obsidian";
 import { CachedVerse } from "./types";
 
 /**
@@ -14,7 +14,7 @@ export class VerseCache {
 
   constructor(plugin: Plugin) {
     this.plugin = plugin;
-    this.cacheDir = `${plugin.manifest.dir}/cache`;
+    this.cacheDir = normalizePath(`${plugin.manifest.dir}/cache`);
   }
 
   /** Build a cache key from translation, reference, and formatting settings */
@@ -70,15 +70,7 @@ export class VerseCache {
       await adapter.mkdir(this.cacheDir);
     }
 
-    const filePath = `${this.cacheDir}/${k}.json`;
-    // Ensure parent directory exists (adapter.write doesn't create intermediates)
-    const parentDir = filePath.substring(0, filePath.lastIndexOf("/"));
-    if (parentDir !== this.cacheDir) {
-      const parentExists = await adapter.exists(parentDir);
-      if (!parentExists) {
-        await adapter.mkdir(parentDir);
-      }
-    }
+    const filePath = normalizePath(`${this.cacheDir}/${k}.json`);
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
 

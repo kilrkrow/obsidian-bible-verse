@@ -149,7 +149,7 @@ async function renderInline(
  */
 async function renderText(el: HTMLElement, text: string, app: App, component: Component, isInline = false): Promise<void> {
   const container = isInline ? el.createSpan() : el.createDiv();
-  await MarkdownRenderer.renderMarkdown(text, container, "", component);
+  await MarkdownRenderer.render(app, text, container, "", component);
   
   // If it's inline, we want to strip the wrapper <p> that renderMarkdown adds.
   // We move the children out of the <p> and then remove it, avoiding innerHTML.

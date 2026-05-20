@@ -424,11 +424,9 @@ export default class BibleVersePlugin extends Plugin {
     const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined);
     if (!verse) return;
 
-    const content = await this.app.vault.read(file);
-    const newContent = this.baker.bakeVerse(content, refMarker, verse, "inline");
-    if (newContent !== content) {
-      await this.app.vault.modify(file, newContent);
-    }
+    await this.app.vault.process(file, (content) => {
+      return this.baker.bakeVerse(content, refMarker, verse, "inline");
+    });
   }
 
   private async codeBlockProcessor(
@@ -580,13 +578,17 @@ export default class BibleVersePlugin extends Plugin {
     return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
   }
 
+  onunload(): void {
+    document.body.style.removeProperty("--bible-verse-sidebar-top-padding");
+  }
+
   /**
    * Force a refresh of all Live Preview widgets in all open editors.
    */
   refreshLivePreview(): void {
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (leaf.view instanceof MarkdownView) {
-        const cm = (leaf.view as any).editor?.cm as EditorView;
+        const cm = (leaf.view as unknown as { editor?: { cm?: EditorView } }).editor?.cm;
         if (cm && cm.dispatch) {
           cm.dispatch({ effects: verseFetchedEffect.of(undefined) });
         }

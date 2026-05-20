@@ -15,11 +15,9 @@ export class BibleVerseSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Bible Verse Settings" });
-
     // Default Translation (dropdown from curated list)
     new Setting(containerEl)
-      .setName("Default Translation")
+      .setName("Default translation")
       .setDesc("The Bible translation to use by default")
       .addDropdown((dropdown) => {
         for (const t of HELLOAO_TRANSLATIONS) {
@@ -35,7 +33,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     // Preferred Website
     new Setting(containerEl)
-      .setName("Preferred Bible Website")
+      .setName("Preferred Bible website")
       .setDesc("Which website to link verse references to")
       .addDropdown((dropdown) =>
         dropdown
@@ -53,7 +51,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     // Display Style
     new Setting(containerEl)
-      .setName("Display Style")
+      .setName("Display style")
       .setDesc("How verses are visually presented")
       .addDropdown((dropdown) =>
         dropdown
@@ -70,7 +68,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     // Sidebar Top Padding
     new Setting(containerEl)
-      .setName("Sidebar Top Padding")
+      .setName("Sidebar top padding")
       .setDesc("Adjust the top spacing for the Sidebar style (in ems)")
       .addSlider((slider) =>
         slider
@@ -86,7 +84,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     // Persist Verse Text
     new Setting(containerEl)
-      .setName("Persist Verse Text in Notes")
+      .setName("Persist verse text in notes")
       .setDesc(
         "When enabled, fetched verse text is automatically written into note source (bake mode)"
       )
@@ -148,7 +146,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl("h2", { text: "Data Source & Licensing" });
+    new Setting(containerEl).setName("Data source and licensing").setHeading();
     const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
     info.createEl("p", {
       text: "Bible data is provided by the HelloAO Bible API. Most translations are Public Domain or have open licenses (Creative Commons).",
@@ -164,7 +162,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
     });
     info.createEl("p", {
       text: "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.",
-      attr: { style: "font-size: 0.85em; opacity: 0.7;" },
+      cls: "bible-verse-settings-note",
     });
   }
 }

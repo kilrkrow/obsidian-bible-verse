@@ -193,9 +193,9 @@ export class Baker {
     let count = 0;
 
     for (const file of files) {
-      const content = await this.app.vault.read(file);
+      const content = await this.app.vault.cachedRead(file);
       let newContent: string;
-      
+
       if (action === "strip") {
         newContent = this.stripBakedText(content);
       } else if (fetchVerse) {
@@ -205,7 +205,7 @@ export class Baker {
       }
 
       if (newContent !== content) {
-        await this.app.vault.modify(file, newContent);
+        await this.app.vault.process(file, () => newContent);
         count++;
       }
     }
@@ -214,6 +214,3 @@ export class Baker {
   }
 }
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
