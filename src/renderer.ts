@@ -166,8 +166,9 @@ async function renderText(el: HTMLElement, text: string, app: App, component: Co
         container.insertBefore(p.firstChild, p);
       }
       if (i < paragraphs.length - 1) {
-        container.insertBefore(document.createElement("br"), p);
-        container.insertBefore(document.createElement("br"), p);
+        const sep = document.createElement("span");
+        sep.className = "bible-verse-para-break";
+        container.insertBefore(sep, p);
       }
       p.remove();
     }

@@ -344,6 +344,13 @@
   padding-left: 12px;
 }
 
+/* Paragraph separator injected between inline-mode paragraph groups.
+   A block span with controlled height — avoids the full blank line of <br><br>. */
+.bible-verse-para-break {
+  display: block;
+  height: 0.5em;
+}
+
 /* ========================
    Container (wraps inline replacements)
    ======================== */
