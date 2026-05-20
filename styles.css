@@ -264,16 +264,13 @@
 }
 
 /* Paragraph spacing within verse content.
-   Zero out browser defaults, then add a small universal gap for verse
-   separation in edit mode. Reading mode gets a larger gap so para-mode
-   paragraph breaks feel distinct from nl-mode verse breaks. */
+   Zero out browser defaults. nl-mode verses stay compact (no gap).
+   para-mode paragraph breaks get a visible gap via the --para modifier class,
+   applied by the renderer when paragraphBreaks is active. */
 .bible-verse p {
   margin: 0 !important;
 }
-.bible-verse p + p {
-  margin-top: 0.15em !important;
-}
-.markdown-reading-view .bible-verse p + p {
+.bible-verse--para p + p {
   margin-top: 0.75em !important;
 }
 

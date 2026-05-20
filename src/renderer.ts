@@ -14,9 +14,11 @@ export async function renderVerse(
   website: BibleWebsite,
   showAttribution: boolean,
   app: App,
-  component: Component
+  component: Component,
+  paragraphBreaks = false
 ): Promise<void> {
-  const wrapper = container.createDiv({ cls: `bible-verse bible-verse-${style}` });
+  const cls = `bible-verse bible-verse-${style}${paragraphBreaks ? " bible-verse--para" : ""}`;
+  const wrapper = container.createDiv({ cls });
   const refStr = formatReference(ref);
   const url = generateLink(ref, verse.translation, website);
 

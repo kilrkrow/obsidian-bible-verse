@@ -1321,8 +1321,9 @@ function bibleComUrl(ref, translation) {
 }
 
 // src/renderer.ts
-async function renderVerse(container, ref, verse, style, website, showAttribution, app, component) {
-  const wrapper = container.createDiv({ cls: `bible-verse bible-verse-${style}` });
+async function renderVerse(container, ref, verse, style, website, showAttribution, app, component, paragraphBreaks = false) {
+  const cls = `bible-verse bible-verse-${style}${paragraphBreaks ? " bible-verse--para" : ""}`;
+  const wrapper = container.createDiv({ cls });
   const refStr = formatReference(ref);
   const url = generateLink(ref, verse.translation, website);
   switch (style) {
@@ -1743,7 +1744,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     this.spec = spec;
   }
   toDOM(view) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const container = document.createElement("span");
     container.className = "bible-verse-livepreview";
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
@@ -1779,7 +1780,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.preferredWebsite,
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
-          this.spec.plugin
+          this.spec.plugin,
+          (_e = this.spec.paragraphBreaks) != null ? _e : this.spec.plugin.settings.paragraphBreaks
         );
       } else {
         this.renderPill(container);
@@ -1849,7 +1851,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.preferredWebsite,
           plugin.settings.showAttribution,
           plugin.app,
-          plugin
+          plugin,
+          pb
         );
       }
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
@@ -2221,7 +2224,7 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
             const pb = (_e = spec.paragraphBreaks) != null ? _e : this.settings.paragraphBreaks;
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
-              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this);
+              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
@@ -2261,7 +2264,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
         this.settings.preferredWebsite,
         this.settings.showAttribution,
         this.app,
-        this
+        this,
+        pb
       );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
@@ -2377,7 +2381,8 @@ var BibleVersePlugin = class extends import_obsidian8.Plugin {
         this.settings.preferredWebsite,
         this.settings.showAttribution,
         this.app,
-        this
+        this,
+        pb
       );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);
