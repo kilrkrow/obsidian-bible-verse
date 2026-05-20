@@ -264,14 +264,16 @@
 }
 
 /* Paragraph spacing within verse content.
-   Zero out browser defaults. nl-mode verses stay compact (no gap).
-   para-mode paragraph breaks get a visible gap via the --para modifier class,
-   applied by the renderer when paragraphBreaks is active. */
-.bible-verse p {
-  margin: 0 !important;
+   Scoped to known Obsidian parent contexts for enough specificity to override
+   default p margins without !important.
+   nl-mode verses stay compact; para-mode gets a visible paragraph gap. */
+.markdown-reading-view .bible-verse p,
+.cm-editor .bible-verse p {
+  margin: 0;
 }
-.bible-verse--para p + p {
-  margin-top: 0.75em !important;
+.markdown-reading-view .bible-verse--para p + p,
+.cm-editor .bible-verse--para p + p {
+  margin-top: 0.75em;
 }
 
 /* ========================
@@ -387,7 +389,7 @@
    Container (wraps inline replacements)
    ======================== */
 .bible-verse-container {
-  display: contents;
+  display: inline;
 }
 
 /* ========================
