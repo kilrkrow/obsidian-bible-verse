@@ -263,12 +263,15 @@
   }
 }
 
-/* Paragraph spacing within verse content (reading sections / para modifier).
-   Zero out browser default p margins. The gap between consecutive paragraphs
-   is scoped to reading mode only — in edit mode (Live Preview) the widget
-   sits inside the CM6 line flow where extra margin looks like double-spacing. */
+/* Paragraph spacing within verse content.
+   Zero out browser defaults, then add a small universal gap for verse
+   separation in edit mode. Reading mode gets a larger gap so para-mode
+   paragraph breaks feel distinct from nl-mode verse breaks. */
 .bible-verse p {
   margin: 0 !important;
+}
+.bible-verse p + p {
+  margin-top: 0.15em !important;
 }
 .markdown-reading-view .bible-verse p + p {
   margin-top: 0.75em !important;
