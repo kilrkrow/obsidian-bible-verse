@@ -1423,6 +1423,13 @@ async function renderText(el, text, app, component, isInline = false) {
       }
       p.remove();
     }
+    for (const br of Array.from(container.querySelectorAll("br"))) {
+      const next = br.nextSibling;
+      if ((next == null ? void 0 : next.nodeType) === Node.TEXT_NODE && next.data.startsWith("\n")) {
+        next.data = next.data.slice(1);
+      }
+      br.replaceWith(document.createTextNode(" "));
+    }
   }
 }
 function renderLink(container, ref, translation, website) {

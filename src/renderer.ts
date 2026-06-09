@@ -160,7 +160,7 @@ async function renderText(el: HTMLElement, text: string, app: App, component: Co
   // We move the children out of the <p> and then remove it, avoiding innerHTML.
   if (isInline) {
     // Flatten all <p> wrappers — inline context can't hold block elements.
-    // Insert <br><br> between paragraphs to preserve the blank-line gap.
+    // Insert a para-break span between paragraph groups to preserve the gap.
     const paragraphs = Array.from(container.querySelectorAll("p"));
     for (let i = 0; i < paragraphs.length; i++) {
       const p = paragraphs[i];
@@ -173,6 +173,18 @@ async function renderText(el: HTMLElement, text: string, app: App, component: Co
         container.insertBefore(sep, p);
       }
       p.remove();
+    }
+
+    // Replace <br> elements with spaces — inline display must not have line
+    // breaks between verses. Also strip the \n text nodes that MarkdownRenderer
+    // emits after each <br>; under CM6's white-space: pre-wrap they render as
+    // an extra blank line.
+    for (const br of Array.from(container.querySelectorAll("br"))) {
+      const next = br.nextSibling;
+      if (next?.nodeType === Node.TEXT_NODE && (next as Text).data.startsWith("\n")) {
+        (next as Text).data = (next as Text).data.slice(1);
+      }
+      br.replaceWith(document.createTextNode(" "));
     }
   }
 }
