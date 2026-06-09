@@ -263,16 +263,21 @@
   }
 }
 
+/* Prevent CM6 editor's white-space: pre-wrap from being inherited into verse
+   content. Without this, the \n text nodes that MarkdownRenderer emits after
+   each <br> render as extra blank lines in Live Preview. */
+.bible-verse .bible-verse-body {
+  white-space: normal;
+}
+
 /* Paragraph spacing within verse content.
-   Scoped to known Obsidian parent contexts for enough specificity to override
-   default p margins without !important.
+   Uses our own class hierarchy for specificity — avoids relying on
+   Obsidian parent contexts which differ between reading/preview/editor.
    nl-mode verses stay compact; para-mode gets a visible paragraph gap. */
-.markdown-reading-view .bible-verse p,
-.cm-editor .bible-verse p {
+.bible-verse .bible-verse-body p {
   margin: 0;
 }
-.markdown-reading-view .bible-verse--para p + p,
-.cm-editor .bible-verse--para p + p {
+.bible-verse--para .bible-verse-body p + p {
   margin-top: 0.75em;
 }
 
