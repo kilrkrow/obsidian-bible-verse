@@ -2,7 +2,7 @@
 
 All notable changes to Bible Verse are documented here.
 
-## [1.6.3] — Unreleased
+## [1.6.3] — 2026-06-08
 
 ### Fixed
 
