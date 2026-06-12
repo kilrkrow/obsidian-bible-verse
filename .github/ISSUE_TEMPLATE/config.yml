@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/kilrkrow/obsidian-bible-verse/discussions
+    about: For open-ended questions, brainstorming, and feature spit-balling.
+  - name: Obsidian community help
+    url: https://obsidian.md/community
+    about: General Obsidian usage questions unrelated to this plugin.
