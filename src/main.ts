@@ -18,6 +18,7 @@ import { BibleReferenceSuggest } from "./suggest";
 import { buildViewPlugin } from "./view-plugin";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
 import { verseFetchedEffect } from "./effects";
+import { bugReportUrl } from "./feedback";
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
@@ -199,6 +200,12 @@ export default class BibleVersePlugin extends Plugin {
         }
         new Notice("No Bible reference found at cursor.");
       },
+    });
+
+    this.addCommand({
+      id: "report-bug",
+      name: "Report a bug on GitHub",
+      callback: () => window.open(bugReportUrl(this.manifest.version)),
     });
   }
 
