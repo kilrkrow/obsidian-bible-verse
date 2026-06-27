@@ -213,8 +213,9 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
 
       const trans = HELLOAO_TRANSLATIONS.find(t => t.abbreviation.toUpperCase() === modifier.toUpperCase());
       if (trans) {
-        const text = trans.isLinkOnly ? ` — ${trans.name} (link only)` : ` — ${trans.name}`;
-        el.createEl("span", { cls: "bible-suggest-name", text: text });
+        const isLinkOnly = this.plugin.isTranslationLinkOnly(trans.abbreviation);
+        const suffix = isLinkOnly ? " (link only)" : trans.mode === "apiKeyText" ? " (API key)" : "";
+        el.createEl("span", { cls: "bible-suggest-name", text: ` — ${trans.name}${suffix}` });
       }
     } else {
       // Book name suggestion

@@ -59,7 +59,7 @@ async function renderSidebar(
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
@@ -87,7 +87,7 @@ async function renderCallout(
   const body = el.createDiv({ cls: "bible-verse-body" });
   await renderText(body, verse.text, app, component);
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
@@ -114,7 +114,7 @@ async function renderBlockquote(
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
@@ -252,7 +252,7 @@ export async function renderComparison(
     const textContainer = col.createDiv({ cls: "bible-verse-text" });
     await renderText(textContainer, verse.text, app, component);
 
-    if (showAttribution && verse.copyright) {
+    if ((showAttribution || verse.requireAttribution) && verse.copyright) {
       col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
     }
   }

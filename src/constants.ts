@@ -232,34 +232,60 @@ export const BIBLE_COM_TRANSLATION_IDS: Record<string, number> = {
 };
 
 /**
- * Curated list of Bible translations.
- * Restricted translations (NIV, ESV, etc.) are marked as isLinkOnly.
+ * Crossway-mandated attribution notice for ESV text.
+ * The ESV API does not return a usable copyright string, so we supply it.
  */
-export const HELLOAO_TRANSLATIONS: { id: string; name: string; abbreviation: string; isLinkOnly?: boolean }[] = [
-  { id: "eng_kjv",   name: "King James Version (KJV)",          abbreviation: "KJV" },
-  { id: "BSB",       name: "Berean Standard Bible (BSB)",       abbreviation: "BSB" },
-  { id: "eng_asv",   name: "American Standard Version (ASV)",   abbreviation: "ASV" },
-  { id: "eng_web",   name: "World English Bible (WEB)",         abbreviation: "WEB" },
-  { id: "eng_net",   name: "NET Bible (NET)",                   abbreviation: "NET" },
-  { id: "eng_dby",   name: "Darby Translation (DARBY)",         abbreviation: "DARBY" },
-  { id: "eng_dra",   name: "Douay-Rheims 1899 (DRB)",           abbreviation: "DRB" },
-  { id: "eng_rv5",   name: "Revised Version (ERV)",             abbreviation: "ERV" },
-  { id: "eng_ylt",   name: "Young's Literal Translation (YLT)", abbreviation: "YLT" },
-  { id: "eng_bbe",   name: "Bible in Basic English (BBE)",      abbreviation: "BBE" },
-  { id: "eng_fbv",   name: "Free Bible Version (FBV)",          abbreviation: "FBV" },
-  { id: "eng_lsv",   name: "Literal Standard Version (LSV)",    abbreviation: "LSV" },
-  { id: "eng_msb",   name: "Majority Standard Bible (MSB)",     abbreviation: "MSB" },
-  { id: "eng_gnv",   name: "Geneva Bible 1599 (GNV)",           abbreviation: "GNV" },
-  { id: "eng_ojb",   name: "Orthodox Jewish Bible (OJB)",       abbreviation: "OJB" },
+export const ESV_COPYRIGHT =
+  "Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard " +
+  "Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. " +
+  "Used by permission. All rights reserved.";
 
-  // Link-only translations (Restricted licensing)
-  { id: "NIV",  name: "New International Version (NIV)", abbreviation: "NIV",  isLinkOnly: true },
-  { id: "ESV",  name: "English Standard Version (ESV)",  abbreviation: "ESV",  isLinkOnly: true },
-  { id: "NLT",  name: "New Living Translation (NLT)",   abbreviation: "NLT",  isLinkOnly: true },
-  { id: "NKJV", name: "New King James Version (NKJV)", abbreviation: "NKJV", isLinkOnly: true },
-  { id: "NASB", name: "New American Standard Bible (NASB)", abbreviation: "NASB", isLinkOnly: true },
-  { id: "AMP",  name: "Amplified Bible (AMP)",          abbreviation: "AMP",  isLinkOnly: true },
-  { id: "CSB",  name: "Christian Standard Bible (CSB)",  abbreviation: "CSB",  isLinkOnly: true },
+export type TranslationMode = "text" | "apiKeyText" | "linkOnly";
+export type ApiProvider = "helloao" | "esv";
+
+export interface TranslationDef {
+  id: string;
+  name: string;
+  abbreviation: string;
+  mode: TranslationMode;
+  provider: ApiProvider;
+  isLinkOnly?: boolean;
+}
+
+/**
+ * Curated list of Bible translations.
+ * - mode "text": freely available via HelloAO, no key needed
+ * - mode "apiKeyText": available with a user-supplied API key
+ * - mode "linkOnly": restricted, renders as outbound link only
+ */
+export const HELLOAO_TRANSLATIONS: TranslationDef[] = [
+  // Free text translations (HelloAO)
+  { id: "eng_kjv",   name: "King James Version (KJV)",          abbreviation: "KJV",   mode: "text", provider: "helloao" },
+  { id: "BSB",       name: "Berean Standard Bible (BSB)",       abbreviation: "BSB",   mode: "text", provider: "helloao" },
+  { id: "eng_asv",   name: "American Standard Version (ASV)",   abbreviation: "ASV",   mode: "text", provider: "helloao" },
+  { id: "eng_web",   name: "World English Bible (WEB)",         abbreviation: "WEB",   mode: "text", provider: "helloao" },
+  { id: "eng_net",   name: "NET Bible (NET)",                   abbreviation: "NET",   mode: "text", provider: "helloao" },
+  { id: "eng_dby",   name: "Darby Translation (DARBY)",         abbreviation: "DARBY", mode: "text", provider: "helloao" },
+  { id: "eng_dra",   name: "Douay-Rheims 1899 (DRB)",           abbreviation: "DRB",   mode: "text", provider: "helloao" },
+  { id: "eng_rv5",   name: "Revised Version (ERV)",             abbreviation: "ERV",   mode: "text", provider: "helloao" },
+  { id: "eng_ylt",   name: "Young's Literal Translation (YLT)", abbreviation: "YLT",   mode: "text", provider: "helloao" },
+  { id: "eng_bbe",   name: "Bible in Basic English (BBE)",      abbreviation: "BBE",   mode: "text", provider: "helloao" },
+  { id: "eng_fbv",   name: "Free Bible Version (FBV)",          abbreviation: "FBV",   mode: "text", provider: "helloao" },
+  { id: "eng_lsv",   name: "Literal Standard Version (LSV)",    abbreviation: "LSV",   mode: "text", provider: "helloao" },
+  { id: "eng_msb",   name: "Majority Standard Bible (MSB)",     abbreviation: "MSB",   mode: "text", provider: "helloao" },
+  { id: "eng_gnv",   name: "Geneva Bible 1599 (GNV)",           abbreviation: "GNV",   mode: "text", provider: "helloao" },
+  { id: "eng_ojb",   name: "Orthodox Jewish Bible (OJB)",       abbreviation: "OJB",   mode: "text", provider: "helloao" },
+
+  // API-key translation (ESV API)
+  { id: "ESV",  name: "English Standard Version (ESV)",  abbreviation: "ESV",  mode: "apiKeyText", provider: "esv" },
+
+  // Link-only translations (restricted licensing; no feasible inline-text path)
+  { id: "NIV",  name: "New International Version (NIV)",     abbreviation: "NIV",  mode: "linkOnly", provider: "helloao", isLinkOnly: true },
+  { id: "NKJV", name: "New King James Version (NKJV)",      abbreviation: "NKJV", mode: "linkOnly", provider: "helloao", isLinkOnly: true },
+  { id: "NLT",  name: "New Living Translation (NLT)",       abbreviation: "NLT",  mode: "linkOnly", provider: "helloao", isLinkOnly: true },
+  { id: "AMP",  name: "Amplified Bible (AMP)",              abbreviation: "AMP",  mode: "linkOnly", provider: "helloao", isLinkOnly: true },
+  { id: "CSB",  name: "Christian Standard Bible (CSB)",      abbreviation: "CSB",  mode: "linkOnly", provider: "helloao", isLinkOnly: true },
+  { id: "NASB", name: "New American Standard Bible (NASB)", abbreviation: "NASB", mode: "linkOnly", provider: "helloao", isLinkOnly: true },
 ];
 
 /**
@@ -269,8 +295,6 @@ export const HELLOAO_ABBREV: Record<string, string> = Object.fromEntries(
   HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation])
 );
 
-// TODO: Link-only mode for commercially-licensed translations (NIV, NLT, NKJV, AMP, ESV)
-// — render just a hyperlink to BibleGateway/BibleHub without fetching text. Future v2 feature.
 
 /**
  * Book name aliases → canonical name.

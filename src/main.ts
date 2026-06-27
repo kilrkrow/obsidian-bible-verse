@@ -16,7 +16,8 @@ import { generateLink, generateSearchUrl } from "./linker";
 import { QuickInsertModal } from "./quick-insert-modal";
 import { BibleReferenceSuggest } from "./suggest";
 import { buildViewPlugin } from "./view-plugin";
-import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS } from "./constants";
+import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
+import { fetchEsvPassage, getEffectiveMode } from "./providers";
 import { verseFetchedEffect } from "./effects";
 
 export default class BibleVersePlugin extends Plugin {
@@ -227,18 +228,26 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
-   * Public helper to check if a translation is link-only.
+   * Find a translation definition by ID or abbreviation.
    */
-  public isTranslationLinkOnly(idOrAbbr: string): boolean {
-    const t = HELLOAO_TRANSLATIONS.find(
+  public findTranslation(idOrAbbr: string): TranslationDef | undefined {
+    return HELLOAO_TRANSLATIONS.find(
       (t) => t.id === idOrAbbr || t.abbreviation.toUpperCase() === idOrAbbr.toUpperCase()
     );
-    return t?.isLinkOnly ?? false;
   }
 
   /**
-   * Fetch a verse using the current settings.
-   * If network fetch fails, attempts to find a baked block in the active file as a fallback.
+   * Public helper to check if a translation is effectively link-only
+   * (either inherently, or because no API key is configured).
+   */
+  public isTranslationLinkOnly(idOrAbbr: string): boolean {
+    const t = this.findTranslation(idOrAbbr);
+    if (!t) return false;
+    return getEffectiveMode(t, this.settings.esvApiKey) === "linkOnly";
+  }
+
+  /**
+   * Fetch a verse using the current settings, routing to the correct provider.
    */
   private async fetchVerse(
     ref: BibleReference,
@@ -254,16 +263,40 @@ export default class BibleVersePlugin extends Plugin {
       const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
       const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
       const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
+      const passageSettings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
 
-      return await this.api.getPassage(ref, id, abbr, {
-        showVerseNumbers: sVN,
-        verseNewLine: vnL,
-        paragraphBreaks: pb,
-      });
+      return await this.fetchFromProvider(ref, id, abbr, passageSettings);
     } catch (e) {
       console.error("Bible Verse: fetchVerse failed", e);
       return null;
     }
+  }
+
+  /**
+   * Route a passage fetch to the correct provider based on translation definition.
+   */
+  public async fetchFromProvider(
+    ref: BibleReference,
+    translationId: string,
+    translationAbbr: string,
+    settings: { showVerseNumbers: boolean; verseNewLine: boolean; paragraphBreaks: boolean }
+  ): Promise<CachedVerse> {
+    const def = this.findTranslation(translationId) ?? this.findTranslation(translationAbbr);
+
+    if (def?.provider === "esv" && this.settings.esvApiKey) {
+      const cached = this.cache.get(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
+      if (cached) {
+        // Re-stamp entries cached before attribution was enforced.
+        cached.requireAttribution = true;
+        cached.copyright = ESV_COPYRIGHT;
+        return cached;
+      }
+      const result = await fetchEsvPassage(ref, this.settings.esvApiKey, settings);
+      try { await this.cache.set(result, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks); } catch { /* ignore */ }
+      return result;
+    }
+
+    return await this.api.getPassage(ref, translationId, translationAbbr, settings);
   }
 
   /**
@@ -367,7 +400,7 @@ export default class BibleVersePlugin extends Plugin {
       const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
       const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
-      const verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+      const verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
         showVerseNumbers: sVN,
         verseNewLine: vnL,
         paragraphBreaks: pb,
@@ -401,7 +434,7 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, {
+        const verse = await this.fetchFromProvider(ref, id, abbr, {
           showVerseNumbers: this.settings.showVerseNumbers,
           verseNewLine: this.settings.verseNewLine,
           paragraphBreaks: pb,
@@ -519,7 +552,7 @@ export default class BibleVersePlugin extends Plugin {
           fetchedAt: Date.now(),
         };
       } else {
-        verse = await this.api.getPassage(ref, translationId, translationAbbr, {
+        verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
           paragraphBreaks: pb,
@@ -568,7 +601,7 @@ export default class BibleVersePlugin extends Plugin {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
-        const verse = await this.api.getPassage(ref, id, abbr, {
+        const verse = await this.fetchFromProvider(ref, id, abbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
           paragraphBreaks: pb,

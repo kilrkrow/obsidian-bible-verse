@@ -28,6 +28,7 @@ export interface BibleVerseSettings {
   bakeInline: boolean;
   paragraphBreaks: boolean;
   helperMode: boolean;
+  esvApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   bakeInline: false,
   paragraphBreaks: false,
   helperMode: true,
+  esvApiKey: "",
 };
 
 /** Cached verse entry */
@@ -52,6 +54,8 @@ export interface CachedVerse {
   text: string;
   copyright: string;
   fetchedAt: number;
+  /** When true, the copyright line must be shown regardless of the "Show attribution" toggle. */
+  requireAttribution?: boolean;
 }
 
 /** Translation info */
