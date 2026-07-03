@@ -1,0 +1,206 @@
+{
+  "translation": {
+    "id": "eng_asv",
+    "name": "American Standard Version (1901)",
+    "website": "https://ebible.org/Scriptures/details.php?id=eng-asv",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=eng-asv",
+    "shortName": "ASV",
+    "englishName": "American Standard Version (1901)",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "154967f9f68504bdf9a8d7abaae4ef6a93f20f779df84e62c1c8828427731839",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_asv/books.json",
+    "completeTranslationApiLink": "/api/eng_asv/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31102,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_asv",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "THE PSALMS",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "48a939ab77d764e2a7ea001433ea661306ac0f9eafa3df5ad760a204c8eb6fa0",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_asv/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_asv",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_asv/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_asv",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A Psalm of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "Jehovah is my shepherd; I shall not want.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He maketh me to lie down in green pastures;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "He leadeth me beside still waters.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He restoreth my soul:",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "He guideth me in the paths of righteousness for his name’s sake.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yea, though I walk through the valley of the shadow of death,",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "I will fear no evil; for thou art with me;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "Thy rod and thy staff, they comfort me.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "Thou preparest a table before me in the presence of mine enemies:",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "Thou hast anointed my head with oil;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "My cup runneth over.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Surely goodness and lovingkindness shall follow me all the days of my life;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "And I shall dwell in the house of Jehovah for ever.",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_asv/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_asv",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_asv/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_asv",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_asv/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_asv",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

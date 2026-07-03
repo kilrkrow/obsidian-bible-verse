@@ -1,0 +1,206 @@
+{
+  "translation": {
+    "id": "eng_kjv",
+    "name": "King James (Authorized) Version",
+    "website": "https://ebible.org/Scriptures/details.php?id=eng-kjv2006",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=eng-kjv2006",
+    "shortName": "KJAV",
+    "englishName": "King James Version",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a847712eeaae26124d3f9db80a1a9274742981261961b49715f43809774eb43c",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_kjv/books.json",
+    "completeTranslationApiLink": "/api/eng_kjv/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31102,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_kjv",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "The Book of Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "7bccd076c8889684c0a037e3d255cb4508bb73e03494e49aa49156505c4e4bfd",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_kjv/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_kjv",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_kjv/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_kjv",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A Psalm of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "The LORD is my shepherd; I shall not want.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He maketh me to lie down in green pastures: he leadeth me beside the still waters.",
+            "poem": 1
+          },
+          {
+            "noteId": 137
+          },
+          {
+            "noteId": 138
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He restoreth my soul: he leadeth me in the paths of righteousness for his name’s sake.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "Thou preparest a table before me in the presence of mine enemies: thou anointest my head with oil; my cup runneth over.",
+            "poem": 1
+          },
+          {
+            "noteId": 139
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the LORD for ever.",
+            "poem": 1
+          },
+          {
+            "noteId": 140
+          }
+        ]
+      }
+    ],
+    "footnotes": [
+      {
+        "noteId": 137,
+        "caller": "+",
+        "text": "23.2 green…: Heb. pastures of tender grass",
+        "reference": {
+          "chapter": 23,
+          "verse": 2
+        }
+      },
+      {
+        "noteId": 138,
+        "caller": "+",
+        "text": "23.2 still…: Heb. waters of quietness",
+        "reference": {
+          "chapter": 23,
+          "verse": 2
+        }
+      },
+      {
+        "noteId": 139,
+        "caller": "+",
+        "text": "23.5 anointest: Heb. makest fat",
+        "reference": {
+          "chapter": 23,
+          "verse": 5
+        }
+      },
+      {
+        "noteId": 140,
+        "caller": "+",
+        "text": "23.6 for ever: Heb. to length of days",
+        "reference": {
+          "chapter": 23,
+          "verse": 6
+        }
+      }
+    ]
+  },
+  "thisChapterLink": "/api/eng_kjv/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_kjv",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_kjv/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_kjv",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_kjv/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_kjv",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

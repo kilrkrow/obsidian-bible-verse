@@ -1,6 +1,6 @@
 # Bible Verse — Obsidian Plugin
 
-Look up and display Bible verses directly in your Obsidian notes. Powered by [HelloAO Bible API](https://bible.helloao.org), with support for multiple translations, comparison views, and links to popular Bible websites. **No API key required.**
+Look up and display Bible verses directly in your Obsidian notes. Powered by the [HelloAO Bible API](https://bible.helloao.org), with support for multiple translations, comparison views, and links to popular Bible websites. **No API key required** for the built-in translations — and the ESV is also available inline with your own free API key.
 
 ## Features
 
@@ -12,13 +12,14 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by [He
 - **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
 - **Local caching** — Fetched verses are cached locally to reduce API calls
 - **Markdown Support** — Bold, italics, and highlights are preserved within "baked" scripture text
-- **Link-Only Mode** — Access restricted translations (NIV, ESV, NLT, etc.) via beautiful hyperlinked "pills"
+- **ESV inline text** — Add your own free ESV API key to display the English Standard Version inline, not just as a link (attribution shown automatically, per Crossway's license)
+- **Link-Only Mode** — Access restricted translations (NIV, NLT, NKJV, etc.) via beautiful hyperlinked "pills"
 - **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
 - **Verse Numbers** — Optional display of verse numbers (e.g. `1.`) for easy reference
 - **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
 - **IntelliSense Autocomplete** — Suggestions for books, complete references, **and translations**
 - **Theme Integrated** — Uses native Obsidian design tokens for a premium look in both Light and Dark mode
-- **No API key needed** — Uses the free HelloAO Bible API with no registration required
+- **No API key needed** — The built-in translations use the free HelloAO Bible API with no registration required (the ESV is optional, with your own key)
 
 ## Installation
 
@@ -86,9 +87,22 @@ You can override your global settings for verse numbers and line breaks on a per
 {John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
 ```
 
+### ESV (with your own API key)
+
+The English Standard Version can be displayed inline once you supply your own free API key:
+
+1. Sign up at [api.esv.org](https://api.esv.org) and create an API key.
+2. Paste it into **Settings → Bible Verse → ESV API key**.
+
+ESV references then render as text like any other translation. Without a key, ESV falls back to a link pill. The ESV license requires attribution, so the Crossway copyright notice is shown automatically for ESV verses regardless of the "Show attribution" setting.
+
+```
+{John 3:16, ESV}                 -- Renders as text once a key is set (otherwise a link pill)
+```
+
 ### Link-Only Translations
 
-Some commercially licensed translations (NIV, ESV, NLT, NKJV, NASB, AMP, CSB) cannot be fetched as text due to licensing restrictions. When these are selected, the plugin renders a beautiful "Link Pill" that takes you directly to the verse on your preferred Bible website.
+Other commercially licensed translations (NIV, NLT, NKJV, NASB, AMP, CSB) cannot be fetched as text due to licensing restrictions. When these are selected, the plugin renders a beautiful "Link Pill" that takes you directly to the verse on your preferred Bible website.
 
 ```
 {John 3:16, NIV}                 -- Renders as a hyperlink pill
@@ -143,12 +157,19 @@ compare: KJV, BSB, ASV
 | GNV | Geneva Bible 1599 |
 | OJB | Orthodox Jewish Bible |
 
+### API-Key Translations
+
+Available inline with your own free API key (otherwise rendered as a link):
+
+| Abbreviation | Translation | Provider |
+|-------------|-------------|----------|
+| ESV | English Standard Version | [api.esv.org](https://api.esv.org) |
+
 ### Link-Only Translations (Commercially Licensed)
 
 The following translations render as a hyperlink to your preferred Bible website:
 
 - **NIV** — New International Version
-- **ESV** — English Standard Version
 - **NLT** — New Living Translation
 - **NKJV** — New King James Version
 - **NASB** — New American Standard Bible
@@ -168,6 +189,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Persist verse text in notes | Automatically bake verse text when rendering | Off |
 | Show attribution | Display license and copyright links below verses | Off |
 | Bake inline references | Convert `{ref}` to code block when baking | Off |
+| ESV API key | Your [api.esv.org](https://api.esv.org) key, to display ESV text inline | (empty) |
 
 ## Baking and Persisting Text
 
@@ -193,7 +215,7 @@ translation: KJV
 
 ## Data Source
 
-Bible text is provided by the [HelloAO Bible API](https://bible.helloao.org). No API key or registration is required.
+Text for the built-in translations is provided by the [HelloAO Bible API](https://bible.helloao.org) — no API key or registration required. ESV text is fetched from the [ESV API](https://api.esv.org) using your own key, and its copyright notice is displayed automatically as required by Crossway's license.
 
 ## License
 

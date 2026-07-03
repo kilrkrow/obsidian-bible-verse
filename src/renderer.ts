@@ -2,6 +2,7 @@ import { App, Component, MarkdownRenderer, setIcon } from "obsidian";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { formatReference } from "./parser";
 import { generateLink } from "./linker";
+import { flattenInlineContent } from "./inline-dom";
 
 /**
  * Render a single verse result into an HTML element.
@@ -15,7 +16,8 @@ export async function renderVerse(
   showAttribution: boolean,
   app: App,
   component: Component,
-  paragraphBreaks = false
+  paragraphBreaks = false,
+  verseNewLine = false
 ): Promise<void> {
   const cls = `bible-verse bible-verse-${style}${paragraphBreaks ? " bible-verse--para" : ""}`;
   const wrapper = container.createDiv({ cls });
@@ -33,7 +35,7 @@ export async function renderVerse(
       await renderBlockquote(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
     case "inline":
-      await renderInline(wrapper, refStr, verse, url, showAttribution, app, component);
+      await renderInline(wrapper, refStr, verse, url, showAttribution, app, component, verseNewLine);
       break;
   }
 }
@@ -59,7 +61,7 @@ async function renderSidebar(
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
@@ -87,7 +89,7 @@ async function renderCallout(
   const body = el.createDiv({ cls: "bible-verse-body" });
   await renderText(body, verse.text, app, component);
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
@@ -114,23 +116,24 @@ async function renderBlockquote(
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
 
-  if (showAttribution && verse.copyright) {
+  if ((showAttribution || verse.requireAttribution) && verse.copyright) {
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
 async function renderInline(
-  el: HTMLElement, 
-  ref: string, 
-  verse: CachedVerse, 
-  url: string, 
+  el: HTMLElement,
+  ref: string,
+  verse: CachedVerse,
+  url: string,
   showAttribution: boolean,
   app: App,
-  component: Component
+  component: Component,
+  verseNewLine = false
 ): Promise<void> {
   const textSpan = el.createSpan({ cls: "bible-verse-text" });
   textSpan.createSpan({ text: "\"" });
-  await renderText(textSpan, verse.text, app, component, true);
+  await renderText(textSpan, verse.text, app, component, true, verseNewLine);
   textSpan.createSpan({ text: "\" " });
 
   const link = el.createEl("a", {
@@ -149,43 +152,16 @@ async function renderInline(
 /**
  * Internal helper to render markdown text.
  */
-async function renderText(el: HTMLElement, text: string, app: App, component: Component, isInline = false): Promise<void> {
+async function renderText(el: HTMLElement, text: string, app: App, component: Component, isInline = false, verseNewLine = false): Promise<void> {
   const container = isInline ? el.createSpan() : el.createDiv();
   // Verse numbers like "9. text" are valid markdown ordered-list syntax.
   // Escape the marker so the renderer treats them as plain text, not list items.
   const escaped = text.replace(/^(\d+)([.)])\s/gm, "$1\\$2 ");
   await MarkdownRenderer.render(app, escaped, container, "", component);
   
-  // If it's inline, we want to strip the wrapper <p> that renderMarkdown adds.
-  // We move the children out of the <p> and then remove it, avoiding innerHTML.
+  // If it's inline, flatten block elements the renderer added (see inline-dom.ts).
   if (isInline) {
-    // Flatten all <p> wrappers — inline context can't hold block elements.
-    // Insert a para-break span between paragraph groups to preserve the gap.
-    const paragraphs = Array.from(container.querySelectorAll("p"));
-    for (let i = 0; i < paragraphs.length; i++) {
-      const p = paragraphs[i];
-      while (p.firstChild) {
-        container.insertBefore(p.firstChild, p);
-      }
-      if (i < paragraphs.length - 1) {
-        const sep = document.createElement("span");
-        sep.className = "bible-verse-para-break";
-        container.insertBefore(sep, p);
-      }
-      p.remove();
-    }
-
-    // Replace <br> elements with spaces — inline display must not have line
-    // breaks between verses. Also strip the \n text nodes that MarkdownRenderer
-    // emits after each <br>; under CM6's white-space: pre-wrap they render as
-    // an extra blank line.
-    for (const br of Array.from(container.querySelectorAll("br"))) {
-      const next = br.nextSibling;
-      if (next?.nodeType === Node.TEXT_NODE && (next as Text).data.startsWith("\n")) {
-        (next as Text).data = (next as Text).data.slice(1);
-      }
-      br.replaceWith(document.createTextNode(" "));
-    }
+    flattenInlineContent(container, verseNewLine);
   }
 }
 
@@ -252,7 +228,7 @@ export async function renderComparison(
     const textContainer = col.createDiv({ cls: "bible-verse-text" });
     await renderText(textContainer, verse.text, app, component);
 
-    if (showAttribution && verse.copyright) {
+    if ((showAttribution || verse.requireAttribution) && verse.copyright) {
       col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
     }
   }

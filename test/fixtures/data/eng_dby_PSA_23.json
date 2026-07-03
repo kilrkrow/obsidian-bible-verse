@@ -1,0 +1,157 @@
+{
+  "translation": {
+    "id": "eng_dby",
+    "name": "Darby Translation",
+    "website": "https://ebible.org/Scriptures/details.php?id=engDBY",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engDBY",
+    "shortName": "DBY",
+    "englishName": "Darby Translation",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "0de2cb4acaca6f655c3b208e5063ecb15727e725438e9c92927dd068c354e3af",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_dby/books.json",
+    "completeTranslationApiLink": "/api/eng_dby/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31099,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_dby",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "The Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "4da69630cb29d775762f7ee3048c991571a097880f7483005e9ae51e328917d7",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_dby/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_dby",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_dby/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_dby",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A Psalm of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "Jehovah is my shepherd; I shall not want.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He maketh me to lie down in green pastures; he leadeth me beside still waters.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He restoreth my soul; he leadeth me in paths of righteousness for his name's sake.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff, they comfort me.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "Thou preparest a table before me in the presence of mine enemies; thou hast anointed my head with oil; my cup runneth over.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Surely, goodness and loving-kindness shall follow me all the days of my life; and I will dwell in the house of Jehovah for the length of the days.",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_dby/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_dby",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_dby/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_dby",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_dby/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_dby",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

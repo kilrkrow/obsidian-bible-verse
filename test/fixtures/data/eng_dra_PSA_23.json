@@ -1,0 +1,206 @@
+{
+  "translation": {
+    "id": "eng_dra",
+    "name": "Douay-Rheims 1899",
+    "website": "https://ebible.org/Scriptures/details.php?id=engDRA",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engDRA",
+    "shortName": "DRA",
+    "englishName": "Douay-Rheims 1899",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "406af739f3d81f94f30dd58f4d2e18858a6f7da6156fc1d39723bd0f67672a14",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_dra/books.json",
+    "completeTranslationApiLink": "/api/eng_dra/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1197,
+    "totalNumberOfVerses": 31438,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "numberOfApocryphalBooks": 7,
+    "totalNumberOfApocryphalChapters": 137,
+    "totalNumberOfApocryphalVerses": 4373
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_dra",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "The Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "4c0f28e27626a9b472c3488b5459d653373e8b5883d119deaed5a1218937bbca",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_dra/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_dra",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_dra/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_dra",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2530
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "On the first day of the week, a psalm for David. The earth is the Lord’s and the fulness thereof: the world, and all they that dwell therein.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "For he hath founded it upon the seas; and hath prepared it upon the rivers.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "Who shall ascend into the mountain of the Lord: or who shall stand in his holy place?",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "The innocent in hands, and clean of heart, who hath not taken his soul in vain, nor sworn deceitfully to his neighbour.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "He shall receive a blessing from the Lord, and mercy from God his Saviour.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "This is the generation of them that seek him, of them that seek the face of the God of Jacob.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 7,
+        "content": [
+          {
+            "text": "Lift up your gates, O ye princes, and be ye lifted up, O eternal gates: and the King of Glory shall enter in.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 8,
+        "content": [
+          {
+            "text": "Who is this King of Glory? the Lord who is strong and mighty: the Lord mighty in battle.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 9,
+        "content": [
+          {
+            "text": "Lift up your gates, O ye princes, and be ye lifted up, O eternal gates: and the King of Glory shall enter in.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 10,
+        "content": [
+          {
+            "text": "Who is this King of Glory? the Lord of hosts, he is the King of Glory.",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_dra/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_dra",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_dra/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_dra",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_dra/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_dra",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 10
+}

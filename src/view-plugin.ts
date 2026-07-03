@@ -79,7 +79,8 @@ class BibleVerseWidget extends WidgetType {
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin,
-          this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks
+          this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks,
+          vnL
         );
       } else {
         this.renderPill(container);
@@ -118,7 +119,7 @@ class BibleVerseWidget extends WidgetType {
         for (const trans of translations) {
           const id = plugin.resolveTranslationIdPublic(trans);
           const abbr = plugin.getTranslationAbbrPublic(id);
-          const v = await plugin.api.getPassage(ref, id, abbr, {
+          const v = await plugin.fetchFromProvider(ref, id, abbr, {
             showVerseNumbers: sVN,
             verseNewLine: vnL,
             paragraphBreaks: pb,
@@ -130,7 +131,7 @@ class BibleVerseWidget extends WidgetType {
           ? plugin.resolveTranslationIdPublic(translations[0])
           : plugin.settings.defaultTranslation;
         const abbr = plugin.getTranslationAbbrPublic(id);
-        const v = await plugin.api.getPassage(ref, id, abbr, {
+        const v = await plugin.fetchFromProvider(ref, id, abbr, {
           showVerseNumbers: sVN,
           verseNewLine: vnL,
           paragraphBreaks: pb,
@@ -159,7 +160,8 @@ class BibleVerseWidget extends WidgetType {
           plugin.settings.showAttribution,
           plugin.app,
           plugin,
-          pb
+          pb,
+          vnL
         );
       }
 

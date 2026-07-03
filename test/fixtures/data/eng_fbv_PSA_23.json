@@ -1,0 +1,160 @@
+{
+  "translation": {
+    "id": "eng_fbv",
+    "name": "Free Bible Version",
+    "website": "https://ebible.org/Scriptures/details.php?id=engfbv",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engfbv",
+    "shortName": "FBV",
+    "englishName": "Free Bible Version",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "b6a81b2c74849d20111277998cfbd87ef8b7e3b1fd8734a0905c2490e0bb5a6e",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_fbv/books.json",
+    "completeTranslationApiLink": "/api/eng_fbv/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31104,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_fbv",
+    "name": "PSALMS",
+    "commonName": "Psalms",
+    "title": "Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "449c0f8c5a37b9d06c04af2382fa12f67cb63a293364ef7f5f2befc8ebeba25a",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_fbv/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_fbv",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_fbv/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_fbv",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A psalm of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "Since the Lord is my shepherd, I have everything I need.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He gives me rest in green fields. He leads me towards quietly flowing streams.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He revives me. He guides me along the right paths because that's the kind of person he is.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Even when I walk through the valley dark as death, I'm not afraid of any evil, because you are right there with me; your rod and your staff protect me.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "You prepare a banquet for me before my enemies. You honor me by anointing my head with olive oil. My cup is so full it overflows!",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "I'm absolutely certain that your goodness and trustworthy love will be with me all through my life, and I will live in the house of the Lord forever.",
+            "poem": 1
+          }
+        ]
+      },
+      {
+        "type": "line_break"
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_fbv/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_fbv",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_fbv/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_fbv",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_fbv/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_fbv",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

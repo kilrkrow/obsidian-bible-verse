@@ -205,10 +205,37 @@ export class BibleVerseSettingTab extends PluginSettingTab {
       tr.createEl("td", { text: desc });
     }
 
+    new Setting(containerEl).setName("Commercial translations").setHeading();
+
+    const apiDesc = containerEl.createDiv({ cls: "bible-verse-settings-info" });
+    apiDesc.createEl("p", {
+      text: "Enter an ESV API key to unlock inline ESV text. ESV attribution is always shown, as required by Crossway's license. Other commercial translations (NIV, NKJV, NLT, AMP, CSB, NASB) render as links only.",
+    });
+
+    new Setting(containerEl)
+      .setName("ESV API key")
+      .setDesc(
+        df("Unlocks English Standard Version inline text.", "Get a free key at api.esv.org")
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("Enter your ESV API key")
+          .setValue(this.plugin.settings.esvApiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.esvApiKey = value.trim();
+            await this.plugin.saveSettings();
+            this.plugin.refreshLivePreview();
+          })
+      )
+      .then((setting) => {
+        const input = setting.controlEl.querySelector("input");
+        if (input) input.type = "password";
+      });
+
     new Setting(containerEl).setName("Data source and licensing").setHeading();
     const info = containerEl.createDiv({ cls: "bible-verse-settings-info" });
     info.createEl("p", {
-      text: "Bible data is provided by the HelloAO Bible API. Most translations are Public Domain or have open licenses (Creative Commons).",
+      text: "Free translations are provided by the HelloAO Bible API. ESV text is fetched from the ESV API using your own key.",
     });
     const list = info.createEl("ul");
     list.createEl("li").createEl("a", {
@@ -216,8 +243,8 @@ export class BibleVerseSettingTab extends PluginSettingTab {
       href: "https://bible.helloao.org/",
     });
     list.createEl("li").createEl("a", {
-      text: "Translation License Info",
-      href: "https://bible.helloao.org/api/available_translations.json",
+      text: "ESV API (free key)",
+      href: "https://api.esv.org/",
     });
     info.createEl("p", {
       text: "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.",

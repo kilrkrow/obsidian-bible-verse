@@ -1,0 +1,246 @@
+{
+  "translation": {
+    "id": "eng_ojb",
+    "name": "The Orthodox Jewish Bible",
+    "website": "https://ebible.org/Scriptures/details.php?id=engojb",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engojb",
+    "shortName": "TOJB",
+    "englishName": "The Orthodox Jewish Bible -  Tanakh and Orthodox Jewish Brit Chadasha - The Holy Bible",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "29d57ae7e83ce2fdb13961a9afe3042c45510d27a5dca84b34d0272450ef758b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_ojb/books.json",
+    "completeTranslationApiLink": "/api/eng_ojb/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1190,
+    "totalNumberOfVerses": 31165,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_ojb",
+    "name": "TEHILLIM",
+    "commonName": "Psalms",
+    "title": "Tehillim",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "e51539eaa163eaa3312a32cb6b61ddfd475d15d139ce5e3fdbe1cca2fa919ac4",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_ojb/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_ojb",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_ojb/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_ojb",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2527
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "(Mizmor of Dovid)",
+            "descriptive": true
+          },
+          {
+            "text": "1Hashem is my Ro'eh (Shepherd);",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "I shall not lack.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He maketh me to lie down in green pastures;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "He leadeth me beside the mei menuchot (tranquil waters).",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He restoreth my nefesh;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "He guideth me in the paths of tzedek l'ma'an Shmo",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "(righteousness for the sake of His Name).",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yea, though I walk through the Gey Tzalmavet (Valley of the Shadow of Death),",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "I will fear no rah (evil);",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "for Thou art with me;",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "Thy shevet (rod) and Thy staff they comfort me.",
+            "poem": 1
+          }
+        ]
+      },
+      {
+        "type": "line_break"
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "Thou preparest a shulchan before me",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "in the presence of mine enemies:",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "Thou anointest my head with shemen (olive oil);",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "my kos runneth over.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Surely tov and chesed shall follow me",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "kol y'mei chaiyyai (all the days of my life):",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "and I will dwell in the Bais Hashem",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          },
+          {
+            "text": "l'orech yamim (for length of days, whole life long, forever).",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_ojb/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_ojb",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_ojb/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_ojb",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_ojb/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_ojb",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}
