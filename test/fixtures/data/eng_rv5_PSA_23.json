@@ -1,0 +1,160 @@
+{
+  "translation": {
+    "id": "eng_rv5",
+    "name": "Revised Version with Apocrypha (1895)",
+    "website": "https://ebible.org/Scriptures/details.php?id=eng-rv",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=eng-rv",
+    "shortName": "RVA",
+    "englishName": "Revised Version",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "1ff7c820211854996614bb371498377c106de6d471f2c87f5ec33a543e587c94",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_rv5/books.json",
+    "completeTranslationApiLink": "/api/eng_rv5/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31102,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "numberOfApocryphalBooks": 14,
+    "totalNumberOfApocryphalChapters": 173,
+    "totalNumberOfApocryphalVerses": 5776
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_rv5",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "THE PSALMS.",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "f64fcba765435c6f1a69519bf5edcf7e2db7f4976b487d226d973a08ec888c98",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_rv5/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_rv5",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_rv5/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_rv5",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A Psalm of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "The LORD is my shepherd; I shall not want.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He maketh me to lie down in green pastures: he leadeth me beside the still waters.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He restoreth my soul: he guideth me in the paths of righteousness for his name’s sake.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yea, though I walk through the valley of the shadow of death, I will fear no evil; for thou art with me: thy rod and thy staff, they comfort me.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "Thou preparest a table before me in the presence of mine enemies: thou hast anointed my head with oil; my cup runneth over.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the LORD for ever.",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_rv5/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_rv5",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_rv5/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_rv5",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_rv5/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_rv5",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

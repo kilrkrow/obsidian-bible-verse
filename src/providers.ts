@@ -2,6 +2,7 @@ import { requestUrl } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { formatReference } from "./parser";
+import { buildEsvParams, formatEsvPassageText } from "./format";
 
 export interface PassageSettings {
   showVerseNumbers: boolean;
@@ -20,18 +21,7 @@ export async function fetchEsvPassage(
 ): Promise<CachedVerse> {
   const refStr = formatReference(ref);
 
-  const params = new URLSearchParams({
-    q: refStr,
-    "include-headings": "false",
-    "include-footnotes": "false",
-    "include-verse-numbers": String(settings.showVerseNumbers),
-    "include-short-copyright": "true",
-    "include-passage-references": "false",
-    "indent-paragraphs": "0",
-    "indent-poetry": "false",
-    "indent-declares": "0",
-    "indent-psalm-doxology": "0",
-  });
+  const params = buildEsvParams(refStr);
 
   const response = await requestUrl({
     url: `https://api.esv.org/v3/passage/text/?${params}`,
@@ -48,17 +38,7 @@ export async function fetchEsvPassage(
     throw new Error(`No passages returned for ${refStr}`);
   }
 
-  let text = passages.join("\n\n").trim();
-
-  if (settings.showVerseNumbers) {
-    text = text.replace(/\[(\d+)\]\s*/g, "$1. ");
-  }
-
-  if (settings.verseNewLine && settings.showVerseNumbers) {
-    text = text.replace(/(\S)\s+(\d+\.\s)/g, "$1\n$2");
-  }
-
-  text = text.replace(/\n{3,}/g, "\n\n").trim();
+  const text = formatEsvPassageText(passages, settings);
 
   return {
     reference: refStr,

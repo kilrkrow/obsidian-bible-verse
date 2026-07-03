@@ -390,6 +390,13 @@
   height: 0.5em;
 }
 
+/* Per-verse line break injected in inline mode when "new line per verse" is on.
+   Zero-height block span — a plain line break with no extra gap. */
+.bible-verse-line-break {
+  display: block;
+  height: 0;
+}
+
 /* ========================
    Container (wraps inline replacements)
    ======================== */

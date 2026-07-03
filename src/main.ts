@@ -358,7 +358,7 @@ export default class BibleVersePlugin extends Plugin {
 
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
-              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb);
+              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
@@ -415,7 +415,8 @@ export default class BibleVersePlugin extends Plugin {
         this.settings.showAttribution,
         this.app,
         this,
-        pb
+        pb,
+        vnL
       );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
@@ -568,7 +569,8 @@ export default class BibleVersePlugin extends Plugin {
         this.settings.showAttribution,
         this.app,
         this,
-        pb
+        pb,
+        vnL
       );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${(e as Error).message}`);

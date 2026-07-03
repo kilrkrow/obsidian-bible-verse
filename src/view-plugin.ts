@@ -79,7 +79,8 @@ class BibleVerseWidget extends WidgetType {
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin,
-          this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks
+          this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks,
+          vnL
         );
       } else {
         this.renderPill(container);
@@ -159,7 +160,8 @@ class BibleVerseWidget extends WidgetType {
           plugin.settings.showAttribution,
           plugin.app,
           plugin,
-          pb
+          pb,
+          vnL
         );
       }
 

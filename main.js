@@ -746,7 +746,8 @@ function formatReference(ref) {
 
 // src/api.ts
 var import_obsidian = require("obsidian");
-var BASE_URL = "https://bible.helloao.org/api";
+
+// src/format.ts
 function extractVerseText(content) {
   const parts = [];
   for (const item of content) {
@@ -769,39 +770,99 @@ function extractVerseText(content) {
   }
   return parts.join(" ").replace(/[ \t]*\n[ \t]*/g, "\n").trim();
 }
-var BibleApi = class {
-  constructor(cache) {
-    this.cache = cache;
-  }
-  /**
-   * Determine which verses from the chapter are needed for this reference.
-   * Returns a Set of verse numbers to include.
-   */
-  getRequestedVerses(ref) {
-    if (ref.startVerse === null)
-      return null;
-    if (ref.endVerse === 999)
-      return null;
-    const verses = /* @__PURE__ */ new Set();
-    if (ref.endVerse !== null && ref.endChapter === null) {
+function computeRequestedVerses(ref) {
+  if (ref.startVerse === null)
+    return null;
+  if (ref.endVerse === 999)
+    return null;
+  const verses = /* @__PURE__ */ new Set();
+  if (ref.endVerse !== null && ref.endChapter === null) {
+    for (let v = ref.startVerse; v <= ref.endVerse; v++) {
+      verses.add(v);
+    }
+  } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
+    verses.add(ref.startVerse);
+  } else {
+    if (ref.endVerse !== null) {
       for (let v = ref.startVerse; v <= ref.endVerse; v++) {
         verses.add(v);
       }
-    } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-      verses.add(ref.startVerse);
     } else {
-      if (ref.endVerse !== null) {
-        for (let v = ref.startVerse; v <= ref.endVerse; v++) {
-          verses.add(v);
+      verses.add(ref.startVerse);
+    }
+    for (const v of ref.additionalVerses) {
+      verses.add(v);
+    }
+  }
+  return verses;
+}
+function assembleChapterText(chapterContent, requestedVerses, startVerse, settings) {
+  const paragraphs = [[]];
+  for (const item of chapterContent) {
+    if (typeof item !== "object" || item === null)
+      continue;
+    const obj = item;
+    if (obj.type === "verse") {
+      const verseItem = item;
+      const isIncluded = requestedVerses === null ? startVerse === null || verseItem.number >= startVerse : requestedVerses.has(verseItem.number);
+      if (isIncluded) {
+        let text = extractVerseText(verseItem.content);
+        if (text) {
+          if (text.startsWith("\xB6")) {
+            text = text.replace(/^¶\s*/, "");
+            if (paragraphs[paragraphs.length - 1].length > 0) {
+              paragraphs.push([]);
+            }
+          }
+          if (settings.showVerseNumbers) {
+            text = `${verseItem.number}. ${text}`;
+          }
+          paragraphs[paragraphs.length - 1].push(text);
         }
-      } else {
-        verses.add(ref.startVerse);
       }
-      for (const v of ref.additionalVerses) {
-        verses.add(v);
+    } else if (obj.type === "paragraph" || obj.type === "stanza_break") {
+      if (paragraphs[paragraphs.length - 1].length > 0) {
+        paragraphs.push([]);
       }
     }
-    return verses;
+  }
+  const filledParagraphs = paragraphs.filter((p) => p.length > 0);
+  if (filledParagraphs.length === 0)
+    return "";
+  const verseSep = settings.verseNewLine ? "\n" : " ";
+  return (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+var ESV_TEXT_PARAMS = {
+  "include-headings": "false",
+  "include-footnotes": "false",
+  "include-short-copyright": "false",
+  "include-passage-references": "false",
+  "indent-paragraphs": "0",
+  "indent-poetry": "false",
+  "indent-declares": "0",
+  "indent-psalm-doxology": "0"
+};
+function buildEsvParams(query) {
+  return new URLSearchParams({
+    q: query,
+    ...ESV_TEXT_PARAMS,
+    "include-verse-numbers": "true"
+  });
+}
+function formatEsvPassageText(passages, settings) {
+  const text = passages.join(" ").replace(/\s+/g, " ").trim();
+  const sep = settings.verseNewLine ? "\n" : " ";
+  return text.replace(/\s*\[(\d+)\]\s*/g, (_m, n, offset) => {
+    const prefix = offset === 0 ? "" : sep;
+    return settings.showVerseNumbers ? `${prefix}${n}. ` : prefix;
+  }).trim();
+}
+
+// src/api.ts
+var BASE_URL = "https://bible.helloao.org/api";
+var BibleApi = class {
+  constructor(cache) {
+    this.cache = cache;
   }
   /**
    * Fetch a passage from HelloAO Bible API.
@@ -824,42 +885,11 @@ var BibleApi = class {
     }
     const data = response.json;
     const chapterContent = data.chapter.content;
-    const requestedVerses = this.getRequestedVerses(ref);
-    const paragraphs = [[]];
-    for (const item of chapterContent) {
-      if (typeof item !== "object" || item === null)
-        continue;
-      const obj = item;
-      if (obj.type === "verse") {
-        const verseItem = item;
-        const isIncluded = requestedVerses === null ? ref.startVerse === null || verseItem.number >= ref.startVerse : requestedVerses.has(verseItem.number);
-        if (isIncluded) {
-          let text2 = extractVerseText(verseItem.content);
-          if (text2) {
-            if (text2.startsWith("\xB6")) {
-              text2 = text2.replace(/^¶\s*/, "");
-              if (paragraphs[paragraphs.length - 1].length > 0) {
-                paragraphs.push([]);
-              }
-            }
-            if (settings.showVerseNumbers) {
-              text2 = `${verseItem.number}. ${text2}`;
-            }
-            paragraphs[paragraphs.length - 1].push(text2);
-          }
-        }
-      } else if (obj.type === "paragraph" || obj.type === "stanza_break") {
-        if (paragraphs[paragraphs.length - 1].length > 0) {
-          paragraphs.push([]);
-        }
-      }
-    }
-    const filledParagraphs = paragraphs.filter((p) => p.length > 0);
-    if (filledParagraphs.length === 0) {
+    const requestedVerses = computeRequestedVerses(ref);
+    const text = assembleChapterText(chapterContent, requestedVerses, ref.startVerse, settings);
+    if (!text) {
       throw new Error(`No verses found for ${refStr} in ${translationAbbr}`);
     }
-    const verseSep = settings.verseNewLine ? "\n" : " ";
-    const text = (settings.paragraphBreaks && filledParagraphs.length > 1 ? filledParagraphs.map((p) => p.join(verseSep)).join("\n\n") : filledParagraphs.flat().join(verseSep)).replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const licenseUrl = (_a = data.translation) == null ? void 0 : _a.licenseUrl;
     const copyright = licenseUrl ? `License: ${licenseUrl}` : "";
     const entry = {
@@ -1342,8 +1372,38 @@ function bibleComUrl(ref, translation) {
   return `https://www.bible.com/bible/${transId}/${usfm}.${ref.chapter}.${verse}`;
 }
 
+// src/inline-dom.ts
+function flattenInlineContent(container, verseNewLine) {
+  const paragraphs = Array.from(container.querySelectorAll("p"));
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i];
+    while (p.firstChild) {
+      container.insertBefore(p.firstChild, p);
+    }
+    if (i < paragraphs.length - 1) {
+      const sep = document.createElement("span");
+      sep.className = "bible-verse-para-break";
+      container.insertBefore(sep, p);
+    }
+    p.remove();
+  }
+  for (const br of Array.from(container.querySelectorAll("br"))) {
+    const next = br.nextSibling;
+    if ((next == null ? void 0 : next.nodeType) === Node.TEXT_NODE && next.data.startsWith("\n")) {
+      next.data = next.data.slice(1);
+    }
+    if (verseNewLine) {
+      const lineBreak = document.createElement("span");
+      lineBreak.className = "bible-verse-line-break";
+      br.replaceWith(lineBreak);
+    } else {
+      br.replaceWith(document.createTextNode(" "));
+    }
+  }
+}
+
 // src/renderer.ts
-async function renderVerse(container, ref, verse, style, website, showAttribution, app, component, paragraphBreaks = false) {
+async function renderVerse(container, ref, verse, style, website, showAttribution, app, component, paragraphBreaks = false, verseNewLine = false) {
   const cls = `bible-verse bible-verse-${style}${paragraphBreaks ? " bible-verse--para" : ""}`;
   const wrapper = container.createDiv({ cls });
   const refStr = formatReference(ref);
@@ -1359,7 +1419,7 @@ async function renderVerse(container, ref, verse, style, website, showAttributio
       await renderBlockquote(wrapper, refStr, verse, url, showAttribution, app, component);
       break;
     case "inline":
-      await renderInline(wrapper, refStr, verse, url, showAttribution, app, component);
+      await renderInline(wrapper, refStr, verse, url, showAttribution, app, component, verseNewLine);
       break;
   }
 }
@@ -1411,10 +1471,10 @@ async function renderBlockquote(el, ref, verse, url, showAttribution, app, compo
     el.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
-async function renderInline(el, ref, verse, url, showAttribution, app, component) {
+async function renderInline(el, ref, verse, url, showAttribution, app, component, verseNewLine = false) {
   const textSpan = el.createSpan({ cls: "bible-verse-text" });
   textSpan.createSpan({ text: '"' });
-  await renderText(textSpan, verse.text, app, component, true);
+  await renderText(textSpan, verse.text, app, component, true, verseNewLine);
   textSpan.createSpan({ text: '" ' });
   const link = el.createEl("a", {
     cls: "bible-verse-ref",
@@ -1427,31 +1487,12 @@ async function renderInline(el, ref, verse, url, showAttribution, app, component
     el.createSpan({ cls: "bible-verse-copyright", text: ` ${verse.copyright}` });
   }
 }
-async function renderText(el, text, app, component, isInline = false) {
+async function renderText(el, text, app, component, isInline = false, verseNewLine = false) {
   const container = isInline ? el.createSpan() : el.createDiv();
   const escaped = text.replace(/^(\d+)([.)])\s/gm, "$1\\$2 ");
   await import_obsidian4.MarkdownRenderer.render(app, escaped, container, "", component);
   if (isInline) {
-    const paragraphs = Array.from(container.querySelectorAll("p"));
-    for (let i = 0; i < paragraphs.length; i++) {
-      const p = paragraphs[i];
-      while (p.firstChild) {
-        container.insertBefore(p.firstChild, p);
-      }
-      if (i < paragraphs.length - 1) {
-        const sep = document.createElement("span");
-        sep.className = "bible-verse-para-break";
-        container.insertBefore(sep, p);
-      }
-      p.remove();
-    }
-    for (const br of Array.from(container.querySelectorAll("br"))) {
-      const next = br.nextSibling;
-      if ((next == null ? void 0 : next.nodeType) === Node.TEXT_NODE && next.data.startsWith("\n")) {
-        next.data = next.data.slice(1);
-      }
-      br.replaceWith(document.createTextNode(" "));
-    }
+    flattenInlineContent(container, verseNewLine);
   }
 }
 function renderLink(container, ref, translation, website) {
@@ -1811,7 +1852,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin,
-          (_e = this.spec.paragraphBreaks) != null ? _e : this.spec.plugin.settings.paragraphBreaks
+          (_e = this.spec.paragraphBreaks) != null ? _e : this.spec.plugin.settings.paragraphBreaks,
+          vnL
         );
       } else {
         this.renderPill(container);
@@ -1882,7 +1924,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           plugin.settings.showAttribution,
           plugin.app,
           plugin,
-          pb
+          pb,
+          vnL
         );
       }
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
@@ -2004,18 +2047,7 @@ function buildViewPlugin(plugin) {
 var import_obsidian8 = require("obsidian");
 async function fetchEsvPassage(ref, apiKey, settings) {
   const refStr = formatReference(ref);
-  const params = new URLSearchParams({
-    q: refStr,
-    "include-headings": "false",
-    "include-footnotes": "false",
-    "include-verse-numbers": String(settings.showVerseNumbers),
-    "include-short-copyright": "true",
-    "include-passage-references": "false",
-    "indent-paragraphs": "0",
-    "indent-poetry": "false",
-    "indent-declares": "0",
-    "indent-psalm-doxology": "0"
-  });
+  const params = buildEsvParams(refStr);
   const response = await (0, import_obsidian8.requestUrl)({
     url: `https://api.esv.org/v3/passage/text/?${params}`,
     headers: { Authorization: `Token ${apiKey}` }
@@ -2028,14 +2060,7 @@ async function fetchEsvPassage(ref, apiKey, settings) {
   if (!passages || passages.length === 0) {
     throw new Error(`No passages returned for ${refStr}`);
   }
-  let text = passages.join("\n\n").trim();
-  if (settings.showVerseNumbers) {
-    text = text.replace(/\[(\d+)\]\s*/g, "$1. ");
-  }
-  if (settings.verseNewLine && settings.showVerseNumbers) {
-    text = text.replace(/(\S)\s+(\d+\.\s)/g, "$1\n$2");
-  }
-  text = text.replace(/\n{3,}/g, "\n\n").trim();
+  const text = formatEsvPassageText(passages, settings);
   return {
     reference: refStr,
     translation: "ESV",
@@ -2336,7 +2361,7 @@ var BibleVersePlugin = class extends import_obsidian9.Plugin {
             const pb = (_e = spec.paragraphBreaks) != null ? _e : this.settings.paragraphBreaks;
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
-              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb);
+              await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
@@ -2377,7 +2402,8 @@ var BibleVersePlugin = class extends import_obsidian9.Plugin {
         this.settings.showAttribution,
         this.app,
         this,
-        pb
+        pb,
+        vnL
       );
     } catch (e) {
       console.error("Bible Verse: Failed to fetch verse", e);
@@ -2494,7 +2520,8 @@ var BibleVersePlugin = class extends import_obsidian9.Plugin {
         this.settings.showAttribution,
         this.app,
         this,
-        pb
+        pb,
+        vnL
       );
     } catch (e) {
       renderError(el, `Failed to fetch ${formatReference(ref)}: ${e.message}`);

@@ -1,0 +1,157 @@
+{
+  "translation": {
+    "id": "eng_bbe",
+    "name": "Bible in Basic English",
+    "website": "https://ebible.org/Scriptures/details.php?id=engBBE",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engBBE",
+    "shortName": "BBE",
+    "englishName": "Bible in Basic English",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "1e0aa1bf1410a062c63599f28e87d4022822ea078b3719da775b9996d2aa7bf9",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_bbe/books.json",
+    "completeTranslationApiLink": "/api/eng_bbe/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31102,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_bbe",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "The Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "8fc4188e59fe9d59514114667eecbfd5ec7547dfc015f629ad54791e138038a2",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_bbe/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_bbe",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_bbe/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_bbe",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "hebrew_subtitle",
+        "content": [
+          "A Psalm. Of David."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          {
+            "text": "The Lord takes care of me as his sheep; I will not be without any good thing.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          {
+            "text": "He makes a resting-place for me in the green fields: he is my guide by the quiet waters.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          {
+            "text": "He gives new life to my soul: he is my guide in the ways of righteousness because of his name.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          {
+            "text": "Yes, though I go through the valley of deep shade, I will have no fear of evil; for you are with me, your rod and your support are my comfort.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          {
+            "text": "You make ready a table for me in front of my haters: you put oil on my head; my cup is overflowing.",
+            "poem": 1
+          },
+          {
+            "lineBreak": true
+          }
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          {
+            "text": "Truly, blessing and mercy will be with me all the days of my life; and I will have a place in the house of the Lord all my days.",
+            "poem": 1
+          }
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_bbe/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_bbe",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_bbe/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_bbe",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_bbe/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_bbe",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}

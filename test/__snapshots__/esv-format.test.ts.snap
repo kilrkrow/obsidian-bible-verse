@@ -1,0 +1,79 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ESV formatting matrix > ESV — all selections × format combos 1`] = `
+"=== ESV ===
+
+--- John 3:16 (single) ---
+[v=off nl=off]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+[v=off nl=on]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+[v=on nl=off]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+[v=on nl=on]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+
+--- John 3:16-18 (range) ---
+[v=off nl=off]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. For God did not send his Son into the world to condemn the world, but in order that the world might be saved through him. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=off nl=on]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+For God did not send his Son into the world to condemn the world, but in order that the world might be saved through him.
+Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=on nl=off]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. 17. For God did not send his Son into the world to condemn the world, but in order that the world might be saved through him. 18. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=on nl=on]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+17. For God did not send his Son into the world to condemn the world, but in order that the world might be saved through him.
+18. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+
+--- John 3:16,18 (non-contiguous) ---
+[v=off nl=off]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=off nl=on]
+“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=on nl=off]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. 18. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+[v=on nl=on]
+16. “For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.
+18. Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.
+
+--- Psalm 23 (whole chapter) ---
+[v=off nl=off]
+A Psalm of David. The LORD is my shepherd; I shall not want. He makes me lie down in green pastures. He leads me beside still waters. He restores my soul. He leads me in paths of righteousness for his name’s sake. Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me; your rod and your staff, they comfort me. You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows. Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the LORD forever.
+[v=off nl=on]
+A Psalm of David.
+The LORD is my shepherd; I shall not want.
+He makes me lie down in green pastures. He leads me beside still waters.
+He restores my soul. He leads me in paths of righteousness for his name’s sake.
+Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me; your rod and your staff, they comfort me.
+You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows.
+Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the LORD forever.
+[v=on nl=off]
+A Psalm of David. 1. The LORD is my shepherd; I shall not want. 2. He makes me lie down in green pastures. He leads me beside still waters. 3. He restores my soul. He leads me in paths of righteousness for his name’s sake. 4. Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me; your rod and your staff, they comfort me. 5. You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows. 6. Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the LORD forever.
+[v=on nl=on]
+A Psalm of David.
+1. The LORD is my shepherd; I shall not want.
+2. He makes me lie down in green pastures. He leads me beside still waters.
+3. He restores my soul. He leads me in paths of righteousness for his name’s sake.
+4. Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me; your rod and your staff, they comfort me.
+5. You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows.
+6. Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the LORD forever.
+
+--- Luke 19:27-30 (range) ---
+[v=off nl=off]
+But as for these enemies of mine, who did not want me to reign over them, bring them here and slaughter them before me.’” And when he had said these things, he went on ahead, going up to Jerusalem. When he drew near to Bethphage and Bethany, at the mount that is called Olivet, he sent two of the disciples, saying, “Go into the village in front of you, where on entering you will find a colt tied, on which no one has ever yet sat. Untie it and bring it here.
+[v=off nl=on]
+But as for these enemies of mine, who did not want me to reign over them, bring them here and slaughter them before me.’”
+And when he had said these things, he went on ahead, going up to Jerusalem.
+When he drew near to Bethphage and Bethany, at the mount that is called Olivet, he sent two of the disciples,
+saying, “Go into the village in front of you, where on entering you will find a colt tied, on which no one has ever yet sat. Untie it and bring it here.
+[v=on nl=off]
+27. But as for these enemies of mine, who did not want me to reign over them, bring them here and slaughter them before me.’” 28. And when he had said these things, he went on ahead, going up to Jerusalem. 29. When he drew near to Bethphage and Bethany, at the mount that is called Olivet, he sent two of the disciples, 30. saying, “Go into the village in front of you, where on entering you will find a colt tied, on which no one has ever yet sat. Untie it and bring it here.
+[v=on nl=on]
+27. But as for these enemies of mine, who did not want me to reign over them, bring them here and slaughter them before me.’”
+28. And when he had said these things, he went on ahead, going up to Jerusalem.
+29. When he drew near to Bethphage and Bethany, at the mount that is called Olivet, he sent two of the disciples,
+30. saying, “Go into the village in front of you, where on entering you will find a colt tied, on which no one has ever yet sat. Untie it and bring it here."
+`;

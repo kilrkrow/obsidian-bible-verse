@@ -1,0 +1,118 @@
+{
+  "translation": {
+    "id": "eng_ylt",
+    "name": "Young's Literal Translation",
+    "website": "https://ebible.org/Scriptures/details.php?id=engylt",
+    "licenseUrl": "https://ebible.org/Scriptures/details.php?id=engylt",
+    "shortName": "YLT",
+    "englishName": "Young's Literal Translation",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "3345af0c4ec243e5005ddda35558e9b1b82a6523c5c14adaae81426b39b2932e",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/eng_ylt/books.json",
+    "completeTranslationApiLink": "/api/eng_ylt/complete.json",
+    "numberOfBooks": 66,
+    "totalNumberOfChapters": 1189,
+    "totalNumberOfVerses": 31102,
+    "languageName": "English",
+    "languageEnglishName": "English"
+  },
+  "book": {
+    "id": "PSA",
+    "translationId": "eng_ylt",
+    "name": "Psalms",
+    "commonName": "Psalms",
+    "title": "The Book of Psalms",
+    "order": 19,
+    "numberOfChapters": 150,
+    "sha256": "bda4b1188f2048bb2b48a277e0beac98c9d19a25d92bb171d4c0170c27fe7c2f",
+    "firstChapterNumber": 1,
+    "firstChapterApiLink": "/api/eng_ylt/PSA/1.json",
+    "firstChapterReference": {
+      "translationId": "eng_ylt",
+      "book": "PSA",
+      "chapter": 1
+    },
+    "lastChapterNumber": 150,
+    "lastChapterApiLink": "/api/eng_ylt/PSA/150.json",
+    "lastChapterReference": {
+      "translationId": "eng_ylt",
+      "book": "PSA",
+      "chapter": 150
+    },
+    "totalNumberOfVerses": 2461
+  },
+  "chapter": {
+    "number": 23,
+    "content": [
+      {
+        "type": "verse",
+        "number": 1,
+        "content": [
+          "A Psalm of David. Jehovah [is] my shepherd, I do not lack,"
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 2,
+        "content": [
+          "In pastures of tender grass He causeth me to lie down, By quiet waters He doth lead me."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 3,
+        "content": [
+          "My soul He refresheth, He leadeth me in paths of righteousness, For His name's sake,"
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 4,
+        "content": [
+          "Also — when I walk in a valley of death-shade, I fear no evil, for Thou [art] with me, Thy rod and Thy staff — they comfort me."
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 5,
+        "content": [
+          "Thou arrangest before me a table, Over-against my adversaries, Thou hast anointed with oil my head, My cup is full!"
+        ]
+      },
+      {
+        "type": "verse",
+        "number": 6,
+        "content": [
+          "Only — goodness and kindness pursue me, All the days of my life, And my dwelling [is] in the house of Jehovah, For a length of days!"
+        ]
+      }
+    ],
+    "footnotes": []
+  },
+  "thisChapterLink": "/api/eng_ylt/PSA/23.json",
+  "thisChapterReference": {
+    "translationId": "eng_ylt",
+    "book": "PSA",
+    "chapter": 23
+  },
+  "thisChapterAudioLinks": {},
+  "nextChapterApiLink": "/api/eng_ylt/PSA/24.json",
+  "nextChapterReference": {
+    "translationId": "eng_ylt",
+    "book": "PSA",
+    "chapter": 24
+  },
+  "nextChapterAudioLinks": {},
+  "previousChapterApiLink": "/api/eng_ylt/PSA/22.json",
+  "previousChapterReference": {
+    "translationId": "eng_ylt",
+    "book": "PSA",
+    "chapter": 22
+  },
+  "previousChapterAudioLinks": {},
+  "numberOfVerses": 6
+}
