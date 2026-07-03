@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BibleWebsite, DisplayStyle } from "./types";
 import { HELLOAO_TRANSLATIONS } from "./constants";
+import { addFeedbackSetting } from "./feedback";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
   const frag = document.createDocumentFragment();
@@ -250,5 +251,8 @@ export class BibleVerseSettingTab extends PluginSettingTab {
       text: "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.",
       cls: "bible-verse-settings-note",
     });
+
+    new Setting(containerEl).setName("Feedback").setHeading();
+    addFeedbackSetting(containerEl, this.plugin.manifest.version);
   }
 }
