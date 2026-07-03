@@ -1,7 +1,7 @@
 {
   "id": "bible-verse",
   "name": "Bible Verse",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "minAppVersion": "1.4.0",
   "description": "Look up and display Bible verses directly in your notes using the HelloAO Bible API. Supports inline references, code blocks, comparison views, and multiple Bible websites. No API key required.",
   "author": "kilrkrow",
