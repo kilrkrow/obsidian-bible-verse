@@ -1,0 +1,31 @@
+name: Feature request / idea
+description: Suggest an improvement or a new capability.
+title: "[Idea]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an open-ended idea rather than a concrete request? Consider starting a
+        **[Discussion](https://github.com/kilrkrow/obsidian-bible-verse/discussions)**
+        instead — it's better for back-and-forth brainstorming.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do that's hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to see happen?
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+    validations:
+      required: false
