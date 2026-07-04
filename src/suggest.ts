@@ -111,10 +111,14 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
                 suggestions.push(`${prefix}, ${style}`);
               }
             }
+            // `nco` is a short alias for the native-callout style.
+            if ("nco".startsWith(modPart)) {
+              suggestions.push(`${prefix}, nco`);
+            }
           }
 
           // Suggest formatting flags
-          const flags = ["nl", "no-nl", "v", "no-v", "para", "no-para"];
+          const flags = ["nl", "no-nl", "v", "no-v", "para", "no-para", "bake"];
           for (const flag of flags) {
             if (flag.startsWith(modPart)) {
               suggestions.push(`${prefix}, ${flag}`);
@@ -137,6 +141,8 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
             { value: `${refStr}, sidebar`, label: "Sidebar" },
             { value: `${refStr}, blockquote`, label: "Blockquote" },
             { value: `${refStr}, inline`, label: "Inline" },
+            { value: `${refStr}, native-callout`, label: "Native callout (bakes into note)" },
+            { value: `${refStr}, bake`, label: "Bake into note" },
             { value: `${refStr}, nl`, label: "New line per verse" },
             { value: `${refStr}, no-nl`, label: "Single paragraph" },
             { value: `${refStr}, no-v`, label: "Hide verse numbers" },

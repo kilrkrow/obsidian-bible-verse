@@ -12,7 +12,7 @@ export interface BibleReference {
   raw: string;
 }
 
-export type DisplayStyle = "sidebar" | "callout" | "blockquote" | "inline";
+export type DisplayStyle = "sidebar" | "callout" | "blockquote" | "inline" | "native-callout";
 
 export type BibleWebsite = "BibleHub" | "BibleGateway" | "BlueLetter" | "BibleCom";
 
@@ -29,6 +29,8 @@ export interface BibleVerseSettings {
   paragraphBreaks: boolean;
   helperMode: boolean;
   esvApiKey: string;
+  /** Callout type used when baking as a native callout (e.g. "quote", "bible"). */
+  nativeCalloutType: string;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   paragraphBreaks: false,
   helperMode: true,
   esvApiKey: "",
+  nativeCalloutType: "quote",
 };
 
 /** Cached verse entry */

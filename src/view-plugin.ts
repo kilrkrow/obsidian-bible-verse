@@ -11,7 +11,7 @@ import { setIcon } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { parseInlineSpec, formatReference } from "./parser";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
-import { renderVerse, renderComparison, renderError } from "./renderer";
+import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
 
 // Matches {…} inline tokens (same pattern as inlinePostProcessor)
@@ -31,6 +31,7 @@ class BibleVerseWidget extends WidgetType {
       verseNewLine: boolean | null;
       showVerseNumbers: boolean | null;
       paragraphBreaks: boolean | null;
+      bake: boolean;
       cachedVerses: CachedVerse[];
       preferredWebsite: BibleWebsite;
       plugin: BibleVersePlugin;
@@ -46,6 +47,14 @@ class BibleVerseWidget extends WidgetType {
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
     const sVN = this.spec.showVerseNumbers ?? this.spec.plugin.settings.showVerseNumbers;
     const pb = this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks;
+
+    // References that bake (the `bake` token or native-callout style) show a
+    // placeholder in the editor; the actual bake happens on Reading-view render.
+    const effectiveStyle = this.spec.styleOverride ?? this.spec.plugin.settings.displayStyle;
+    if ((this.spec.bake || effectiveStyle === "native-callout") && this.spec.translations.length < 2) {
+      renderBakePending(container, this.spec.ref);
+      return container;
+    }
 
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
@@ -182,6 +191,7 @@ class BibleVerseWidget extends WidgetType {
       this.spec.verseNewLine === other.spec.verseNewLine &&
       this.spec.showVerseNumbers === other.spec.showVerseNumbers &&
       this.spec.paragraphBreaks === other.spec.paragraphBreaks &&
+      this.spec.bake === other.spec.bake &&
       this.spec.preferredWebsite === other.spec.preferredWebsite
     );
   }
@@ -251,7 +261,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const spec = parseInlineSpec(content);
             if (!spec) continue;
 
-            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks } = spec;
+            const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine ?? plugin.settings.verseNewLine;
             const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
@@ -298,6 +308,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               verseNewLine,
               showVerseNumbers,
               paragraphBreaks,
+              bake,
               cachedVerses,
               preferredWebsite: plugin.settings.preferredWebsite,
               plugin,

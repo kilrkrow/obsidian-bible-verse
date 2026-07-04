@@ -134,6 +134,10 @@ export interface InlineSpec {
   verseNewLine: boolean | null;
   showVerseNumbers: boolean | null;
   paragraphBreaks: boolean | null;
+  /** `bake` token: force a one-way bake of this reference on render. */
+  bake: boolean;
+  /** For the native-callout style: bake the callout collapsed (`nco-`). */
+  calloutCollapsed: boolean;
 }
 
 /** A translation code is word-chars only and must start with a letter. */
@@ -145,6 +149,7 @@ export const KNOWN_STYLES: readonly DisplayStyle[] = [
   "callout",
   "blockquote",
   "inline",
+  "native-callout",
 ];
 
 function isKnownStyle(token: string): token is DisplayStyle {
@@ -175,6 +180,8 @@ export function parseInlineSpec(content: string): InlineSpec | null {
       verseNewLine: null,
       showVerseNumbers: null,
       paragraphBreaks: null,
+      bake: false,
+      calloutCollapsed: false,
     };
   }
 
@@ -187,11 +194,30 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   let verseNewLine: boolean | null = null;
   let showVerseNumbers: boolean | null = null;
   let paragraphBreaks: boolean | null = null;
+  let bake = false;
+  let calloutCollapsed = false;
   let cut = parts.length;
 
   while (cut > 1) {
     const tok = parts[cut - 1];
     const low = tok.toLowerCase();
+
+    // `bake` — force a one-way bake into a ```bible code block.
+    if (low === "bake") {
+      bake = true;
+      cut--;
+      continue;
+    }
+
+    // Native callout style, incl. `nco` alias and optional +/- fold marker.
+    const ncMatch = low.match(/^(?:native-callout|nco)([+-])?$/);
+    if (ncMatch) {
+      if (styleOverride !== null) break;
+      styleOverride = "native-callout";
+      calloutCollapsed = ncMatch[1] === "-";
+      cut--;
+      continue;
+    }
 
     // Check for formatting flags
     if (low === "nl") {
@@ -249,7 +275,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   const ref = parseReference(refStr);
   if (!ref) return null;
 
-  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks };
+  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake, calloutCollapsed };
 }
 
 /**

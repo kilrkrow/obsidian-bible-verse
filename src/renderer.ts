@@ -191,6 +191,19 @@ export function renderLink(
 }
 
 /**
+ * Render a placeholder pill for a reference that will be baked (one-way) into
+ * the note the next time it renders in Reading view. Shown in the editor / Live
+ * Preview, where we don't write to the file.
+ */
+export function renderBakePending(container: HTMLElement, ref: BibleReference): void {
+  const refStr = formatReference(ref);
+  const pill = container.createSpan({ cls: "bible-verse-pill bible-verse-bake-pending" });
+  const iconSpan = pill.createSpan({ cls: "bible-verse-icon" });
+  setIcon(iconSpan, "save");
+  pill.createSpan({ text: `${refStr} — will bake` });
+}
+
+/**
  * Render a comparison/parallel view of multiple translations.
  */
 export async function renderComparison(

@@ -72,9 +72,30 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           .addOption("callout", "Callout")
           .addOption("blockquote", "Blockquote")
           .addOption("inline", "Inline")
+          .addOption("native-callout", "Native callout (bakes into note)")
           .setValue(this.plugin.settings.displayStyle)
           .onChange(async (value) => {
             this.plugin.settings.displayStyle = value as DisplayStyle;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    containerEl.createEl("p", {
+      cls: "bible-verse-settings-note",
+      text:
+        "“Bake” means writing a verse’s text permanently into your note as ordinary Markdown, so it reads without the plugin. The {…, bake} token bakes to a code block; the “Native callout” style (or {…, native-callout} / {…, nco}) bakes to a real, collapsible Obsidian callout. Baking is one-way — the plugin stops tracking it afterward. Note: choosing “Native callout” as your default here will auto-bake every scripture reference you add.",
+    });
+
+    // Native Callout Type
+    new Setting(containerEl)
+      .setName("Native callout type")
+      .setDesc(df("Callout type used when baking as a native callout — match a type your theme or icon pack styles.", "quote", "bible"))
+      .addText((text) =>
+        text
+          .setPlaceholder("quote")
+          .setValue(this.plugin.settings.nativeCalloutType)
+          .onChange(async (value) => {
+            this.plugin.settings.nativeCalloutType = value.trim() || "quote";
             await this.plugin.saveSettings();
           })
       );

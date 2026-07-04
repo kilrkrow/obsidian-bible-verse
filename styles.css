@@ -172,6 +172,12 @@
   color: var(--text-accent);
 }
 
+/* Placeholder shown in the editor for a reference that will bake on read. */
+.bible-verse-bake-pending {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ========================
    Error
    ======================== */

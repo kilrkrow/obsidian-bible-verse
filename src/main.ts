@@ -9,6 +9,7 @@ import { BibleVerseSettingTab } from "./settings";
 import {
   renderVerse,
   renderLink,
+  renderBakePending,
   renderComparison,
   renderError,
 } from "./renderer";
@@ -346,10 +347,26 @@ export default class BibleVersePlugin extends Plugin {
           const span = document.createElement("span");
           span.className = "bible-verse-container";
 
-          if (translations.length >= 2) {
+          const effectiveStyle = spec.styleOverride ?? this.settings.displayStyle;
+          // `bake` token or the native-callout style trigger a one-way bake.
+          const wantsBake = spec.bake || effectiveStyle === "native-callout";
+
+          if (wantsBake && translations.length >= 2) {
+            // Baking a side-by-side comparison isn't supported — render it live.
+            new Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
             this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            frag.appendChild(span);
+          } else if (wantsBake) {
+            // Show a placeholder now; the bake rewrites the note on Reading-view render.
+            renderBakePending(span, ref);
+            frag.appendChild(span);
+            this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
+          } else if (translations.length >= 2) {
+            this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
+            frag.appendChild(span);
           } else {
             const translationId = translations.length === 1
               ? this.resolveTranslationId(translations[0])
@@ -358,7 +375,7 @@ export default class BibleVersePlugin extends Plugin {
               ? this.getTranslationAbbr(translationId)
               : this.getTranslationAbbr();
 
-            const style = spec.styleOverride ?? this.settings.displayStyle;
+            const style = effectiveStyle;
             const vnL = spec.verseNewLine ?? this.settings.verseNewLine;
             const sVN = spec.showVerseNumbers ?? this.settings.showVerseNumbers;
             const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
@@ -370,12 +387,12 @@ export default class BibleVersePlugin extends Plugin {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
               this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
-          }
 
-          frag.appendChild(span);
+            frag.appendChild(span);
 
-          if (this.settings.persistVerseText && translations.length === 0) {
-            this.handleBake(ctx, match[0], spec);
+            if (this.settings.persistVerseText && translations.length === 0) {
+              this.handleBake(ctx, match[0], spec);
+            }
           }
         } else {
           frag.appendChild(document.createTextNode(match[0]));
@@ -462,12 +479,16 @@ export default class BibleVersePlugin extends Plugin {
   private async handleBake(
     ctx: MarkdownPostProcessorContext,
     refMarker: string,
-    spec: InlineSpec
+    spec: InlineSpec,
+    format: "codeblock" | "callout" = "codeblock"
   ): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof TFile)) return;
 
-    if (!this.settings.bakeInline) return;
+    // Forced bakes (the `bake` token / native-callout style) bypass the global
+    // "Bake inline references" gate; the passive persist path still respects it.
+    const forced = spec.bake || spec.styleOverride === "native-callout";
+    if (!forced && !this.settings.bakeInline) return;
 
     const { ref, translations, verseNewLine, showVerseNumbers } = spec;
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : undefined;
@@ -477,8 +498,17 @@ export default class BibleVersePlugin extends Plugin {
     const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined, pb);
     if (!verse) return;
 
+    const opts = format === "callout"
+      ? {
+          format: "callout" as const,
+          calloutType: this.settings.nativeCalloutType,
+          collapsed: spec.calloutCollapsed,
+          url: generateLink(ref, verse.translation, this.settings.preferredWebsite),
+        }
+      : undefined;
+
     await this.app.vault.process(file, (content) => {
-      return this.baker.bakeVerse(content, refMarker, verse, "inline");
+      return this.baker.bakeVerse(content, refMarker, verse, "inline", opts);
     });
   }
 
