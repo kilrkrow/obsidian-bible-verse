@@ -2,6 +2,29 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [1.6.5] — 2026-07-04
+
+### Added
+
+- **Bake to a native, collapsible callout** — the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](…)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.
+- **`bake` token** — `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.
+
+Baking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.
+
+## [1.6.4] — 2026-07-03
+
+### Added
+
+- **ESV (English Standard Version) inline text** — display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.
+- **In-plugin feedback** — a "Send feedback" button in settings and a "Report a bug on GitHub" command.
+- **GitHub issue templates** — structured bug-report and feature-request forms.
+
+### Fixed
+
+- **`nl` now takes effect in the inline display style** — "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).
+- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.
+- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.
+
 ## [1.6.3] — 2026-06-08
 
 ### Fixed
