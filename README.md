@@ -8,7 +8,7 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by the
 - **IntelliSense autocomplete** — Typing inside `{…}` shows book name suggestions and confirms complete references
 - **Code block display** — Use ` ```bible ` blocks for full verse rendering with custom translation
 - **Comparison view** — Compare verses across multiple translations side by side
-- **Multiple display styles** — Sidebar, Callout, Blockquote, or Inline
+- **Multiple display styles** — Sidebar, Callout, Blockquote, Inline, or Native callout (baked, collapsible)
 - **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
 - **Local caching** — Fetched verses are cached locally to reduce API calls
 - **Markdown Support** — Bold, italics, and highlights are preserved within "baked" scripture text
@@ -64,7 +64,7 @@ Selecting a book-only suggestion inserts it with a trailing space so you can con
 
 ### Inline Translation and Style Overrides
 
-Both a translation and a display style can be specified inside the braces by appending comma-separated tokens after the reference. Translation codes are matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`, `inline`) wins when ambiguous.
+Both a translation and a display style can be specified inside the braces by appending comma-separated tokens after the reference. Translation codes are matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`, `inline`, `native-callout`) wins when ambiguous.
 
 ```
 {John 3:16, KJV}                  -- override translation
@@ -86,6 +86,21 @@ You can override your global settings for verse numbers and line breaks on a per
 {John 3:16-17, KJV, nl}          -- KJV with each verse on a new line
 {John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
 ```
+
+### Baking into your note (`bake` and `native-callout`)
+
+"Baking" writes a verse's **text permanently into your note** as ordinary Markdown, so it reads even without the plugin. Two tokens trigger a one-way bake on render — after which the plugin no longer tracks that reference (it's just text you own):
+
+*   `bake` — bakes into a ` ```bible ` code block (the same format as the bake commands).
+*   `native-callout` (alias `nco`) — bakes into a real, **collapsible** Obsidian callout: `> [!quote]+ [John 3:16 (KJV)](…)`. Because it's a genuine callout, it inherits your theme, icon packs, and fold behavior. Add `-` to start it collapsed (`nco-`), `+` to force expanded.
+
+```
+{John 3:16, bake}                -- bake into a code block
+{John 3:16, native-callout}      -- bake into a collapsible callout (expanded)
+{John 3:16, ESV, nco-}           -- ESV, baked as a callout that starts collapsed
+```
+
+The callout type (default `quote`) is configurable in **Settings → Bible Verse → Native callout type** — set it to `bible` (or whatever your icon pack defines) to apply custom icons. Selecting **Native callout** as your *default* display style will auto-bake every reference you add. In the editor, a reference that will bake shows a placeholder pill until the note is viewed in Reading mode.
 
 ### ESV (with your own API key)
 

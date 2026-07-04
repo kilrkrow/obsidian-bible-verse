@@ -10,6 +10,35 @@ const CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
 
 const CODEBLOCK_BAKE_SEPARATOR = "\n---\n";
 
+/**
+ * Render a verse as native Obsidian callout markdown (a one-way bake).
+ * Every line is quote-prefixed; blank lines become bare ">". The title links
+ * to the source website, and required attribution (e.g. ESV) is appended.
+ * Pure function — exported for testing.
+ */
+export function formatCalloutBake(
+  verse: CachedVerse,
+  calloutType: string,
+  collapsed: boolean,
+  url: string
+): string {
+  const fold = collapsed ? "-" : "+";
+  const title = `[${verse.reference} (${verse.translation})](${url})`;
+  const lines = verse.text.split("\n").map((l) => (l.length > 0 ? `> ${l}` : ">"));
+  if (verse.requireAttribution && verse.copyright) {
+    lines.push(">");
+    lines.push(`> ${verse.copyright}`);
+  }
+  return `> [!${calloutType}]${fold} ${title}\n${lines.join("\n")}`;
+}
+
+export interface InlineBakeOptions {
+  format?: "codeblock" | "callout";
+  calloutType?: string;
+  collapsed?: boolean;
+  url?: string;
+}
+
 export class Baker {
   private app: App;
 
@@ -96,11 +125,14 @@ export class Baker {
    * Bake a verse into the content.
    * If it's an inline reference, it is CONVERTED to a code block.
    */
-  bakeVerse(content: string, refRaw: string, verse: CachedVerse, type: "inline" | "block" = "inline"): string {
+  bakeVerse(content: string, refRaw: string, verse: CachedVerse, type: "inline" | "block" = "inline", opts?: InlineBakeOptions): string {
     if (type === "inline") {
-      // Convert to code block format
-      const block = `\`\`\`bible\n${verse.reference}\ntranslation: ${verse.translation}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
-      return content.replace(refRaw, block);
+      // Convert to a native callout (one-way) or the default ```bible code block.
+      const block = opts?.format === "callout"
+        ? formatCalloutBake(verse, opts.calloutType ?? "quote", opts.collapsed ?? false, opts.url ?? "")
+        : `\`\`\`bible\n${verse.reference}\ntranslation: ${verse.translation}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
+      // Use a replacer function so `$` in verse text isn't treated as a pattern.
+      return content.replace(refRaw, () => block);
     } else {
       // Code block baking
       const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
