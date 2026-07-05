@@ -27,7 +27,7 @@ export function flattenInlineContent(container: HTMLElement, verseNewLine: boole
       container.insertBefore(p.firstChild, p);
     }
     if (i < paragraphs.length - 1) {
-      const sep = document.createElement("span");
+      const sep = activeDocument.createElement("span");
       sep.className = "bible-verse-para-break";
       container.insertBefore(sep, p);
     }
@@ -40,11 +40,11 @@ export function flattenInlineContent(container: HTMLElement, verseNewLine: boole
       (next as Text).data = (next as Text).data.slice(1);
     }
     if (verseNewLine) {
-      const lineBreak = document.createElement("span");
+      const lineBreak = activeDocument.createElement("span");
       lineBreak.className = "bible-verse-line-break";
       br.replaceWith(lineBreak);
     } else {
-      br.replaceWith(document.createTextNode(" "));
+      br.replaceWith(activeDocument.createTextNode(" "));
     }
   }
 }

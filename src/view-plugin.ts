@@ -41,12 +41,10 @@ class BibleVerseWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const container = document.createElement("span");
+    const container = activeDocument.createElement("span");
     container.className = "bible-verse-livepreview";
 
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
-    const sVN = this.spec.showVerseNumbers ?? this.spec.plugin.settings.showVerseNumbers;
-    const pb = this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks;
 
     // References that bake (the `bake` token or native-callout style) show a
     // placeholder in the editor; the actual bake happens on Reading-view render.
@@ -63,7 +61,7 @@ class BibleVerseWidget extends WidgetType {
 
     if (this.spec.translations.length >= 2) {
       if (this.spec.cachedVerses.length === this.spec.translations.length) {
-        renderComparison(
+        void renderComparison(
           container,
           this.spec.ref,
           this.spec.cachedVerses,
@@ -74,12 +72,12 @@ class BibleVerseWidget extends WidgetType {
         );
       } else {
         this.renderPill(container);
-        this.fetchAndUpdate(container, view);
+        void this.fetchAndUpdate(container, view);
       }
     } else {
       const cached = this.spec.cachedVerses[0];
       if (cached) {
-        renderVerse(
+        void renderVerse(
           container,
           this.spec.ref,
           cached,
@@ -93,7 +91,7 @@ class BibleVerseWidget extends WidgetType {
         );
       } else {
         this.renderPill(container);
-        this.fetchAndUpdate(container, view);
+        void this.fetchAndUpdate(container, view);
       }
     }
 
@@ -101,7 +99,7 @@ class BibleVerseWidget extends WidgetType {
   }
 
   private renderPill(container: HTMLElement): void {
-    const a = document.createElement("a");
+    const a = activeDocument.createElement("a");
     a.className = "bible-verse-pill";
     
     const iconSpan = a.createSpan({ cls: "bible-verse-icon" });

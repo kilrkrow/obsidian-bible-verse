@@ -10,6 +10,11 @@ export interface PassageSettings {
   paragraphBreaks: boolean;
 }
 
+/** Shape of the ESV passage-text endpoint response we rely on. */
+interface EsvPassageResponse {
+  passages?: string[];
+}
+
 /**
  * Fetch a passage from the ESV API (api.esv.org).
  * Requires a user-supplied API key.
@@ -32,8 +37,8 @@ export async function fetchEsvPassage(
     throw new Error(`ESV API returned status ${response.status}`);
   }
 
-  const data = response.json;
-  const passages: string[] = data.passages;
+  const data = response.json as EsvPassageResponse;
+  const passages = data.passages;
   if (!passages || passages.length === 0) {
     throw new Error(`No passages returned for ${refStr}`);
   }

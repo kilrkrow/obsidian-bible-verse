@@ -2,6 +2,10 @@
 import { describe, it, expect } from "vitest";
 import { flattenInlineContent } from "../src/inline-dom";
 
+// The plugin uses Obsidian's `activeDocument` global (for popout-window support);
+// under jsdom we point it at the test document.
+(globalThis as unknown as { activeDocument: Document }).activeDocument = document;
+
 /**
  * Build a container populated as Obsidian's MarkdownRenderer would for inline
  * text: single "\n" separators become `<br>` followed by a "\n" text node;
