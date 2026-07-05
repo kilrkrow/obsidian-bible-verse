@@ -1220,11 +1220,11 @@ function addFeedbackSetting(containerEl, pluginVersion) {
 
 // src/settings.ts
 function df(text, ...examples) {
-  const frag = document.createDocumentFragment();
-  frag.appendChild(document.createTextNode(text));
+  const frag = activeDocument.createDocumentFragment();
+  frag.appendChild(activeDocument.createTextNode(text));
   for (const ex of examples) {
-    frag.appendChild(document.createTextNode(" "));
-    const code = document.createElement("code");
+    frag.appendChild(activeDocument.createTextNode(" "));
+    const code = activeDocument.createElement("code");
     code.textContent = ex;
     frag.appendChild(code);
   }
@@ -1271,7 +1271,7 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
       })
     );
     new import_obsidian4.Setting(containerEl).setName("Sidebar top padding").setDesc("Adjust the top spacing for the Sidebar style (in ems)").addSlider(
-      (slider) => slider.setLimits(0, 2, 0.1).setValue(this.plugin.settings.sidebarTopPadding).setDynamicTooltip().onChange(async (value) => {
+      (slider) => slider.setLimits(0, 2, 0.1).setValue(this.plugin.settings.sidebarTopPadding).onChange(async (value) => {
         this.plugin.settings.sidebarTopPadding = value;
         await this.plugin.saveSettings();
         this.plugin.updateStyles();
@@ -1464,7 +1464,7 @@ function flattenInlineContent(container, verseNewLine) {
       container.insertBefore(p.firstChild, p);
     }
     if (i < paragraphs.length - 1) {
-      const sep = document.createElement("span");
+      const sep = activeDocument.createElement("span");
       sep.className = "bible-verse-para-break";
       container.insertBefore(sep, p);
     }
@@ -1476,11 +1476,11 @@ function flattenInlineContent(container, verseNewLine) {
       next.data = next.data.slice(1);
     }
     if (verseNewLine) {
-      const lineBreak = document.createElement("span");
+      const lineBreak = activeDocument.createElement("span");
       lineBreak.className = "bible-verse-line-break";
       br.replaceWith(lineBreak);
     } else {
-      br.replaceWith(document.createTextNode(" "));
+      br.replaceWith(activeDocument.createTextNode(" "));
     }
   }
 }
@@ -1910,13 +1910,11 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     this.spec = spec;
   }
   toDOM(view) {
-    var _a, _b, _c, _d, _e, _f;
-    const container = document.createElement("span");
+    var _a, _b, _c, _d;
+    const container = activeDocument.createElement("span");
     container.className = "bible-verse-livepreview";
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
-    const sVN = (_b = this.spec.showVerseNumbers) != null ? _b : this.spec.plugin.settings.showVerseNumbers;
-    const pb = (_c = this.spec.paragraphBreaks) != null ? _c : this.spec.plugin.settings.paragraphBreaks;
-    const effectiveStyle = (_d = this.spec.styleOverride) != null ? _d : this.spec.plugin.settings.displayStyle;
+    const effectiveStyle = (_b = this.spec.styleOverride) != null ? _b : this.spec.plugin.settings.displayStyle;
     if ((this.spec.bake || effectiveStyle === "native-callout") && this.spec.translations.length < 2) {
       renderBakePending(container, this.spec.ref);
       return container;
@@ -1927,7 +1925,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     }
     if (this.spec.translations.length >= 2) {
       if (this.spec.cachedVerses.length === this.spec.translations.length) {
-        renderComparison(
+        void renderComparison(
           container,
           this.spec.ref,
           this.spec.cachedVerses,
@@ -1938,32 +1936,32 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         );
       } else {
         this.renderPill(container);
-        this.fetchAndUpdate(container, view);
+        void this.fetchAndUpdate(container, view);
       }
     } else {
       const cached = this.spec.cachedVerses[0];
       if (cached) {
-        renderVerse(
+        void renderVerse(
           container,
           this.spec.ref,
           cached,
-          (_e = this.spec.styleOverride) != null ? _e : this.spec.plugin.settings.displayStyle,
+          (_c = this.spec.styleOverride) != null ? _c : this.spec.plugin.settings.displayStyle,
           this.spec.preferredWebsite,
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin,
-          (_f = this.spec.paragraphBreaks) != null ? _f : this.spec.plugin.settings.paragraphBreaks,
+          (_d = this.spec.paragraphBreaks) != null ? _d : this.spec.plugin.settings.paragraphBreaks,
           vnL
         );
       } else {
         this.renderPill(container);
-        this.fetchAndUpdate(container, view);
+        void this.fetchAndUpdate(container, view);
       }
     }
     return container;
   }
   renderPill(container) {
-    const a = document.createElement("a");
+    const a = activeDocument.createElement("a");
     a.className = "bible-verse-pill";
     const iconSpan = a.createSpan({ cls: "bible-verse-icon" });
     (0, import_obsidian8.setIcon)(iconSpan, "book-open");
@@ -2308,7 +2306,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           new import_obsidian10.Notice("No text selected.");
           return;
         }
-        navigator.clipboard.writeText(selection.trim());
+        void navigator.clipboard.writeText(selection.trim());
         new import_obsidian10.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
@@ -2346,10 +2344,11 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     });
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const saved = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
   }
   updateStyles() {
-    document.body.style.setProperty(
+    activeDocument.body.style.setProperty(
       "--bible-verse-sidebar-top-padding",
       `${this.settings.sidebarTopPadding}em`
     );
@@ -2429,7 +2428,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   async inlinePostProcessor(el, ctx) {
     var _a, _b, _c, _d, _e, _f, _g;
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
     let node;
     while (node = walker.nextNode()) {
@@ -2441,31 +2440,31 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     }
     for (const { node: node2, matches } of nodesToProcess) {
       const text = node2.textContent || "";
-      const frag = document.createDocumentFragment();
+      const frag = activeDocument.createDocumentFragment();
       let lastIndex = 0;
       for (const match of matches) {
         const matchIndex = match.index;
         if (matchIndex > lastIndex) {
-          frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
+          frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
         }
         const rawContent = match[1].trim();
         const spec = parseInlineSpec(rawContent);
         if (spec) {
           const { ref, translations } = spec;
-          const span = document.createElement("span");
+          const span = activeDocument.createElement("span");
           span.className = "bible-verse-container";
           const effectiveStyle = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
           const wantsBake = spec.bake || effectiveStyle === "native-callout";
           if (wantsBake && translations.length >= 2) {
             new import_obsidian10.Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
-            this.renderInlineComparison(span, ref, translations, (_b = spec.paragraphBreaks) != null ? _b : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_b = spec.paragraphBreaks) != null ? _b : void 0);
             frag.appendChild(span);
           } else if (wantsBake) {
             renderBakePending(span, ref);
             frag.appendChild(span);
-            this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
+            void this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
           } else if (translations.length >= 2) {
-            this.renderInlineComparison(span, ref, translations, (_c = spec.paragraphBreaks) != null ? _c : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_c = spec.paragraphBreaks) != null ? _c : void 0);
             frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
@@ -2482,20 +2481,20 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
+              void this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
             frag.appendChild(span);
             if (this.settings.persistVerseText && translations.length === 0) {
-              this.handleBake(ctx, match[0], spec);
+              void this.handleBake(ctx, match[0], spec);
             }
           }
         } else {
-          frag.appendChild(document.createTextNode(match[0]));
+          frag.appendChild(activeDocument.createTextNode(match[0]));
         }
         lastIndex = matchIndex + match[0].length;
       }
       if (lastIndex < text.length) {
-        frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+        frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex)));
       }
       (_g = node2.parentNode) == null ? void 0 : _g.replaceChild(frag, node2);
     }
@@ -2696,7 +2695,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     return generateLink(ref, translationAbbr, this.settings.preferredWebsite);
   }
   onunload() {
-    document.body.style.removeProperty("--bible-verse-sidebar-top-padding");
+    activeDocument.body.style.removeProperty("--bible-verse-sidebar-top-padding");
   }
   /**
    * Force a refresh of all Live Preview widgets in all open editors.

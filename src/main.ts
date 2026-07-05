@@ -168,7 +168,7 @@ export default class BibleVersePlugin extends Plugin {
           new Notice("No text selected.");
           return;
         }
-        navigator.clipboard.writeText(selection.trim());
+        void navigator.clipboard.writeText(selection.trim());
         new Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
@@ -212,11 +212,12 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const saved = (await this.loadData()) as Partial<BibleVerseSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
   }
 
   updateStyles(): void {
-    document.body.style.setProperty(
+    activeDocument.body.style.setProperty(
       "--bible-verse-sidebar-top-padding",
       `${this.settings.sidebarTopPadding}em`
     );
@@ -316,7 +317,7 @@ export default class BibleVersePlugin extends Plugin {
   ): Promise<void> {
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess: { node: Text; matches: RegExpMatchArray[] }[] = [];
 
     let node: Text | null;
@@ -330,13 +331,13 @@ export default class BibleVersePlugin extends Plugin {
 
     for (const { node, matches } of nodesToProcess) {
       const text = node.textContent || "";
-      const frag = document.createDocumentFragment();
+      const frag = activeDocument.createDocumentFragment();
       let lastIndex = 0;
 
       for (const match of matches) {
         const matchIndex = match.index!;
         if (matchIndex > lastIndex) {
-          frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
+          frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
         }
 
         const rawContent = match[1].trim();
@@ -344,7 +345,7 @@ export default class BibleVersePlugin extends Plugin {
 
         if (spec) {
           const { ref, translations } = spec;
-          const span = document.createElement("span");
+          const span = activeDocument.createElement("span");
           span.className = "bible-verse-container";
 
           const effectiveStyle = spec.styleOverride ?? this.settings.displayStyle;
@@ -354,15 +355,15 @@ export default class BibleVersePlugin extends Plugin {
           if (wantsBake && translations.length >= 2) {
             // Baking a side-by-side comparison isn't supported — render it live.
             new Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
-            this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
             frag.appendChild(span);
           } else if (wantsBake) {
             // Show a placeholder now; the bake rewrites the note on Reading-view render.
             renderBakePending(span, ref);
             frag.appendChild(span);
-            this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
+            void this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
           } else if (translations.length >= 2) {
-            this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
             frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
@@ -385,24 +386,24 @@ export default class BibleVersePlugin extends Plugin {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
-              this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
+              void this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
 
             frag.appendChild(span);
 
             if (this.settings.persistVerseText && translations.length === 0) {
-              this.handleBake(ctx, match[0], spec);
+              void this.handleBake(ctx, match[0], spec);
             }
           }
         } else {
-          frag.appendChild(document.createTextNode(match[0]));
+          frag.appendChild(activeDocument.createTextNode(match[0]));
         }
 
         lastIndex = matchIndex + match[0].length;
       }
 
       if (lastIndex < text.length) {
-        frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+        frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex)));
       }
 
       node.parentNode?.replaceChild(frag, node);
@@ -671,7 +672,7 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   onunload(): void {
-    document.body.style.removeProperty("--bible-verse-sidebar-top-padding");
+    activeDocument.body.style.removeProperty("--bible-verse-sidebar-top-padding");
   }
 
   /**

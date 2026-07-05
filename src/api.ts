@@ -7,6 +7,12 @@ import { assembleChapterText, computeRequestedVerses } from "./format";
 
 const BASE_URL = "https://bible.helloao.org/api";
 
+/** Shape of the HelloAO chapter endpoint response we rely on. */
+interface HelloAoChapterResponse {
+  chapter: { content: unknown[] };
+  translation?: { licenseUrl?: string };
+}
+
 /**
  * Client for the HelloAO Bible API.
  * Fetches whole chapters and extracts specific verses client-side.
@@ -53,7 +59,7 @@ export class BibleApi {
       throw new Error(`HelloAO API returned status ${response.status}`);
     }
 
-    const data = response.json;
+    const data = response.json as HelloAoChapterResponse;
     const chapterContent: unknown[] = data.chapter.content;
     const requestedVerses = computeRequestedVerses(ref);
 

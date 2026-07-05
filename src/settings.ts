@@ -5,11 +5,11 @@ import { HELLOAO_TRANSLATIONS } from "./constants";
 import { addFeedbackSetting } from "./feedback";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
-  const frag = document.createDocumentFragment();
-  frag.appendChild(document.createTextNode(text));
+  const frag = activeDocument.createDocumentFragment();
+  frag.appendChild(activeDocument.createTextNode(text));
   for (const ex of examples) {
-    frag.appendChild(document.createTextNode(" "));
-    const code = document.createElement("code");
+    frag.appendChild(activeDocument.createTextNode(" "));
+    const code = activeDocument.createElement("code");
     code.textContent = ex;
     frag.appendChild(code);
   }
@@ -108,7 +108,6 @@ export class BibleVerseSettingTab extends PluginSettingTab {
         slider
           .setLimits(0, 2, 0.1)
           .setValue(this.plugin.settings.sidebarTopPadding)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.sidebarTopPadding = value;
             await this.plugin.saveSettings();

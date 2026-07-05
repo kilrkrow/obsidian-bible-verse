@@ -39,7 +39,7 @@ export class VerseCache {
     for (const file of files.files) {
       try {
         const data = await adapter.read(file);
-        const entry: CachedVerse = JSON.parse(data);
+        const entry = JSON.parse(data) as CachedVerse;
         // Note: Old cache entries won't have the new naming scheme but will be
         // re-cached correctly when fetched. We'll derive the key from the filename
         // if possible, or just let it re-cache.

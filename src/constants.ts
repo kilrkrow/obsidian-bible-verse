@@ -292,7 +292,7 @@ export const HELLOAO_TRANSLATIONS: TranslationDef[] = [
  * Mapping from HelloAO translation ID → short display abbreviation.
  */
 export const HELLOAO_ABBREV: Record<string, string> = Object.fromEntries(
-  HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation])
+  HELLOAO_TRANSLATIONS.map((t) => [t.id, t.abbreviation] as [string, string])
 );
 
 

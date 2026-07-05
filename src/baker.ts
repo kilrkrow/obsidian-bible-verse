@@ -1,6 +1,6 @@
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
-import { parseReference, formatReference, parseInlineSpec } from "./parser";
+import { parseReference, parseInlineSpec } from "./parser";
 
 /** Regex to find {ref} patterns in note source */
 const INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
@@ -39,6 +39,18 @@ export interface InlineBakeOptions {
   url?: string;
 }
 
+/** A bakeable reference (inline token or ```bible block) located in note text. */
+export interface ExtractedReference {
+  raw: string;
+  ref: BibleReference | null;
+  offset: number;
+  type: "inline" | "block";
+  body?: string;
+  translations?: string[];
+  verseNewLine?: boolean | null;
+  showVerseNumbers?: boolean | null;
+}
+
 export class Baker {
   private app: App;
 
@@ -59,7 +71,7 @@ export class Baker {
     verseNewLine?: boolean | null;
     showVerseNumbers?: boolean | null;
   }[] {
-    const results: any[] = [];
+    const results: ExtractedReference[] = [];
     
     // 1. Find inline references (only if requested)
     if (includeInline) {
@@ -92,7 +104,7 @@ export class Baker {
         const ref = parseReference(lines[0].trim());
         
         // Parse config from block body
-        const config: any = {};
+        const config: Record<string, string | undefined> = {};
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           const colonIdx = line.indexOf(":");
@@ -109,7 +121,7 @@ export class Baker {
           offset: match.index,
           type: "block",
           body: body,
-          translations: config.translation ? [config.translation] : (config.compare ? config.compare.split(",").map((s:any) => s.trim()) : []),
+          translations: config.translation ? [config.translation] : (config.compare ? config.compare.split(",").map((s) => s.trim()) : []),
           verseNewLine: config.newline !== undefined ? config.newline === "true" : null,
           showVerseNumbers: (config.numbers !== undefined || config["verse-numbers"] !== undefined) 
             ? (config.numbers ?? config["verse-numbers"]) === "true" 
