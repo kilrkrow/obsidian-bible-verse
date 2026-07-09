@@ -37,6 +37,25 @@ export interface InlineBakeOptions {
   calloutType?: string;
   collapsed?: boolean;
   url?: string;
+  /** Effective formatting flags at bake time — frozen into the block header. */
+  verseNewLine?: boolean;
+  showVerseNumbers?: boolean;
+  style?: string;
+}
+
+/**
+ * Render a verse as a ```bible code block with the text baked below the
+ * separator. The formatting flags in effect at bake time (newline, numbers,
+ * style) are frozen into the block header so the baked block keeps rendering
+ * the same way regardless of the user's global settings (#37).
+ * Pure function — exported for testing.
+ */
+export function formatCodeBlockBake(verse: CachedVerse, opts?: InlineBakeOptions): string {
+  let header = `${verse.reference}\ntranslation: ${verse.translation}`;
+  if (opts?.verseNewLine !== undefined) header += `\nnewline: ${opts.verseNewLine}`;
+  if (opts?.showVerseNumbers !== undefined) header += `\nnumbers: ${opts.showVerseNumbers}`;
+  if (opts?.style) header += `\nstyle: ${opts.style}`;
+  return `\`\`\`bible\n${header}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
 }
 
 /** A bakeable reference (inline token or ```bible block) located in note text. */
@@ -49,6 +68,7 @@ export interface ExtractedReference {
   translations?: string[];
   verseNewLine?: boolean | null;
   showVerseNumbers?: boolean | null;
+  styleOverride?: string | null;
 }
 
 export class Baker {
@@ -61,16 +81,7 @@ export class Baker {
   /**
    * Extract all bakeable references from note content.
    */
-  extractReferences(content: string, includeInline: boolean): { 
-    raw: string; 
-    ref: BibleReference | null; 
-    offset: number; 
-    type: "inline" | "block"; 
-    body?: string;
-    translations?: string[];
-    verseNewLine?: boolean | null;
-    showVerseNumbers?: boolean | null;
-  }[] {
+  extractReferences(content: string, includeInline: boolean): ExtractedReference[] {
     const results: ExtractedReference[] = [];
     
     // 1. Find inline references (only if requested)
@@ -87,7 +98,8 @@ export class Baker {
             type: "inline",
             translations: spec.translations,
             verseNewLine: spec.verseNewLine,
-            showVerseNumbers: spec.showVerseNumbers
+            showVerseNumbers: spec.showVerseNumbers,
+            styleOverride: spec.styleOverride
           });
         }
       }
@@ -142,7 +154,7 @@ export class Baker {
       // Convert to a native callout (one-way) or the default ```bible code block.
       const block = opts?.format === "callout"
         ? formatCalloutBake(verse, opts.calloutType ?? "quote", opts.collapsed ?? false, opts.url ?? "")
-        : `\`\`\`bible\n${verse.reference}\ntranslation: ${verse.translation}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
+        : formatCodeBlockBake(verse, opts);
       // Use a replacer function so `$` in verse text isn't treated as a pattern.
       return content.replace(refRaw, () => block);
     } else {
@@ -177,35 +189,42 @@ export class Baker {
     content: string,
     bakeInline: boolean,
     fetchVerse: (
-      ref: BibleReference, 
-      transId?: string, 
-      transAbbr?: string, 
-      nl?: boolean, 
+      ref: BibleReference,
+      transId?: string,
+      transAbbr?: string,
+      nl?: boolean,
       vn?: boolean
-    ) => Promise<CachedVerse | null>
+    ) => Promise<CachedVerse | null>,
+    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
   ): Promise<string> {
     const refs = this.extractReferences(content, bakeInline);
     if (refs.length === 0) return content;
 
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers } = refs[i];
+      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride } = refs[i];
       if (!ref) continue;
 
       // We only bake single translation blocks for now
       const trans = (translations && translations.length === 1) ? translations[0] : undefined;
 
       const verse = await fetchVerse(
-        ref, 
-        trans, 
-        undefined, 
-        verseNewLine ?? undefined, 
+        ref,
+        trans,
+        undefined,
+        verseNewLine ?? undefined,
         showVerseNumbers ?? undefined
       );
       if (!verse) continue;
 
       if (type === "inline") {
-        const block = `\`\`\`bible\n${verse.reference}\ntranslation: ${verse.translation}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
+        // Freeze the effective formatting flags into the block header so the
+        // baked block renders as fetched, independent of global settings (#37).
+        const block = formatCodeBlockBake(verse, {
+          verseNewLine: verseNewLine ?? defaults?.verseNewLine,
+          showVerseNumbers: showVerseNumbers ?? defaults?.showVerseNumbers,
+          style: styleOverride && styleOverride !== "native-callout" ? styleOverride : undefined,
+        });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);
       } else {
         const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
@@ -226,12 +245,13 @@ export class Baker {
     action: "bake" | "strip",
     bakeInline: boolean,
     fetchVerse?: (
-      ref: BibleReference, 
-      transId?: string, 
-      transAbbr?: string, 
-      nl?: boolean, 
+      ref: BibleReference,
+      transId?: string,
+      transAbbr?: string,
+      nl?: boolean,
       vn?: boolean
-    ) => Promise<CachedVerse | null>
+    ) => Promise<CachedVerse | null>,
+    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
   ): Promise<number> {
     const files = this.app.vault.getMarkdownFiles();
     let count = 0;
@@ -243,7 +263,7 @@ export class Baker {
       if (action === "strip") {
         newContent = this.stripBakedText(content);
       } else if (fetchVerse) {
-        newContent = await this.bakeFile(content, bakeInline, fetchVerse);
+        newContent = await this.bakeFile(content, bakeInline, fetchVerse, defaults);
       } else {
         continue;
       }
