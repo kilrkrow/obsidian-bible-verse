@@ -10,7 +10,7 @@ import {
 } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
-import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec } from "./parser";
+import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec, closingBraceState } from "./parser";
 
 interface BibleSuggestion {
   value: string;
@@ -57,6 +57,9 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
     // Find the nearest unclosed { before the cursor
     const openBrace = beforeCursor.lastIndexOf("{");
     if (openBrace === -1) return null;
+
+    // Escaped token (\{...) — the user wants literal braces; stay quiet (#28)
+    if (openBrace > 0 && line[openBrace - 1] === "\\") return null;
 
     // If there is a } between { and cursor, the brace is already closed
     const afterOpen = beforeCursor.substring(openBrace + 1);
@@ -247,20 +250,28 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
     const editor = context.editor;
     const line = editor.getLine(context.start.line);
 
-    // Check whether there is already a closing } immediately after the cursor
-    const charAfterEnd = line[context.end.ch];
-    const hasClosingBrace = charAfterEnd === "}";
+    // Classify the closing brace to the right of the cursor (#36): immediate
+    // (auto-pair), later on the line (mid-token edit), or absent.
+    const braceState = closingBraceState(line.slice(context.end.ch));
 
     const isCompleteRef = /\d/.test(value);
 
     if (isCompleteRef) {
       // Insert the formatted reference; handle the closing brace
-      if (hasClosingBrace) {
+      if (braceState === "immediate") {
         // Auto-paired } is already there — just replace content, skip past }
         editor.replaceRange(value, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
           ch: context.start.ch + value.length + 1, // +1 to land after the }
+        });
+      } else if (braceState === "later") {
+        // The token is already closed further right (the user is editing
+        // mid-token) — never add a second brace; leave the cursor in place.
+        editor.replaceRange(value, context.start, context.end);
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + value.length,
         });
       } else {
         // No closing brace yet — add one

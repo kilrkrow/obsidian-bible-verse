@@ -321,6 +321,24 @@ export default class BibleVersePlugin extends Plugin {
   ): Promise<void> {
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
+    // Markdown escaping consumes "\{" before rendering, so in the DOM an
+    // escaped token is indistinguishable from a live one. Read the section
+    // source and budget how many instances of each token string were escaped;
+    // that many matches are left as literal text below (#28).
+    const escapedBudget = new Map<string, number>();
+    const sectionInfo = ctx.getSectionInfo(el);
+    if (sectionInfo) {
+      const sectionSource = sectionInfo.text
+        .split("\n")
+        .slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1)
+        .join("\n");
+      const escapedRe = /\\(\{[A-Za-z0-9][^}\n]*\})/g;
+      let escMatch: RegExpExecArray | null;
+      while ((escMatch = escapedRe.exec(sectionSource)) !== null) {
+        escapedBudget.set(escMatch[1], (escapedBudget.get(escMatch[1]) ?? 0) + 1);
+      }
+    }
+
     const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess: { node: Text; matches: RegExpMatchArray[] }[] = [];
 
@@ -342,6 +360,15 @@ export default class BibleVersePlugin extends Plugin {
         const matchIndex = match.index!;
         if (matchIndex > lastIndex) {
           frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
+        }
+
+        // Escaped in the source (\{...}) — keep it as literal text (#28)
+        const escapesLeft = escapedBudget.get(match[0]) ?? 0;
+        if (escapesLeft > 0) {
+          escapedBudget.set(match[0], escapesLeft - 1);
+          frag.appendChild(activeDocument.createTextNode(match[0]));
+          lastIndex = matchIndex + match[0].length;
+          continue;
         }
 
         const rawContent = match[1].trim();

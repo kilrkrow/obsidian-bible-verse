@@ -89,6 +89,8 @@ export class Baker {
       let match;
       const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
       while ((match = inlineRegex.exec(content)) !== null) {
+        // Escaped token (\{...}) — literal text, never bake it (#28)
+        if (match.index > 0 && content[match.index - 1] === "\\") continue;
         const spec = parseInlineSpec(match[1]);
         if (spec) {
           results.push({
