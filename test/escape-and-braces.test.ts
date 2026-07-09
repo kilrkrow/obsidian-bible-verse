@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { App } from "obsidian";
-import { closingBraceState } from "../src/parser";
+import { closingBraceState, mergeTokenRemainder } from "../src/parser";
 import { Baker } from "../src/baker";
 
 describe("closingBraceState (#36)", () => {
@@ -22,6 +22,38 @@ describe("closingBraceState (#36)", () => {
   it("none: no closing brace on the line", () => {
     expect(closingBraceState("")).toBe("none");
     expect(closingBraceState(" plain text")).toBe("none");
+  });
+});
+
+describe("mergeTokenRemainder (#36)", () => {
+  it("re-attaches the leftover token text, comma-joined (the repro)", () => {
+    // {1 Kings 1:1, inline, no|KJV} — accept "…, no-nl" with "KJV" remaining
+    expect(mergeTokenRemainder("1 Kings 1:1, inline, no-nl", "KJV")).toBe(
+      "1 Kings 1:1, inline, no-nl, KJV"
+    );
+  });
+
+  it("trims whitespace and leading commas in the remainder", () => {
+    expect(mergeTokenRemainder("John 3:16, nl", " KJV")).toBe("John 3:16, nl, KJV");
+    expect(mergeTokenRemainder("John 3:16, nl", ", KJV")).toBe("John 3:16, nl, KJV");
+  });
+
+  it("does not duplicate parts the suggestion already contains", () => {
+    // The KJVKJV case: suggestion already ends with KJV, remainder is KJV
+    expect(mergeTokenRemainder("1 Kings 1:1, inline, no-nl, KJV", "KJV")).toBe(
+      "1 Kings 1:1, inline, no-nl, KJV"
+    );
+  });
+
+  it("keeps multiple leftover parts", () => {
+    expect(mergeTokenRemainder("John 3:16, no-v", "KJV, callout")).toBe(
+      "John 3:16, no-v, KJV, callout"
+    );
+  });
+
+  it("empty/whitespace remainder leaves the value untouched", () => {
+    expect(mergeTokenRemainder("John 3:16, nl", "")).toBe("John 3:16, nl");
+    expect(mergeTokenRemainder("John 3:16, nl", "  ")).toBe("John 3:16, nl");
   });
 });
 

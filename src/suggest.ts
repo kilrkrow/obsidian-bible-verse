@@ -10,11 +10,15 @@ import {
 } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BOOK_ALIASES, USFM_CODES, HELLOAO_TRANSLATIONS } from "./constants";
-import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec, closingBraceState } from "./parser";
+import { parseReference, formatReference, KNOWN_STYLES, parseInlineSpec, closingBraceState, mergeTokenRemainder } from "./parser";
 
 interface BibleSuggestion {
   value: string;
   label?: string;
+  /** True for book-name suggestions (insertion keeps the cursor inside the
+   * braces so the user can continue typing chapter:verse). Explicit flag —
+   * inferring from digits misclassifies numbered books like "1 Kings" (#23). */
+  isBook?: boolean;
 }
 
 /**
@@ -187,7 +191,7 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
       }
     }
 
-    return results.slice(0, this.limit).map(book => ({ value: book }));
+    return results.slice(0, this.limit).map(book => ({ value: book, isBook: true }));
   }
 
   /** Render a single suggestion row in the dropdown. */
@@ -254,7 +258,9 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
     // (auto-pair), later on the line (mid-token edit), or absent.
     const braceState = closingBraceState(line.slice(context.end.ch));
 
-    const isCompleteRef = /\d/.test(value);
+    // Book suggestions are flagged explicitly — testing the value for digits
+    // misclassifies numbered books ("1 Kings") as complete references (#23).
+    const isCompleteRef = !item.isBook && /\d/.test(value);
 
     if (isCompleteRef) {
       // Insert the formatted reference; handle the closing brace
@@ -266,12 +272,17 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
           ch: context.start.ch + value.length + 1, // +1 to land after the }
         });
       } else if (braceState === "later") {
-        // The token is already closed further right (the user is editing
-        // mid-token) — never add a second brace; leave the cursor in place.
-        editor.replaceRange(value, context.start, context.end);
+        // The token is already closed further right (mid-token edit). Accept
+        // the suggestion, then re-attach the leftover token text (e.g. "KJV")
+        // comma-joined — never dropping it and never duplicating parts the
+        // suggestion already contains (#36).
+        const closeCh = context.end.ch + line.slice(context.end.ch).indexOf("}");
+        const remainder = line.slice(context.end.ch, closeCh);
+        const merged = mergeTokenRemainder(value, remainder);
+        editor.replaceRange(merged, context.start, { line: context.start.line, ch: closeCh });
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length,
+          ch: context.start.ch + merged.length + 1, // land after the }
         });
       } else {
         // No closing brace yet — add one

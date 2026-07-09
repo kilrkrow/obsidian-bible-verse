@@ -173,6 +173,22 @@ export function closingBraceState(restOfLine: string): "immediate" | "later" | "
 }
 
 /**
+ * Merge an accepted suggestion with the leftover token text to its right
+ * (mid-token edits, #36). The remainder's comma-separated parts are appended
+ * to the suggestion, skipping empties and parts the suggestion already
+ * contains — so "…, inline, no-nl" + remainder "KJV" becomes
+ * "…, inline, no-nl, KJV", and an already-present "KJV" is not duplicated.
+ */
+export function mergeTokenRemainder(value: string, remainder: string): string {
+  const valueParts = new Set(value.split(",").map((p) => p.trim().toLowerCase()));
+  const keep = remainder
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && !valueParts.has(p.toLowerCase()));
+  return keep.length > 0 ? `${value}, ${keep.join(", ")}` : value;
+}
+
+/**
  * Parse the content inside {…} brackets into a structured spec.
  *
  * Supported formats (examples):

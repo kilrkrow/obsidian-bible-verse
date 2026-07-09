@@ -654,6 +654,11 @@ function closingBraceState(restOfLine) {
   const open = restOfLine.indexOf("{");
   return open === -1 || close < open ? "later" : "none";
 }
+function mergeTokenRemainder(value, remainder) {
+  const valueParts = new Set(value.split(",").map((p) => p.trim().toLowerCase()));
+  const keep = remainder.split(",").map((p) => p.trim()).filter((p) => p.length > 0 && !valueParts.has(p.toLowerCase()));
+  return keep.length > 0 ? `${value}, ${keep.join(", ")}` : value;
+}
 function parseInlineSpec(content) {
   const trimmed = content.trim();
   const simpleRef = parseReference(trimmed);
@@ -1839,7 +1844,7 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
         }
       }
     }
-    return results.slice(0, this.limit).map((book) => ({ value: book }));
+    return results.slice(0, this.limit).map((book) => ({ value: book, isBook: true }));
   }
   /** Render a single suggestion row in the dropdown. */
   renderSuggestion(item, el) {
@@ -1893,7 +1898,7 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
     const editor = context.editor;
     const line = editor.getLine(context.start.line);
     const braceState = closingBraceState(line.slice(context.end.ch));
-    const isCompleteRef = /\d/.test(value);
+    const isCompleteRef = !item.isBook && /\d/.test(value);
     if (isCompleteRef) {
       if (braceState === "immediate") {
         editor.replaceRange(value, context.start, context.end);
@@ -1903,10 +1908,14 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
           // +1 to land after the }
         });
       } else if (braceState === "later") {
-        editor.replaceRange(value, context.start, context.end);
+        const closeCh = context.end.ch + line.slice(context.end.ch).indexOf("}");
+        const remainder = line.slice(context.end.ch, closeCh);
+        const merged = mergeTokenRemainder(value, remainder);
+        editor.replaceRange(merged, context.start, { line: context.start.line, ch: closeCh });
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length
+          ch: context.start.ch + merged.length + 1
+          // land after the }
         });
       } else {
         editor.replaceRange(value + "}", context.start, context.end);
