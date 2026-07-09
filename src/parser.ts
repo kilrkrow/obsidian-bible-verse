@@ -157,6 +157,38 @@ function isKnownStyle(token: string): token is DisplayStyle {
 }
 
 /**
+ * Classify the closing-brace situation for the text to the right of the cursor
+ * inside a {…} token (used by autocomplete insertion, #36):
+ *   "immediate" — the very next char is `}` (typical auto-pair; replace & skip)
+ *   "later"     — a `}` occurs before any `{`, so the token is already closed
+ *                 further right (mid-token edit; do NOT add another brace)
+ *   "none"      — no closing brace for this token; one must be appended
+ */
+export function closingBraceState(restOfLine: string): "immediate" | "later" | "none" {
+  if (restOfLine.startsWith("}")) return "immediate";
+  const close = restOfLine.indexOf("}");
+  if (close === -1) return "none";
+  const open = restOfLine.indexOf("{");
+  return open === -1 || close < open ? "later" : "none";
+}
+
+/**
+ * Merge an accepted suggestion with the leftover token text to its right
+ * (mid-token edits, #36). The remainder's comma-separated parts are appended
+ * to the suggestion, skipping empties and parts the suggestion already
+ * contains — so "…, inline, no-nl" + remainder "KJV" becomes
+ * "…, inline, no-nl, KJV", and an already-present "KJV" is not duplicated.
+ */
+export function mergeTokenRemainder(value: string, remainder: string): string {
+  const valueParts = new Set(value.split(",").map((p) => p.trim().toLowerCase()));
+  const keep = remainder
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && !valueParts.has(p.toLowerCase()));
+  return keep.length > 0 ? `${value}, ${keep.join(", ")}` : value;
+}
+
+/**
  * Parse the content inside {…} brackets into a structured spec.
  *
  * Supported formats (examples):

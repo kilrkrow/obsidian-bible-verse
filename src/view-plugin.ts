@@ -7,7 +7,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
-import { setIcon } from "obsidian";
+import { setIcon, editorLivePreviewField } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { parseInlineSpec, formatReference } from "./parser";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
@@ -231,6 +231,8 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
           update.docChanged ||
           update.viewportChanged ||
           update.selectionSet ||
+          // Live Preview <-> Source mode toggle (#27)
+          update.state.field(editorLivePreviewField) !== update.startState.field(editorLivePreviewField) ||
           update.transactions.some((tr) =>
             tr.effects.some((e) => e.is(verseFetchedEffect))
           );
@@ -241,6 +243,11 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
       }
 
       buildDecorations(view: EditorView): DecorationSet {
+        // Source mode shows raw syntax — never replace {…} with widgets (#27)
+        if (!view.state.field(editorLivePreviewField)) {
+          return Decoration.none;
+        }
+
         const builder = new RangeSetBuilder<Decoration>();
         const selections = view.state.selection.ranges;
 
@@ -252,6 +259,9 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
           while ((match = INLINE_RE.exec(text)) !== null) {
             const tokenStart = from + match.index;
             const tokenEnd = tokenStart + match[0].length;
+
+            // Escaped token (\{...}) — leave it as literal text (#28)
+            if (tokenStart > 0 && view.state.doc.sliceString(tokenStart - 1, tokenStart) === "\\") continue;
 
             if (selectionOverlaps(selections, tokenStart, tokenEnd)) continue;
 

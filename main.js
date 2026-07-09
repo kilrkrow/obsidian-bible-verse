@@ -645,6 +645,20 @@ var KNOWN_STYLES = [
 function isKnownStyle(token) {
   return KNOWN_STYLES.includes(token.toLowerCase());
 }
+function closingBraceState(restOfLine) {
+  if (restOfLine.startsWith("}"))
+    return "immediate";
+  const close = restOfLine.indexOf("}");
+  if (close === -1)
+    return "none";
+  const open = restOfLine.indexOf("{");
+  return open === -1 || close < open ? "later" : "none";
+}
+function mergeTokenRemainder(value, remainder) {
+  const valueParts = new Set(value.split(",").map((p) => p.trim().toLowerCase()));
+  const keep = remainder.split(",").map((p) => p.trim()).filter((p) => p.length > 0 && !valueParts.has(p.toLowerCase()));
+  return keep.length > 0 ? `${value}, ${keep.join(", ")}` : value;
+}
 function parseInlineSpec(content) {
   const trimmed = content.trim();
   const simpleRef = parseReference(trimmed);
@@ -1050,6 +1064,8 @@ var Baker = class {
       let match2;
       const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
       while ((match2 = inlineRegex.exec(content)) !== null) {
+        if (match2.index > 0 && content[match2.index - 1] === "\\")
+          continue;
         const spec = parseInlineSpec(match2[1]);
         if (spec) {
           results.push({
@@ -1723,6 +1739,8 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
     const openBrace = beforeCursor.lastIndexOf("{");
     if (openBrace === -1)
       return null;
+    if (openBrace > 0 && line[openBrace - 1] === "\\")
+      return null;
     const afterOpen = beforeCursor.substring(openBrace + 1);
     if (afterOpen.includes("}"))
       return null;
@@ -1826,7 +1844,7 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
         }
       }
     }
-    return results.slice(0, this.limit).map((book) => ({ value: book }));
+    return results.slice(0, this.limit).map((book) => ({ value: book, isBook: true }));
   }
   /** Render a single suggestion row in the dropdown. */
   renderSuggestion(item, el) {
@@ -1879,16 +1897,25 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
       return;
     const editor = context.editor;
     const line = editor.getLine(context.start.line);
-    const charAfterEnd = line[context.end.ch];
-    const hasClosingBrace = charAfterEnd === "}";
-    const isCompleteRef = /\d/.test(value);
+    const braceState = closingBraceState(line.slice(context.end.ch));
+    const isCompleteRef = !item.isBook && /\d/.test(value);
     if (isCompleteRef) {
-      if (hasClosingBrace) {
+      if (braceState === "immediate") {
         editor.replaceRange(value, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
           ch: context.start.ch + value.length + 1
           // +1 to land after the }
+        });
+      } else if (braceState === "later") {
+        const closeCh = context.end.ch + line.slice(context.end.ch).indexOf("}");
+        const remainder = line.slice(context.end.ch, closeCh);
+        const merged = mergeTokenRemainder(value, remainder);
+        editor.replaceRange(merged, context.start, { line: context.start.line, ch: closeCh });
+        editor.setCursor({
+          line: context.start.line,
+          ch: context.start.ch + merged.length + 1
+          // land after the }
         });
       } else {
         editor.replaceRange(value + "}", context.start, context.end);
@@ -2073,7 +2100,8 @@ function buildViewPlugin(plugin) {
         this.decorations = this.buildDecorations(view);
       }
       update(update) {
-        const needsRebuild = update.docChanged || update.viewportChanged || update.selectionSet || update.transactions.some(
+        const needsRebuild = update.docChanged || update.viewportChanged || update.selectionSet || // Live Preview <-> Source mode toggle (#27)
+        update.state.field(import_obsidian8.editorLivePreviewField) !== update.startState.field(import_obsidian8.editorLivePreviewField) || update.transactions.some(
           (tr) => tr.effects.some((e) => e.is(verseFetchedEffect))
         );
         if (needsRebuild) {
@@ -2081,6 +2109,9 @@ function buildViewPlugin(plugin) {
         }
       }
       buildDecorations(view) {
+        if (!view.state.field(import_obsidian8.editorLivePreviewField)) {
+          return import_view.Decoration.none;
+        }
         const builder = new import_state2.RangeSetBuilder();
         const selections = view.state.selection.ranges;
         for (const { from, to } of view.visibleRanges) {
@@ -2090,6 +2121,8 @@ function buildViewPlugin(plugin) {
           while ((match = INLINE_RE.exec(text)) !== null) {
             const tokenStart = from + match.index;
             const tokenEnd = tokenStart + match[0].length;
+            if (tokenStart > 0 && view.state.doc.sliceString(tokenStart - 1, tokenStart) === "\\")
+              continue;
             if (selectionOverlaps(selections, tokenStart, tokenEnd))
               continue;
             const content = match[1].trim();
@@ -2449,8 +2482,18 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
    * Inline markdown postprocessor: finds {ref} in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
+    const escapedBudget = /* @__PURE__ */ new Map();
+    const sectionInfo = ctx.getSectionInfo(el);
+    if (sectionInfo) {
+      const sectionSource = sectionInfo.text.split("\n").slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join("\n");
+      const escapedRe = /\\(\{[A-Za-z0-9][^}\n]*\})/g;
+      let escMatch;
+      while ((escMatch = escapedRe.exec(sectionSource)) !== null) {
+        escapedBudget.set(escMatch[1], ((_a = escapedBudget.get(escMatch[1])) != null ? _a : 0) + 1);
+      }
+    }
     const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     const nodesToProcess = [];
     let node;
@@ -2470,24 +2513,31 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         if (matchIndex > lastIndex) {
           frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
         }
+        const escapesLeft = (_b = escapedBudget.get(match[0])) != null ? _b : 0;
+        if (escapesLeft > 0) {
+          escapedBudget.set(match[0], escapesLeft - 1);
+          frag.appendChild(activeDocument.createTextNode(match[0]));
+          lastIndex = matchIndex + match[0].length;
+          continue;
+        }
         const rawContent = match[1].trim();
         const spec = parseInlineSpec(rawContent);
         if (spec) {
           const { ref, translations } = spec;
           const span = activeDocument.createElement("span");
           span.className = "bible-verse-container";
-          const effectiveStyle = (_a = spec.styleOverride) != null ? _a : this.settings.displayStyle;
+          const effectiveStyle = (_c = spec.styleOverride) != null ? _c : this.settings.displayStyle;
           const wantsBake = spec.bake || effectiveStyle === "native-callout";
           if (wantsBake && translations.length >= 2) {
             new import_obsidian10.Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
-            void this.renderInlineComparison(span, ref, translations, (_b = spec.paragraphBreaks) != null ? _b : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_d = spec.paragraphBreaks) != null ? _d : void 0);
             frag.appendChild(span);
           } else if (wantsBake) {
             renderBakePending(span, ref);
             frag.appendChild(span);
             void this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
           } else if (translations.length >= 2) {
-            void this.renderInlineComparison(span, ref, translations, (_c = spec.paragraphBreaks) != null ? _c : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_e = spec.paragraphBreaks) != null ? _e : void 0);
             frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
@@ -2496,9 +2546,9 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
             const translationId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : this.settings.defaultTranslation;
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
             const style = effectiveStyle;
-            const vnL = (_d = spec.verseNewLine) != null ? _d : this.settings.verseNewLine;
-            const sVN = (_e = spec.showVerseNumbers) != null ? _e : this.settings.showVerseNumbers;
-            const pb = (_f = spec.paragraphBreaks) != null ? _f : this.settings.paragraphBreaks;
+            const vnL = (_f = spec.verseNewLine) != null ? _f : this.settings.verseNewLine;
+            const sVN = (_g = spec.showVerseNumbers) != null ? _g : this.settings.showVerseNumbers;
+            const pb = (_h = spec.paragraphBreaks) != null ? _h : this.settings.paragraphBreaks;
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
@@ -2519,7 +2569,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       if (lastIndex < text.length) {
         frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex)));
       }
-      (_g = node2.parentNode) == null ? void 0 : _g.replaceChild(frag, node2);
+      (_i = node2.parentNode) == null ? void 0 : _i.replaceChild(frag, node2);
     }
   }
   async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
