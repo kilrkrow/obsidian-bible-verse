@@ -221,6 +221,14 @@ translation: KJV
 
 ### Commands
 
+Lookup & insert:
+
+- **Search Bible for selected text** — Select any text (in edit mode *or* Reading view) and run this to search your preferred Bible website for it. The selection is also copied to your clipboard.
+- **Quick insert reference** — Open a dialog to insert a `{reference}`, optionally opening it on your preferred Bible website at the same time.
+- **Open reference at cursor on Bible site** — Place the cursor on a `{ref}` while editing and run this to open that passage on your preferred Bible website. *(edit mode)*
+
+Baking & cache:
+
 - **Bake all verses in this note** — Fetch and embed all `{ref}` verses in the current note
 - **Refresh baked verses in this note** — Re-fetch and update all baked verses
 - **Refresh all baked verses in vault** — Re-fetch across all notes
