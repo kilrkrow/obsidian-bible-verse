@@ -2300,16 +2300,21 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     this.addCommand({
       id: "search-selection",
       name: "Search Bible for selected text",
-      editorCallback: (editor) => {
-        const selection = editor.getSelection();
-        if (!selection || selection.trim().length === 0) {
+      // Plain callback (always listed in the palette). Reads the editor selection
+      // when editing, and falls back to the DOM selection so it also works in
+      // Reading view.
+      callback: () => {
+        var _a, _b, _c;
+        const editorSelection = (_b = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor) == null ? void 0 : _b.getSelection();
+        const selection = (editorSelection || ((_c = activeWindow.getSelection()) == null ? void 0 : _c.toString()) || "").trim();
+        if (selection.length === 0) {
           new import_obsidian10.Notice("No text selected.");
           return;
         }
-        void navigator.clipboard.writeText(selection.trim());
+        void navigator.clipboard.writeText(selection);
         new import_obsidian10.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
-        const url = generateSearchUrl(selection.trim(), abbr, this.settings.preferredWebsite);
+        const url = generateSearchUrl(selection, abbr, this.settings.preferredWebsite);
         window.open(url, "_blank");
       }
     });
