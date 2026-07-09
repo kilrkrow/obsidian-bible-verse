@@ -1019,6 +1019,23 @@ function formatCalloutBake(verse, calloutType, collapsed, url) {
   return `> [!${calloutType}]${fold} ${title}
 ${lines.join("\n")}`;
 }
+function formatCodeBlockBake(verse, opts) {
+  let header = `${verse.reference}
+translation: ${verse.translation}`;
+  if ((opts == null ? void 0 : opts.verseNewLine) !== void 0)
+    header += `
+newline: ${opts.verseNewLine}`;
+  if ((opts == null ? void 0 : opts.showVerseNumbers) !== void 0)
+    header += `
+numbers: ${opts.showVerseNumbers}`;
+  if (opts == null ? void 0 : opts.style)
+    header += `
+style: ${opts.style}`;
+  return `\`\`\`bible
+${header}
+${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
+\`\`\``;
+}
 var Baker = class {
   constructor(app) {
     this.app = app;
@@ -1042,7 +1059,8 @@ var Baker = class {
             type: "inline",
             translations: spec.translations,
             verseNewLine: spec.verseNewLine,
-            showVerseNumbers: spec.showVerseNumbers
+            showVerseNumbers: spec.showVerseNumbers,
+            styleOverride: spec.styleOverride
           });
         }
       }
@@ -1086,11 +1104,7 @@ var Baker = class {
   bakeVerse(content, refRaw, verse, type = "inline", opts) {
     var _a, _b, _c;
     if (type === "inline") {
-      const block = (opts == null ? void 0 : opts.format) === "callout" ? formatCalloutBake(verse, (_a = opts.calloutType) != null ? _a : "quote", (_b = opts.collapsed) != null ? _b : false, (_c = opts.url) != null ? _c : "") : `\`\`\`bible
-${verse.reference}
-translation: ${verse.translation}
-${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
-\`\`\``;
+      const block = (opts == null ? void 0 : opts.format) === "callout" ? formatCalloutBake(verse, (_a = opts.calloutType) != null ? _a : "quote", (_b = opts.collapsed) != null ? _b : false, (_c = opts.url) != null ? _c : "") : formatCodeBlockBake(verse, opts);
       return content.replace(refRaw, () => block);
     } else {
       const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
@@ -1117,13 +1131,13 @@ ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
       return false;
     return refRaw.includes(CODEBLOCK_BAKE_SEPARATOR);
   }
-  async bakeFile(content, bakeInline, fetchVerse) {
+  async bakeFile(content, bakeInline, fetchVerse, defaults) {
     const refs = this.extractReferences(content, bakeInline);
     if (refs.length === 0)
       return content;
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers } = refs[i];
+      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride } = refs[i];
       if (!ref)
         continue;
       const trans = translations && translations.length === 1 ? translations[0] : void 0;
@@ -1137,11 +1151,11 @@ ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
       if (!verse)
         continue;
       if (type === "inline") {
-        const block = `\`\`\`bible
-${verse.reference}
-translation: ${verse.translation}
-${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
-\`\`\``;
+        const block = formatCodeBlockBake(verse, {
+          verseNewLine: verseNewLine != null ? verseNewLine : defaults == null ? void 0 : defaults.verseNewLine,
+          showVerseNumbers: showVerseNumbers != null ? showVerseNumbers : defaults == null ? void 0 : defaults.showVerseNumbers,
+          style: styleOverride && styleOverride !== "native-callout" ? styleOverride : void 0
+        });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);
       } else {
         const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
@@ -1156,7 +1170,7 @@ ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
     }
     return result;
   }
-  async processVault(action, bakeInline, fetchVerse) {
+  async processVault(action, bakeInline, fetchVerse, defaults) {
     const files = this.app.vault.getMarkdownFiles();
     let count = 0;
     for (const file of files) {
@@ -1165,7 +1179,7 @@ ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
       if (action === "strip") {
         newContent = this.stripBakedText(content);
       } else if (fetchVerse) {
-        newContent = await this.bakeFile(content, bakeInline, fetchVerse);
+        newContent = await this.bakeFile(content, bakeInline, fetchVerse, defaults);
       } else {
         continue;
       }
@@ -2209,7 +2223,8 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         if (newContent !== content) {
           editor.setValue(newContent);
@@ -2228,7 +2243,8 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         editor.setValue(newContent);
         new import_obsidian10.Notice("Bible verses refreshed.");
@@ -2241,7 +2257,8 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new import_obsidian10.Notice(`Refreshed baked verses in ${count} files.`);
       }
@@ -2253,7 +2270,8 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new import_obsidian10.Notice(`Baked verses in ${count} files.`);
       }
@@ -2574,7 +2592,14 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       calloutType: this.settings.nativeCalloutType,
       collapsed: spec.calloutCollapsed,
       url: generateLink(ref, verse.translation, this.settings.preferredWebsite)
-    } : void 0;
+    } : {
+      // Freeze the effective formatting flags into the block header so the
+      // baked block renders as fetched, independent of global settings (#37).
+      format: "codeblock",
+      verseNewLine: verseNewLine != null ? verseNewLine : this.settings.verseNewLine,
+      showVerseNumbers: showVerseNumbers != null ? showVerseNumbers : this.settings.showVerseNumbers,
+      style: spec.styleOverride && spec.styleOverride !== "native-callout" ? spec.styleOverride : void 0
+    };
     await this.app.vault.process(file, (content) => {
       return this.baker.bakeVerse(content, refMarker, verse, "inline", opts);
     });

@@ -62,7 +62,8 @@ export default class BibleVersePlugin extends Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         if (newContent !== content) {
           editor.setValue(newContent);
@@ -83,7 +84,8 @@ export default class BibleVersePlugin extends Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         editor.setValue(newContent);
         new Notice("Bible verses refreshed.");
@@ -97,7 +99,8 @@ export default class BibleVersePlugin extends Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new Notice(`Refreshed baked verses in ${count} files.`);
       },
@@ -110,7 +113,8 @@ export default class BibleVersePlugin extends Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn)
+          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new Notice(`Baked verses in ${count} files.`);
       },
@@ -510,7 +514,16 @@ export default class BibleVersePlugin extends Plugin {
           collapsed: spec.calloutCollapsed,
           url: generateLink(ref, verse.translation, this.settings.preferredWebsite),
         }
-      : undefined;
+      : {
+          // Freeze the effective formatting flags into the block header so the
+          // baked block renders as fetched, independent of global settings (#37).
+          format: "codeblock" as const,
+          verseNewLine: verseNewLine ?? this.settings.verseNewLine,
+          showVerseNumbers: showVerseNumbers ?? this.settings.showVerseNumbers,
+          style: spec.styleOverride && spec.styleOverride !== "native-callout"
+            ? spec.styleOverride
+            : undefined,
+        };
 
     await this.app.vault.process(file, (content) => {
       return this.baker.bakeVerse(content, refMarker, verse, "inline", opts);
