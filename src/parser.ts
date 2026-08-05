@@ -18,6 +18,34 @@ const REF_REGEX =
   /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(eoc|\d+|-))?((?:,\s*\d+)*))?$/i;
 
 /**
+ * Source pattern for an inline reference token, shared by every consumer
+ * (Live Preview, the Reading-view postprocessor, and the baker) so they always
+ * agree on where a token starts and ends.
+ *
+ * A doubled pair — {{John 3:16}} — is matched as a single token so the outer
+ * braces are consumed too. Typing "{" twice with auto-pair on produces "{{}}",
+ * and matching only the inner pair left stray braces rendered around the verse
+ * (#41). Unbalanced braces keep the old behaviour: "{{ref}" matches "{ref}".
+ *
+ * Groups: 1 = content of a doubled token, 2 = content of a single one.
+ */
+export const INLINE_TOKEN_SOURCE =
+  "\\{\\{([A-Za-z0-9][^}\\n]*)\\}\\}|\\{([A-Za-z0-9][^}\\n]*)\\}";
+
+/**
+ * A fresh global matcher for inline tokens. Always build a new one per scan —
+ * a shared /g regex carries `lastIndex` between calls.
+ */
+export function inlineTokenRegex(): RegExp {
+  return new RegExp(INLINE_TOKEN_SOURCE, "g");
+}
+
+/** The content inside a token matched by `inlineTokenRegex`, at either depth. */
+export function inlineTokenContent(match: RegExpMatchArray): string {
+  return match[1] ?? match[2];
+}
+
+/**
  * Normalize a book name to its canonical form using the alias table.
  */
 export function normalizeBookName(raw: string): string | null {

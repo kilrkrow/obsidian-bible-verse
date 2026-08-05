@@ -1,7 +1,15 @@
 import { MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownView, Notice, Plugin, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
 import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
-import { parseReference, parseInlineSpec, formatReference, InlineSpec } from "./parser";
+import {
+  parseReference,
+  parseInlineSpec,
+  formatReference,
+  InlineSpec,
+  INLINE_TOKEN_SOURCE,
+  inlineTokenRegex,
+  inlineTokenContent,
+} from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
 import { Baker } from "./baker";
@@ -323,8 +331,6 @@ export default class BibleVersePlugin extends Plugin {
     el: HTMLElement,
     ctx: MarkdownPostProcessorContext
   ): Promise<void> {
-    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
-
     // Markdown escaping consumes "\{" before rendering, so in the DOM an
     // escaped token is indistinguishable from a live one. Read the section
     // source and budget how many instances of each token string were escaped;
@@ -336,10 +342,12 @@ export default class BibleVersePlugin extends Plugin {
         .split("\n")
         .slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1)
         .join("\n");
-      const escapedRe = /\\(\{[A-Za-z0-9][^}\n]*\})/g;
+      const escapedRe = new RegExp(`\\\\(?:${INLINE_TOKEN_SOURCE})`, "g");
       let escMatch: RegExpExecArray | null;
       while ((escMatch = escapedRe.exec(sectionSource)) !== null) {
-        escapedBudget.set(escMatch[1], (escapedBudget.get(escMatch[1]) ?? 0) + 1);
+        // Key on the token itself, minus the leading backslash the renderer ate.
+        const token = escMatch[0].slice(1);
+        escapedBudget.set(token, (escapedBudget.get(token) ?? 0) + 1);
       }
     }
 
@@ -349,7 +357,7 @@ export default class BibleVersePlugin extends Plugin {
     let node: Text | null;
     while ((node = walker.nextNode() as Text | null)) {
       const text = node.textContent || "";
-      const matches = [...text.matchAll(INLINE_REGEX)];
+      const matches = [...text.matchAll(inlineTokenRegex())];
       if (matches.length > 0) {
         nodesToProcess.push({ node, matches });
       }
@@ -375,7 +383,7 @@ export default class BibleVersePlugin extends Plugin {
           continue;
         }
 
-        const rawContent = match[1].trim();
+        const rawContent = inlineTokenContent(match).trim();
         const spec = parseInlineSpec(rawContent);
 
         if (spec) {

@@ -1,9 +1,6 @@
 import { App } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
-import { parseReference, parseInlineSpec } from "./parser";
-
-/** Regex to find {ref} patterns in note source */
-const INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
+import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
 
 /** Regex to find bible code blocks */
 const CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
@@ -87,11 +84,11 @@ export class Baker {
     // 1. Find inline references (only if requested)
     if (includeInline) {
       let match;
-      const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
+      const inlineRegex = inlineTokenRegex();
       while ((match = inlineRegex.exec(content)) !== null) {
         // Escaped token (\{...}) — literal text, never bake it (#28)
         if (match.index > 0 && content[match.index - 1] === "\\") continue;
-        const spec = parseInlineSpec(match[1]);
+        const spec = parseInlineSpec(inlineTokenContent(match));
         if (spec) {
           results.push({
             raw: match[0],

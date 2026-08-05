@@ -2,6 +2,17 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [1.8.0] — 2026-08-05
+
+### Added
+
+- **Doubled braces are accepted** — `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{…}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.
+
+### Changed
+
+- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.
+- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{…` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.
+
 ## [1.6.5] — 2026-07-04
 
 ### Added

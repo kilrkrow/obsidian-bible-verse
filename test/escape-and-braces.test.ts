@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { App } from "obsidian";
-import { closingBraceState, mergeTokenRemainder } from "../src/parser";
+import {
+  closingBraceState,
+  mergeTokenRemainder,
+  inlineTokenRegex,
+  inlineTokenContent,
+} from "../src/parser";
 import { Baker } from "../src/baker";
 
 describe("closingBraceState (#36)", () => {
@@ -57,6 +62,44 @@ describe("mergeTokenRemainder (#36)", () => {
   });
 });
 
+describe("inlineTokenRegex handles doubled braces (#41)", () => {
+  const scan = (s: string) =>
+    [...s.matchAll(inlineTokenRegex())].map((m) => ({
+      raw: m[0],
+      content: inlineTokenContent(m),
+    }));
+
+  it("consumes both braces of a doubled token, leaving nothing stray", () => {
+    // The repro: {{…}} matched only the inner pair, so { and } rendered as text
+    expect(scan("{{Judges 4:17-24,no-v, no-nl, esv}}")).toEqual([
+      { raw: "{{Judges 4:17-24,no-v, no-nl, esv}}", content: "Judges 4:17-24,no-v, no-nl, esv" },
+    ]);
+  });
+
+  it("still matches a single-brace token", () => {
+    expect(scan("see {John 3:16} here")).toEqual([
+      { raw: "{John 3:16}", content: "John 3:16" },
+    ]);
+  });
+
+  it("handles both depths in one line", () => {
+    expect(scan("{{Psalm 23}} and {John 3:16}").map((m) => m.raw)).toEqual([
+      "{{Psalm 23}}",
+      "{John 3:16}",
+    ]);
+  });
+
+  it("unbalanced braces keep the old inner match", () => {
+    expect(scan("{{John 3:16}").map((m) => m.raw)).toEqual(["{John 3:16}"]);
+    expect(scan("{John 3:16}}").map((m) => m.raw)).toEqual(["{John 3:16}"]);
+  });
+
+  it("does not match across a closing brace", () => {
+    expect(scan("{not a ref} {also} text")).toHaveLength(2);
+    expect(scan("{ leading space}")).toHaveLength(0);
+  });
+});
+
 describe("extractReferences ignores escaped tokens (#28)", () => {
   const baker = new Baker(null as unknown as App);
 
@@ -69,5 +112,16 @@ describe("extractReferences ignores escaped tokens (#28)", () => {
 
   it("extracts nothing when the only token is escaped", () => {
     expect(baker.extractReferences("\\{Psalm 23}", true)).toHaveLength(0);
+  });
+
+  it("bakes a doubled token whole, braces included (#41)", () => {
+    const refs = baker.extractReferences("{{John 3:17, KJV}}", true);
+    expect(refs).toHaveLength(1);
+    expect(refs[0].raw).toBe("{{John 3:17, KJV}}");
+    expect(refs[0].translations).toEqual(["KJV"]);
+  });
+
+  it("skips an escaped doubled token", () => {
+    expect(baker.extractReferences("\\{{Psalm 23}}", true)).toHaveLength(0);
   });
 });
