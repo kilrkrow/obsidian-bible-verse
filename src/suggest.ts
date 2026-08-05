@@ -256,7 +256,16 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
 
     // Classify the closing brace to the right of the cursor (#36): immediate
     // (auto-pair), later on the line (mid-token edit), or absent.
-    const braceState = closingBraceState(line.slice(context.end.ch));
+    const rest = line.slice(context.end.ch);
+    const braceState = closingBraceState(rest);
+
+    // A doubled token — {{ref}} — needs both braces closed and skipped past,
+    // or the accepted suggestion strands one (#41). Never skip more closing
+    // braces than are actually there.
+    const openDepth = context.start.ch >= 2 && line[context.start.ch - 2] === "{" ? 2 : 1;
+    const closeRun = /^\}*/.exec(rest)![0].length;
+    const skipPast = braceState === "immediate" ? Math.min(openDepth, closeRun) : openDepth;
+    const closeBraces = "}".repeat(openDepth);
 
     // Book suggestions are flagged explicitly — testing the value for digits
     // misclassifies numbered books ("1 Kings") as complete references (#23).
@@ -265,31 +274,33 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
     if (isCompleteRef) {
       // Insert the formatted reference; handle the closing brace
       if (braceState === "immediate") {
-        // Auto-paired } is already there — just replace content, skip past }
+        // Auto-paired } is already there — just replace content, skip past it
         editor.replaceRange(value, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length + 1, // +1 to land after the }
+          ch: context.start.ch + value.length + skipPast, // land after the }
         });
       } else if (braceState === "later") {
         // The token is already closed further right (mid-token edit). Accept
         // the suggestion, then re-attach the leftover token text (e.g. "KJV")
         // comma-joined — never dropping it and never duplicating parts the
         // suggestion already contains (#36).
-        const closeCh = context.end.ch + line.slice(context.end.ch).indexOf("}");
+        const closeCh = context.end.ch + rest.indexOf("}");
         const remainder = line.slice(context.end.ch, closeCh);
         const merged = mergeTokenRemainder(value, remainder);
+        const closersHere = /^\}*/.exec(line.slice(closeCh))![0].length;
         editor.replaceRange(merged, context.start, { line: context.start.line, ch: closeCh });
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + merged.length + 1, // land after the }
+          // land after the } — past both of them in a {{…}} token
+          ch: context.start.ch + merged.length + Math.min(openDepth, closersHere),
         });
       } else {
-        // No closing brace yet — add one
-        editor.replaceRange(value + "}", context.start, context.end);
+        // No closing brace yet — add one to match the opening depth
+        editor.replaceRange(value + closeBraces, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length + 1,
+          ch: context.start.ch + value.length + openDepth,
         });
       }
     } else {

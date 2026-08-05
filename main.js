@@ -566,6 +566,14 @@ var BOOK_ALIASES = {
 
 // src/parser.ts
 var REF_REGEX = /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(eoc|\d+|-))?((?:,\s*\d+)*))?$/i;
+var INLINE_TOKEN_SOURCE = "\\{\\{([A-Za-z0-9][^}\\n]*)\\}\\}|\\{([A-Za-z0-9][^}\\n]*)\\}";
+function inlineTokenRegex() {
+  return new RegExp(INLINE_TOKEN_SOURCE, "g");
+}
+function inlineTokenContent(match) {
+  var _a;
+  return (_a = match[1]) != null ? _a : match[2];
+}
 function normalizeBookName(raw) {
   var _a;
   const key = raw.trim().toLowerCase();
@@ -1019,7 +1027,6 @@ var VerseCache = class {
 };
 
 // src/baker.ts
-var INLINE_REF_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
 var CODEBLOCK_BAKE_SEPARATOR = "\n---\n";
 function formatCalloutBake(verse, calloutType, collapsed, url) {
@@ -1062,11 +1069,11 @@ var Baker = class {
     const results = [];
     if (includeInline) {
       let match2;
-      const inlineRegex = new RegExp(INLINE_REF_REGEX.source, "g");
+      const inlineRegex = inlineTokenRegex();
       while ((match2 = inlineRegex.exec(content)) !== null) {
         if (match2.index > 0 && content[match2.index - 1] === "\\")
           continue;
-        const spec = parseInlineSpec(match2[1]);
+        const spec = parseInlineSpec(inlineTokenContent(match2));
         if (spec) {
           results.push({
             raw: match2[0],
@@ -1897,31 +1904,37 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
       return;
     const editor = context.editor;
     const line = editor.getLine(context.start.line);
-    const braceState = closingBraceState(line.slice(context.end.ch));
+    const rest = line.slice(context.end.ch);
+    const braceState = closingBraceState(rest);
+    const openDepth = context.start.ch >= 2 && line[context.start.ch - 2] === "{" ? 2 : 1;
+    const closeRun = /^\}*/.exec(rest)[0].length;
+    const skipPast = braceState === "immediate" ? Math.min(openDepth, closeRun) : openDepth;
+    const closeBraces = "}".repeat(openDepth);
     const isCompleteRef = !item.isBook && /\d/.test(value);
     if (isCompleteRef) {
       if (braceState === "immediate") {
         editor.replaceRange(value, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length + 1
-          // +1 to land after the }
+          ch: context.start.ch + value.length + skipPast
+          // land after the }
         });
       } else if (braceState === "later") {
-        const closeCh = context.end.ch + line.slice(context.end.ch).indexOf("}");
+        const closeCh = context.end.ch + rest.indexOf("}");
         const remainder = line.slice(context.end.ch, closeCh);
         const merged = mergeTokenRemainder(value, remainder);
+        const closersHere = /^\}*/.exec(line.slice(closeCh))[0].length;
         editor.replaceRange(merged, context.start, { line: context.start.line, ch: closeCh });
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + merged.length + 1
-          // land after the }
+          // land after the } — past both of them in a {{…}} token
+          ch: context.start.ch + merged.length + Math.min(openDepth, closersHere)
         });
       } else {
-        editor.replaceRange(value + "}", context.start, context.end);
+        editor.replaceRange(value + closeBraces, context.start, context.end);
         editor.setCursor({
           line: context.start.line,
-          ch: context.start.ch + value.length + 1
+          ch: context.start.ch + value.length + openDepth
         });
       }
     } else {
@@ -1944,7 +1957,6 @@ var import_state = require("@codemirror/state");
 var verseFetchedEffect = import_state.StateEffect.define();
 
 // src/view-plugin.ts
-var INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
 var BibleVerseWidget = class extends import_view.WidgetType {
   constructor(spec) {
     super();
@@ -2116,16 +2128,16 @@ function buildViewPlugin(plugin) {
         const selections = view.state.selection.ranges;
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.doc.sliceString(from, to);
-          INLINE_RE.lastIndex = 0;
+          const inlineRe = inlineTokenRegex();
           let match;
-          while ((match = INLINE_RE.exec(text)) !== null) {
+          while ((match = inlineRe.exec(text)) !== null) {
             const tokenStart = from + match.index;
             const tokenEnd = tokenStart + match[0].length;
             if (tokenStart > 0 && view.state.doc.sliceString(tokenStart - 1, tokenStart) === "\\")
               continue;
             if (selectionOverlaps(selections, tokenStart, tokenEnd))
               continue;
-            const content = match[1].trim();
+            const content = inlineTokenContent(match).trim();
             const spec = parseInlineSpec(content);
             if (!spec)
               continue;
@@ -2483,15 +2495,15 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
    */
   async inlinePostProcessor(el, ctx) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
-    const INLINE_REGEX = /\{([A-Za-z0-9][^}\n]*)\}/g;
     const escapedBudget = /* @__PURE__ */ new Map();
     const sectionInfo = ctx.getSectionInfo(el);
     if (sectionInfo) {
       const sectionSource = sectionInfo.text.split("\n").slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join("\n");
-      const escapedRe = /\\(\{[A-Za-z0-9][^}\n]*\})/g;
+      const escapedRe = new RegExp(`\\\\(?:${INLINE_TOKEN_SOURCE})`, "g");
       let escMatch;
       while ((escMatch = escapedRe.exec(sectionSource)) !== null) {
-        escapedBudget.set(escMatch[1], ((_a = escapedBudget.get(escMatch[1])) != null ? _a : 0) + 1);
+        const token = escMatch[0].slice(1);
+        escapedBudget.set(token, ((_a = escapedBudget.get(token)) != null ? _a : 0) + 1);
       }
     }
     const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -2499,7 +2511,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     let node;
     while (node = walker.nextNode()) {
       const text = node.textContent || "";
-      const matches = [...text.matchAll(INLINE_REGEX)];
+      const matches = [...text.matchAll(inlineTokenRegex())];
       if (matches.length > 0) {
         nodesToProcess.push({ node, matches });
       }
@@ -2520,7 +2532,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           lastIndex = matchIndex + match[0].length;
           continue;
         }
-        const rawContent = match[1].trim();
+        const rawContent = inlineTokenContent(match).trim();
         const spec = parseInlineSpec(rawContent);
         if (spec) {
           const { ref, translations } = spec;

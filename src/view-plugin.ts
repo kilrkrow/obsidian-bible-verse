@@ -9,13 +9,10 @@ import {
 import { RangeSetBuilder } from "@codemirror/state";
 import { setIcon, editorLivePreviewField } from "obsidian";
 import type BibleVersePlugin from "./main";
-import { parseInlineSpec, formatReference } from "./parser";
+import { parseInlineSpec, formatReference, inlineTokenRegex, inlineTokenContent } from "./parser";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
-
-// Matches {…} inline tokens (same pattern as inlinePostProcessor)
-const INLINE_RE = /\{([A-Za-z0-9][^}\n]*)\}/g;
 
 /**
  * Live Preview widget for a {ref} token.
@@ -253,10 +250,10 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
 
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.doc.sliceString(from, to);
-          INLINE_RE.lastIndex = 0;
+          const inlineRe = inlineTokenRegex();
           let match: RegExpExecArray | null;
 
-          while ((match = INLINE_RE.exec(text)) !== null) {
+          while ((match = inlineRe.exec(text)) !== null) {
             const tokenStart = from + match.index;
             const tokenEnd = tokenStart + match[0].length;
 
@@ -265,7 +262,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
 
             if (selectionOverlaps(selections, tokenStart, tokenEnd)) continue;
 
-            const content = match[1].trim();
+            const content = inlineTokenContent(match).trim();
             const spec = parseInlineSpec(content);
             if (!spec) continue;
 
