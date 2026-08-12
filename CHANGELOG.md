@@ -2,6 +2,21 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [1.8.1] — 2026-08-12
+
+### Added
+
+- **Settings are searchable** — on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian's settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.
+
+### Changed
+
+- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can't drift apart.
+- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian's `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian's plugin review scan; there is no change in behavior.
+
+### Known issues
+
+- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately — the row updates the next time the settings tab is drawn. Obsidian's API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.
+
 ## [1.8.0] — 2026-08-05
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-bible-verse",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Bible verse lookup and display plugin for Obsidian",
   "main": "main.js",
   "scripts": {
@@ -23,7 +23,7 @@
     "@types/node": "^16.11.6",
     "esbuild": "0.17.3",
     "jsdom": "^29.1.1",
-    "obsidian": "latest",
+    "obsidian": "^1.13.1",
     "tslib": "2.4.0",
     "typescript": "4.7.4",
     "vitest": "^4.1.9"
