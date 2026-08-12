@@ -32,10 +32,11 @@ export function ideaUrl(): string {
   return `https://github.com/${REPO}/issues/new?template=feature.yml`;
 }
 
-// Settings tab: call this inside BibleVerseSettingTab.display().
-// `this.plugin.manifest.version` gives the installed plugin version.
-export function addFeedbackSetting(containerEl: HTMLElement, pluginVersion: string): void {
-  new Setting(containerEl)
+// Configure an existing row. Used by both settings paths: the declarative
+// `render` callback (1.13+) hands us its Setting, and `addFeedbackSetting`
+// below makes one for the legacy display() path, so the two can't drift.
+export function configureFeedbackSetting(setting: Setting, pluginVersion: string): void {
+  setting
     .setName("Send feedback")
     .setDesc("Report a bug (version info pre-filled) or suggest an idea on GitHub.")
     .addButton((btn) =>
@@ -50,4 +51,10 @@ export function addFeedbackSetting(containerEl: HTMLElement, pluginVersion: stri
         .setTooltip("Suggest an idea")
         .onClick(() => window.open(ideaUrl())),
     );
+}
+
+// Settings tab: call this inside BibleVerseSettingTab.display().
+// `this.plugin.manifest.version` gives the installed plugin version.
+export function addFeedbackSetting(containerEl: HTMLElement, pluginVersion: string): void {
+  configureFeedbackSetting(new Setting(containerEl), pluginVersion);
 }
