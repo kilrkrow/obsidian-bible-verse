@@ -38,8 +38,7 @@ class BibleVerseWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const container = activeDocument.createElement("span");
-    container.className = "bible-verse-livepreview";
+    const container = createSpan({ cls: "bible-verse-livepreview" });
 
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
 
@@ -96,9 +95,8 @@ class BibleVerseWidget extends WidgetType {
   }
 
   private renderPill(container: HTMLElement): void {
-    const a = activeDocument.createElement("a");
-    a.className = "bible-verse-pill";
-    
+    const a = createEl("a", { cls: "bible-verse-pill" });
+
     const iconSpan = a.createSpan({ cls: "bible-verse-icon" });
     setIcon(iconSpan, "book-open");
     

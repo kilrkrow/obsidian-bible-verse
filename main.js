@@ -1257,13 +1257,11 @@ function addFeedbackSetting(containerEl, pluginVersion) {
 
 // src/settings.ts
 function df(text, ...examples) {
-  const frag = activeDocument.createDocumentFragment();
-  frag.appendChild(activeDocument.createTextNode(text));
+  const frag = createFragment();
+  frag.appendText(text);
   for (const ex of examples) {
-    frag.appendChild(activeDocument.createTextNode(" "));
-    const code = activeDocument.createElement("code");
-    code.textContent = ex;
-    frag.appendChild(code);
+    frag.appendText(" ");
+    frag.appendChild(createEl("code", { text: ex }));
   }
   return frag;
 }
@@ -1501,8 +1499,7 @@ function flattenInlineContent(container, verseNewLine) {
       container.insertBefore(p.firstChild, p);
     }
     if (i < paragraphs.length - 1) {
-      const sep = activeDocument.createElement("span");
-      sep.className = "bible-verse-para-break";
+      const sep = createSpan({ cls: "bible-verse-para-break" });
       container.insertBefore(sep, p);
     }
     p.remove();
@@ -1513,11 +1510,9 @@ function flattenInlineContent(container, verseNewLine) {
       next.data = next.data.slice(1);
     }
     if (verseNewLine) {
-      const lineBreak = activeDocument.createElement("span");
-      lineBreak.className = "bible-verse-line-break";
-      br.replaceWith(lineBreak);
+      br.replaceWith(createSpan({ cls: "bible-verse-line-break" }));
     } else {
-      br.replaceWith(activeDocument.createTextNode(" "));
+      br.replaceWith(" ");
     }
   }
 }
@@ -1555,7 +1550,7 @@ async function renderSidebar(el, ref, verse, url, showAttribution, app, componen
   link.setAttr("target", "_blank");
   link.setAttr("rel", "noopener");
   if ((showAttribution || verse.requireAttribution) && verse.copyright) {
-    footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
+    footer.createSpan({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 async function renderCallout(el, ref, verse, url, showAttribution, app, component) {
@@ -1639,7 +1634,7 @@ function renderBakePending(container, ref) {
 async function renderComparison(container, ref, verses, website, showAttribution, app, component) {
   const wrapper = container.createDiv({ cls: "bible-verse-comparison" });
   const refStr = formatReference(ref);
-  wrapper.createEl("div", {
+  wrapper.createDiv({
     cls: "bible-verse-comparison-header",
     text: refStr
   });
@@ -1860,33 +1855,33 @@ var BibleReferenceSuggest = class extends import_obsidian7.EditorSuggest {
         const commaIdx = item.value.lastIndexOf(",");
         const ref = item.value.substring(0, commaIdx);
         const mod = item.value.substring(commaIdx + 1).trim();
-        el.createEl("span", { cls: "bible-suggest-prefix", text: ref + ", " });
-        el.createEl("span", { cls: "bible-suggest-modifier", text: mod });
+        el.createSpan({ cls: "bible-suggest-prefix", text: ref + ", " });
+        el.createSpan({ cls: "bible-suggest-modifier", text: mod });
       } else {
-        el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+        el.createSpan({ cls: "bible-suggest-text", text: item.value });
       }
-      el.createEl("span", { cls: "bible-suggest-label", text: item.label });
+      el.createSpan({ cls: "bible-suggest-label", text: item.label });
       return;
     }
     if (item.value.includes(",")) {
-      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      const iconEl = el.createSpan({ cls: "bible-suggest-icon" });
       (0, import_obsidian7.setIcon)(iconEl, "sliders-horizontal");
       const parts = item.value.split(",");
       const modifier = parts[parts.length - 1].trim();
       const prefix = parts.slice(0, -1).join(",").trim();
-      const span = el.createEl("span", { cls: "bible-suggest-text" });
+      const span = el.createSpan({ cls: "bible-suggest-text" });
       span.createSpan({ text: prefix + ", ", cls: "bible-suggest-prefix" });
       span.createSpan({ text: modifier, cls: "bible-suggest-modifier" });
       const trans = HELLOAO_TRANSLATIONS.find((t) => t.abbreviation.toUpperCase() === modifier.toUpperCase());
       if (trans) {
         const isLinkOnly = this.plugin.isTranslationLinkOnly(trans.abbreviation);
         const suffix = isLinkOnly ? " (link only)" : trans.mode === "apiKeyText" ? " (API key)" : "";
-        el.createEl("span", { cls: "bible-suggest-name", text: ` \u2014 ${trans.name}${suffix}` });
+        el.createSpan({ cls: "bible-suggest-name", text: ` \u2014 ${trans.name}${suffix}` });
       }
     } else {
-      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      const iconEl = el.createSpan({ cls: "bible-suggest-icon" });
       (0, import_obsidian7.setIcon)(iconEl, "book-open");
-      el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+      el.createSpan({ cls: "bible-suggest-text", text: item.value });
     }
   }
   /**
@@ -1964,8 +1959,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   }
   toDOM(view) {
     var _a, _b, _c, _d;
-    const container = activeDocument.createElement("span");
-    container.className = "bible-verse-livepreview";
+    const container = createSpan({ cls: "bible-verse-livepreview" });
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
     const effectiveStyle = (_b = this.spec.styleOverride) != null ? _b : this.spec.plugin.settings.displayStyle;
     if ((this.spec.bake || effectiveStyle === "native-callout") && this.spec.translations.length < 2) {
@@ -2014,8 +2008,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     return container;
   }
   renderPill(container) {
-    const a = activeDocument.createElement("a");
-    a.className = "bible-verse-pill";
+    const a = createEl("a", { cls: "bible-verse-pill" });
     const iconSpan = a.createSpan({ cls: "bible-verse-icon" });
     (0, import_obsidian8.setIcon)(iconSpan, "book-open");
     a.createSpan({ text: " " + this.spec.label });
@@ -2518,17 +2511,17 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     }
     for (const { node: node2, matches } of nodesToProcess) {
       const text = node2.textContent || "";
-      const frag = activeDocument.createDocumentFragment();
+      const frag = createFragment();
       let lastIndex = 0;
       for (const match of matches) {
         const matchIndex = match.index;
         if (matchIndex > lastIndex) {
-          frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
+          frag.appendText(text.slice(lastIndex, matchIndex));
         }
         const escapesLeft = (_b = escapedBudget.get(match[0])) != null ? _b : 0;
         if (escapesLeft > 0) {
           escapedBudget.set(match[0], escapesLeft - 1);
-          frag.appendChild(activeDocument.createTextNode(match[0]));
+          frag.appendText(match[0]);
           lastIndex = matchIndex + match[0].length;
           continue;
         }
@@ -2536,8 +2529,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const spec = parseInlineSpec(rawContent);
         if (spec) {
           const { ref, translations } = spec;
-          const span = activeDocument.createElement("span");
-          span.className = "bible-verse-container";
+          const span = createSpan({ cls: "bible-verse-container" });
           const effectiveStyle = (_c = spec.styleOverride) != null ? _c : this.settings.displayStyle;
           const wantsBake = spec.bake || effectiveStyle === "native-callout";
           if (wantsBake && translations.length >= 2) {
@@ -2574,12 +2566,12 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
             }
           }
         } else {
-          frag.appendChild(activeDocument.createTextNode(match[0]));
+          frag.appendText(match[0]);
         }
         lastIndex = matchIndex + match[0].length;
       }
       if (lastIndex < text.length) {
-        frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex)));
+        frag.appendText(text.slice(lastIndex));
       }
       (_i = node2.parentNode) == null ? void 0 : _i.replaceChild(frag, node2);
     }

@@ -2,9 +2,10 @@
  * DOM post-processing for the inline display style.
  *
  * Obsidian's MarkdownRenderer emits block elements (`<p>`, `<br>`) that can't
- * live inside an inline context, so we flatten them. This module has NO
- * `obsidian` dependency — it operates purely on a populated DOM node — so it can
- * be unit-tested directly under jsdom.
+ * live inside an inline context, so we flatten them. This module imports nothing
+ * from `obsidian` — it operates purely on a populated DOM node — so it can be
+ * unit-tested directly under jsdom. It does use Obsidian's global `createSpan`
+ * helper, which the test shims.
  */
 
 /**
@@ -27,8 +28,7 @@ export function flattenInlineContent(container: HTMLElement, verseNewLine: boole
       container.insertBefore(p.firstChild, p);
     }
     if (i < paragraphs.length - 1) {
-      const sep = activeDocument.createElement("span");
-      sep.className = "bible-verse-para-break";
+      const sep = createSpan({ cls: "bible-verse-para-break" });
       container.insertBefore(sep, p);
     }
     p.remove();
@@ -40,11 +40,9 @@ export function flattenInlineContent(container: HTMLElement, verseNewLine: boole
       (next as Text).data = (next as Text).data.slice(1);
     }
     if (verseNewLine) {
-      const lineBreak = activeDocument.createElement("span");
-      lineBreak.className = "bible-verse-line-break";
-      br.replaceWith(lineBreak);
+      br.replaceWith(createSpan({ cls: "bible-verse-line-break" }));
     } else {
-      br.replaceWith(activeDocument.createTextNode(" "));
+      br.replaceWith(" ");
     }
   }
 }

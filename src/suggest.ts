@@ -202,25 +202,25 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
         const commaIdx = item.value.lastIndexOf(",");
         const ref = item.value.substring(0, commaIdx);
         const mod = item.value.substring(commaIdx + 1).trim();
-        el.createEl("span", { cls: "bible-suggest-prefix", text: ref + ", " });
-        el.createEl("span", { cls: "bible-suggest-modifier", text: mod });
+        el.createSpan({ cls: "bible-suggest-prefix", text: ref + ", " });
+        el.createSpan({ cls: "bible-suggest-modifier", text: mod });
       } else {
-        el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+        el.createSpan({ cls: "bible-suggest-text", text: item.value });
       }
-      el.createEl("span", { cls: "bible-suggest-label", text: item.label });
+      el.createSpan({ cls: "bible-suggest-label", text: item.label });
       return;
     }
 
     // Modifier suggestion (user typed a comma themselves)
     if (item.value.includes(",")) {
-      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      const iconEl = el.createSpan({ cls: "bible-suggest-icon" });
       setIcon(iconEl, "sliders-horizontal");
 
       const parts = item.value.split(",");
       const modifier = parts[parts.length - 1].trim();
       const prefix = parts.slice(0, -1).join(",").trim();
 
-      const span = el.createEl("span", { cls: "bible-suggest-text" });
+      const span = el.createSpan({ cls: "bible-suggest-text" });
       span.createSpan({ text: prefix + ", ", cls: "bible-suggest-prefix" });
       span.createSpan({ text: modifier, cls: "bible-suggest-modifier" });
 
@@ -228,13 +228,13 @@ export class BibleReferenceSuggest extends EditorSuggest<BibleSuggestion> {
       if (trans) {
         const isLinkOnly = this.plugin.isTranslationLinkOnly(trans.abbreviation);
         const suffix = isLinkOnly ? " (link only)" : trans.mode === "apiKeyText" ? " (API key)" : "";
-        el.createEl("span", { cls: "bible-suggest-name", text: ` — ${trans.name}${suffix}` });
+        el.createSpan({ cls: "bible-suggest-name", text: ` — ${trans.name}${suffix}` });
       }
     } else {
       // Book name suggestion
-      const iconEl = el.createEl("span", { cls: "bible-suggest-icon" });
+      const iconEl = el.createSpan({ cls: "bible-suggest-icon" });
       setIcon(iconEl, "book-open");
-      el.createEl("span", { cls: "bible-suggest-text", text: item.value });
+      el.createSpan({ cls: "bible-suggest-text", text: item.value });
     }
   }
 

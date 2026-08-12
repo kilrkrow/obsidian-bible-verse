@@ -62,7 +62,7 @@ async function renderSidebar(
   link.setAttr("rel", "noopener");
 
   if ((showAttribution || verse.requireAttribution) && verse.copyright) {
-    footer.createEl("span", { cls: "bible-verse-copyright", text: verse.copyright });
+    footer.createSpan({ cls: "bible-verse-copyright", text: verse.copyright });
   }
 }
 
@@ -219,7 +219,7 @@ export async function renderComparison(
   const refStr = formatReference(ref);
 
   // Header
-  wrapper.createEl("div", {
+  wrapper.createDiv({
     cls: "bible-verse-comparison-header",
     text: refStr,
   });

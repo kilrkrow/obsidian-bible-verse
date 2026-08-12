@@ -365,20 +365,20 @@ export default class BibleVersePlugin extends Plugin {
 
     for (const { node, matches } of nodesToProcess) {
       const text = node.textContent || "";
-      const frag = activeDocument.createDocumentFragment();
+      const frag = createFragment();
       let lastIndex = 0;
 
       for (const match of matches) {
         const matchIndex = match.index!;
         if (matchIndex > lastIndex) {
-          frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex, matchIndex)));
+          frag.appendText(text.slice(lastIndex, matchIndex));
         }
 
         // Escaped in the source (\{...}) — keep it as literal text (#28)
         const escapesLeft = escapedBudget.get(match[0]) ?? 0;
         if (escapesLeft > 0) {
           escapedBudget.set(match[0], escapesLeft - 1);
-          frag.appendChild(activeDocument.createTextNode(match[0]));
+          frag.appendText(match[0]);
           lastIndex = matchIndex + match[0].length;
           continue;
         }
@@ -388,8 +388,7 @@ export default class BibleVersePlugin extends Plugin {
 
         if (spec) {
           const { ref, translations } = spec;
-          const span = activeDocument.createElement("span");
-          span.className = "bible-verse-container";
+          const span = createSpan({ cls: "bible-verse-container" });
 
           const effectiveStyle = spec.styleOverride ?? this.settings.displayStyle;
           // `bake` token or the native-callout style trigger a one-way bake.
@@ -439,14 +438,14 @@ export default class BibleVersePlugin extends Plugin {
             }
           }
         } else {
-          frag.appendChild(activeDocument.createTextNode(match[0]));
+          frag.appendText(match[0]);
         }
 
         lastIndex = matchIndex + match[0].length;
       }
 
       if (lastIndex < text.length) {
-        frag.appendChild(activeDocument.createTextNode(text.slice(lastIndex)));
+        frag.appendText(text.slice(lastIndex));
       }
 
       node.parentNode?.replaceChild(frag, node);
