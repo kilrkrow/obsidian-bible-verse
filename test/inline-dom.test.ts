@@ -6,6 +6,15 @@ import { flattenInlineContent } from "../src/inline-dom";
 // under jsdom we point it at the test document.
 (globalThis as unknown as { activeDocument: Document }).activeDocument = document;
 
+// Obsidian injects `createSpan` at runtime; jsdom has no such global. Same
+// contract: a detached <span> with the given class.
+(globalThis as unknown as { createSpan: (o?: { cls?: string }) => HTMLSpanElement }).createSpan =
+  (o) => {
+    const span = document.createElement("span");
+    if (o?.cls) span.className = o.cls;
+    return span;
+  };
+
 /**
  * Build a container populated as Obsidian's MarkdownRenderer would for inline
  * text: single "\n" separators become `<br>` followed by a "\n" text node;

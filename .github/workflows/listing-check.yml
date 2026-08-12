@@ -1,0 +1,113 @@
+name: Listing check
+
+# Catches the two ways users silently lose the plugin:
+#
+#   1. manifest.json on main names a version that has no matching GitHub
+#      release. Obsidian resolves the download by manifest version, so a
+#      version with no release means it cannot scan or distribute us, and its
+#      mirror drops us from community-plugins.json. This is exactly what
+#      happened to 1.8.0: bumped 2026-08-05, delisted 2026-08-06.
+#   2. We are missing from obsidianmd/obsidian-releases for any reason at all.
+#
+# release.yml already checks tag -> manifest when a release is published. That
+# is the opposite direction and cannot catch a bump that was never released,
+# because nothing runs. This checks manifest -> release plus the end state, on
+# a timer, so an unreleased bump cannot sit unnoticed.
+#
+# A push that touches manifest.json only fails the run (red X on main): a bump
+# merged a few minutes before you publish the release is briefly and
+# legitimately red, and it goes green by itself on the next scheduled run.
+# The daily run also opens an issue, because still-broken a day later is a real
+# outage for users.
+
+on:
+  push:
+    branches: [main]
+    paths: ["manifest.json"]
+  schedule:
+    - cron: "17 14 * * *" # 14:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release and listing
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          VERSION="$(jq -r .version manifest.json)"
+          PLUGIN_ID="$(jq -r .id manifest.json)"
+          echo "manifest.json: id=$PLUGIN_ID version=$VERSION"
+
+          : > problems.md
+
+          if gh release view "$VERSION" --json tagName > /dev/null 2>&1; then
+            ASSETS="$(gh release view "$VERSION" --json assets --jq '[.assets[].name] | join(" ")')"
+            echo "release $VERSION assets: $ASSETS"
+            for WANT in main.js manifest.json styles.css; do
+              case " $ASSETS " in
+                *" $WANT "*) ;;
+                *) echo "- Release \`$VERSION\` is missing the \`$WANT\` asset. Obsidian installs it from the release, so users get a broken install. Present: \`$ASSETS\`" >> problems.md ;;
+              esac
+            done
+          else
+            echo "- \`manifest.json\` on \`main\` says \`$VERSION\`, but no GitHub release is tagged \`$VERSION\`. Obsidian resolves the download by manifest version, so it cannot scan or distribute the plugin and will drop it from the community list. Publish a release tagged \`$VERSION\` (no \`v\` prefix)." >> problems.md
+          fi
+
+          # Only on the timer: after a fresh release the mirror takes hours to
+          # pick us back up, so checking this on the push would be a false alarm.
+          if [ "$EVENT" != "push" ]; then
+            LISTED="$(curl -fsSL https://raw.githubusercontent.com/obsidianmd/obsidian-releases/HEAD/community-plugins.json \
+              | jq --arg id "$PLUGIN_ID" '[.[] | select(.id == $id)] | length')"
+            echo "entries in community-plugins.json for $PLUGIN_ID: $LISTED"
+            if [ "$LISTED" -eq 0 ]; then
+              echo "- \`$PLUGIN_ID\` is not in \`community-plugins.json\` in obsidianmd/obsidian-releases. Users cannot find or install the plugin from inside Obsidian." >> problems.md
+            fi
+          fi
+
+          if [ -s problems.md ]; then
+            {
+              echo "## Bible Verse is at risk of delisting"
+              echo
+              cat problems.md
+              echo
+              echo "Checked \`$PLUGIN_ID\` at manifest version \`$VERSION\` from ${{ github.sha }}."
+            } > report.md
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          else
+            echo "## Bible Verse listing is healthy" > report.md
+            echo "" >> report.md
+            echo "Release \`$VERSION\` exists with all assets, and the plugin is listed." >> report.md
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue
+        if: steps.check.outputs.status == 'fail' && github.event_name != 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "Plugin listing check failed"
+        run: |
+          set -euo pipefail
+          EXISTING="$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')"
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING is already open; not filing a duplicate."
+          else
+            gh issue create --title "$TITLE" --body-file report.md
+          fi
+
+      - name: Fail if anything is wrong
+        if: steps.check.outputs.status == 'fail'
+        run: exit 1

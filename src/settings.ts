@@ -5,13 +5,11 @@ import { HELLOAO_TRANSLATIONS } from "./constants";
 import { addFeedbackSetting } from "./feedback";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
-  const frag = activeDocument.createDocumentFragment();
-  frag.appendChild(activeDocument.createTextNode(text));
+  const frag = createFragment();
+  frag.appendText(text);
   for (const ex of examples) {
-    frag.appendChild(activeDocument.createTextNode(" "));
-    const code = activeDocument.createElement("code");
-    code.textContent = ex;
-    frag.appendChild(code);
+    frag.appendText(" ");
+    frag.appendChild(createEl("code", { text: ex }));
   }
   return frag;
 }
