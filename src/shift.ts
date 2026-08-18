@@ -170,3 +170,38 @@ export function rewriteTokenReference(token: string, shifted: BibleReference): s
   // Group 1 is the doubled form's contents; group 2 the single form's.
   return match[1] !== undefined ? `{{${body}}}` : `{${body}}`;
 }
+
+/** A `{…}` token located within a single line of text. */
+export interface TokenAtCursor {
+  /** Column the token starts at. */
+  start: number;
+  /** Column just past the token's last character. */
+  end: number;
+  /** The token text, braces included. */
+  token: string;
+}
+
+/**
+ * Find the inline token containing `ch` on `line`, for the palette commands
+ * (#49) — the only route to the start verse on touch devices, where there is no
+ * Alt key, and the only one that works in Source mode where nothing renders.
+ *
+ * A cursor resting on either brace counts as inside, so the command still fires
+ * when the caret sits at the edge of a token.
+ */
+export function findTokenAtCursor(line: string, ch: number): TokenAtCursor | null {
+  const re = new RegExp(INLINE_TOKEN_SOURCE, "g");
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(line)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (ch >= start && ch <= end) {
+      // An escaped token is literal text (#28) and must not be rewritten.
+      if (start > 0 && line[start - 1] === "\\") continue;
+      return { start, end, token: match[0] };
+    }
+  }
+
+  return null;
+}
