@@ -1,4 +1,4 @@
-import { BibleReference, DisplayStyle } from "./types";
+import { BibleReference, DisplayStyle, EOC_VERSE } from "./types";
 import { BOOK_ALIASES } from "./constants";
 
 /**
@@ -110,7 +110,7 @@ export function parseReference(input: string): BibleReference | null {
   if (match[6] !== undefined) {
     const val = match[6].toLowerCase();
     if (val === "eoc" || val === "-") {
-      endVerse = 999; // Special marker for "End of Chapter"
+      endVerse = EOC_VERSE;
     } else {
       endVerse = parseInt(val, 10);
     }
@@ -347,6 +347,8 @@ export function formatReference(ref: BibleReference): string {
     s += `:${ref.startVerse}`;
     if (ref.endChapter !== null && ref.endVerse !== null) {
       s += `-${ref.endChapter}:${ref.endVerse}`;
+    } else if (ref.endVerse === EOC_VERSE) {
+      s += "-eoc";
     } else if (ref.endVerse !== null) {
       s += `-${ref.endVerse}`;
     }

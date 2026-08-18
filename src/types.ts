@@ -1,3 +1,11 @@
+/**
+ * Sentinel stored in `endVerse` for an "end of chapter" range ("John 3:16-eoc").
+ * Resolved lazily at render time — `computeRequestedVerses` treats it as "every
+ * verse from `startVerse` on", so the chapter data supplies the real bound and
+ * no verse count is needed to display it.
+ */
+export const EOC_VERSE = 999;
+
 /** Parsed Bible reference */
 export interface BibleReference {
   book: string;
