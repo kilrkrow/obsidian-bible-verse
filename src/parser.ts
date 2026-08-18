@@ -339,6 +339,42 @@ export function parseInlineSpec(content: string): InlineSpec | null {
 }
 
 /**
+ * Render an InlineSpec back to the text inside a {…} token — the inverse of
+ * `parseInlineSpec`, so a spec can be edited and written back without losing
+ * the translations, style, or formatting flags the user typed (#49).
+ *
+ * Returns the token *content* only. Callers re-wrap it in the brace form they
+ * found, so a doubled `{{…}}` token stays doubled.
+ *
+ * Modifiers are emitted in the documented order — translations, style, flags,
+ * then `bake`. `parseInlineSpec` peels from the right and accepts these in any
+ * order, but matching the documented form keeps round-tripped text looking like
+ * hand-written text.
+ */
+export function formatInlineSpec(spec: InlineSpec): string {
+  const parts: string[] = [formatReference(spec.ref)];
+
+  // Translations are upper-cased on parse, so they round-trip as-is.
+  for (const t of spec.translations) parts.push(t);
+
+  if (spec.styleOverride === "native-callout") {
+    // The fold marker is only meaningful on this style; "-" bakes collapsed and
+    // a bare name is expanded, matching how parseInlineSpec reads it back.
+    parts.push(spec.calloutCollapsed ? "native-callout-" : "native-callout");
+  } else if (spec.styleOverride !== null) {
+    parts.push(spec.styleOverride);
+  }
+
+  if (spec.verseNewLine !== null) parts.push(spec.verseNewLine ? "nl" : "no-nl");
+  if (spec.showVerseNumbers !== null) parts.push(spec.showVerseNumbers ? "v" : "no-v");
+  if (spec.paragraphBreaks !== null) parts.push(spec.paragraphBreaks ? "para" : "no-para");
+
+  if (spec.bake) parts.push("bake");
+
+  return parts.join(", ");
+}
+
+/**
  * Build a human-readable reference string from parsed data.
  */
 export function formatReference(ref: BibleReference): string {
