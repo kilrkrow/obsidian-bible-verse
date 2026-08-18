@@ -67,6 +67,13 @@ export interface CachedVerse {
   fetchedAt: number;
   /** When true, the copyright line must be shown regardless of the "Show attribution" toggle. */
   requireAttribution?: boolean;
+  /**
+   * Verses in the source chapter, when the provider reports it. Undefined means
+   * "unknown" — entries cached before this field existed, and providers that
+   * never fetch a chapter (ESV, link-only translations). Callers must treat
+   * undefined as "no upper bound known" rather than as zero.
+   */
+  numberOfVerses?: number;
 }
 
 /** Translation info */

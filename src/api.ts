@@ -11,6 +11,7 @@ const BASE_URL = "https://bible.helloao.org/api";
 interface HelloAoChapterResponse {
   chapter: { content: unknown[] };
   translation?: { licenseUrl?: string };
+  numberOfVerses?: number;
 }
 
 /**
@@ -80,6 +81,7 @@ export class BibleApi {
       text,
       copyright,
       fetchedAt: Date.now(),
+      numberOfVerses: typeof data.numberOfVerses === "number" ? data.numberOfVerses : undefined,
     };
 
     // Cache write failure should never prevent verse display
