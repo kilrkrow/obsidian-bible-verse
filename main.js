@@ -30,6 +30,7 @@ module.exports = __toCommonJS(main_exports);
 var import_obsidian10 = require("obsidian");
 
 // src/types.ts
+var EOC_VERSE = 999;
 var DEFAULT_SETTINGS = {
   defaultTranslation: "eng_kjv",
   preferredWebsite: "BibleGateway",
@@ -618,7 +619,7 @@ function parseReference(input) {
   if (match[6] !== void 0) {
     const val = match[6].toLowerCase();
     if (val === "eoc" || val === "-") {
-      endVerse = 999;
+      endVerse = EOC_VERSE;
     } else {
       endVerse = parseInt(val, 10);
     }
@@ -770,12 +771,33 @@ function parseInlineSpec(content) {
     return null;
   return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake, calloutCollapsed };
 }
+function formatInlineSpec(spec) {
+  const parts = [formatReference(spec.ref)];
+  for (const t of spec.translations)
+    parts.push(t);
+  if (spec.styleOverride === "native-callout") {
+    parts.push(spec.calloutCollapsed ? "native-callout-" : "native-callout");
+  } else if (spec.styleOverride !== null) {
+    parts.push(spec.styleOverride);
+  }
+  if (spec.verseNewLine !== null)
+    parts.push(spec.verseNewLine ? "nl" : "no-nl");
+  if (spec.showVerseNumbers !== null)
+    parts.push(spec.showVerseNumbers ? "v" : "no-v");
+  if (spec.paragraphBreaks !== null)
+    parts.push(spec.paragraphBreaks ? "para" : "no-para");
+  if (spec.bake)
+    parts.push("bake");
+  return parts.join(", ");
+}
 function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
   if (ref.startVerse !== null) {
     s += `:${ref.startVerse}`;
     if (ref.endChapter !== null && ref.endVerse !== null) {
       s += `-${ref.endChapter}:${ref.endVerse}`;
+    } else if (ref.endVerse === EOC_VERSE) {
+      s += "-eoc";
     } else if (ref.endVerse !== null) {
       s += `-${ref.endVerse}`;
     }
@@ -815,7 +837,7 @@ function extractVerseText(content) {
 function computeRequestedVerses(ref) {
   if (ref.startVerse === null)
     return null;
-  if (ref.endVerse === 999)
+  if (ref.endVerse === EOC_VERSE)
     return null;
   const verses = /* @__PURE__ */ new Set();
   if (ref.endVerse !== null && ref.endChapter === null) {
@@ -902,9 +924,43 @@ function formatEsvPassageText(passages, settings) {
 
 // src/api.ts
 var BASE_URL = "https://bible.helloao.org/api";
+var CHAPTER_MEMO_LIMIT = 8;
 var BibleApi = class {
   constructor(cache) {
+    /**
+     * In-flight and recently fetched chapter payloads, keyed by
+     * translation/book/chapter. Promises rather than values, so concurrent
+     * requests for the same chapter share one network round trip instead of
+     * racing — which is what a burst of verse-shift clicks produces.
+     *
+     * Process-lifetime only; the durable cache remains VerseCache on disk.
+     */
+    this.chapters = /* @__PURE__ */ new Map();
     this.cache = cache;
+  }
+  /** Fetch a chapter payload, reusing an in-flight or memoised request. */
+  async getChapter(translationId, usfm, chapter) {
+    const key = `${translationId}/${usfm}/${chapter}`;
+    const memo = this.chapters.get(key);
+    if (memo)
+      return memo;
+    const pending = (async () => {
+      const response = await (0, import_obsidian.requestUrl)({
+        url: `${BASE_URL}/${translationId}/${usfm}/${chapter}.json`
+      });
+      if (response.status !== 200) {
+        throw new Error(`HelloAO API returned status ${response.status}`);
+      }
+      return response.json;
+    })();
+    pending.catch(() => this.chapters.delete(key));
+    this.chapters.set(key, pending);
+    if (this.chapters.size > CHAPTER_MEMO_LIMIT) {
+      const oldest = this.chapters.keys().next();
+      if (!oldest.done)
+        this.chapters.delete(oldest.value);
+    }
+    return pending;
   }
   /**
    * Fetch a passage from HelloAO Bible API.
@@ -920,12 +976,7 @@ var BibleApi = class {
     const usfm = USFM_CODES[ref.book];
     if (!usfm)
       throw new Error(`Unknown book: ${ref.book}`);
-    const url = `${BASE_URL}/${translationId}/${usfm}/${ref.chapter}.json`;
-    const response = await (0, import_obsidian.requestUrl)({ url });
-    if (response.status !== 200) {
-      throw new Error(`HelloAO API returned status ${response.status}`);
-    }
-    const data = response.json;
+    const data = await this.getChapter(translationId, usfm, ref.chapter);
     const chapterContent = data.chapter.content;
     const requestedVerses = computeRequestedVerses(ref);
     const text = assembleChapterText(chapterContent, requestedVerses, ref.startVerse, settings);
@@ -940,7 +991,8 @@ var BibleApi = class {
       bibleId: translationId,
       text,
       copyright,
-      fetchedAt: Date.now()
+      fetchedAt: Date.now(),
+      numberOfVerses: typeof data.numberOfVerses === "number" ? data.numberOfVerses : void 0
     };
     try {
       await this.cache.set(entry, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
@@ -2164,19 +2216,118 @@ var import_view = require("@codemirror/view");
 var import_state2 = require("@codemirror/state");
 var import_obsidian8 = require("obsidian");
 
+// src/shift.ts
+function shiftReference(ref, target, delta, numberOfVerses) {
+  if (ref.startVerse === null)
+    return null;
+  if (ref.endChapter !== null)
+    return null;
+  if (ref.additionalVerses.length > 0)
+    return null;
+  const lastVerse = typeof numberOfVerses === "number" && numberOfVerses > 0 ? numberOfVerses : null;
+  return target === "start" ? shiftStart(ref, delta, lastVerse) : shiftEnd(ref, delta, lastVerse);
+}
+function shiftStart(ref, delta, lastVerse) {
+  const startVerse = ref.startVerse + delta;
+  if (startVerse < 1)
+    return null;
+  if (ref.endVerse !== null && ref.endVerse !== EOC_VERSE && startVerse > ref.endVerse)
+    return null;
+  if (lastVerse !== null && startVerse > lastVerse)
+    return null;
+  if (startVerse === ref.endVerse)
+    return withVerses(ref, startVerse, null);
+  return withVerses(ref, startVerse, ref.endVerse);
+}
+function shiftEnd(ref, delta, lastVerse) {
+  const startVerse = ref.startVerse;
+  if (ref.endVerse === EOC_VERSE) {
+    if (delta > 0)
+      return null;
+    if (lastVerse === null || lastVerse < startVerse)
+      return null;
+    if (lastVerse === startVerse)
+      return withVerses(ref, startVerse, null);
+    return withVerses(ref, startVerse, lastVerse);
+  }
+  if (ref.endVerse === null) {
+    if (delta < 0)
+      return null;
+    if (lastVerse !== null && startVerse >= lastVerse)
+      return withVerses(ref, startVerse, EOC_VERSE);
+    return withVerses(ref, startVerse, startVerse + 1);
+  }
+  const endVerse = ref.endVerse + delta;
+  if (lastVerse !== null && endVerse > lastVerse)
+    return withVerses(ref, startVerse, EOC_VERSE);
+  if (endVerse === startVerse)
+    return withVerses(ref, startVerse, null);
+  if (endVerse < startVerse)
+    return null;
+  return withVerses(ref, startVerse, endVerse);
+}
+function withVerses(ref, startVerse, endVerse) {
+  return {
+    ...ref,
+    startVerse,
+    endVerse,
+    raw: ""
+  };
+}
+function rewriteTokenReference(token, shifted) {
+  const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`).exec(token);
+  if (!match)
+    return null;
+  const spec = parseInlineSpec(inlineTokenContent(match).trim());
+  if (!spec)
+    return null;
+  const body = formatInlineSpec({ ...spec, ref: shifted });
+  return match[1] !== void 0 ? `{{${body}}}` : `{${body}}`;
+}
+function findTokenAtCursor(line, ch) {
+  const re = new RegExp(INLINE_TOKEN_SOURCE, "g");
+  let match;
+  while ((match = re.exec(line)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (ch >= start && ch <= end) {
+      if (start > 0 && line[start - 1] === "\\")
+        continue;
+      return { start, end, token: match[0] };
+    }
+  }
+  return null;
+}
+
 // src/effects.ts
 var import_state = require("@codemirror/state");
 var verseFetchedEffect = import_state.StateEffect.define();
 
 // src/view-plugin.ts
+var SHIFT_SETTLE_MS = 250;
 var BibleVerseWidget = class extends import_view.WidgetType {
   constructor(spec) {
     super();
     this.spec = spec;
+    /**
+     * The rendered DOM, kept only so `posAtDOM` can resolve the widget's current
+     * document offset at click time. Deliberately not a position — see applyShift.
+     */
+    this.containerEl = null;
+    /**
+     * Pending state for a burst of shift clicks. Clicks accumulate here and are
+     * written to the document once, after SHIFT_SETTLE_MS of quiet — so following
+     * a teacher through ten verses is one document change and one undo step
+     * rather than ten of each, and the widget survives the burst instead of being
+     * torn down and refetched on every tap.
+     */
+    this.pendingRef = null;
+    this.pendingTimer = null;
   }
   toDOM(view) {
     var _a, _b, _c, _d;
     const container = createSpan({ cls: "bible-verse-livepreview" });
+    this.containerEl = container;
     const vnL = (_a = this.spec.verseNewLine) != null ? _a : this.spec.plugin.settings.verseNewLine;
     const effectiveStyle = (_b = this.spec.styleOverride) != null ? _b : this.spec.plugin.settings.displayStyle;
     if ((this.spec.bake || effectiveStyle === "native-callout") && this.spec.translations.length < 2) {
@@ -2185,6 +2336,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     }
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
+      this.renderShiftControls(container, view);
       return container;
     }
     if (this.spec.translations.length >= 2) {
@@ -2222,7 +2374,173 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         void this.fetchAndUpdate(container, view);
       }
     }
+    this.renderShiftControls(container, view);
     return container;
+  }
+  /**
+   * The +/- verse controls (#49). Plain click moves the end verse, Alt-click
+   * moves the start verse.
+   *
+   * Rendered as the container's last child. Every render path above builds its
+   * root element synchronously before awaiting, so appending here keeps the
+   * controls after the verse regardless of which path ran.
+   */
+  renderShiftControls(container, view) {
+    const { ref, numberOfVerses } = this.spec;
+    const anyShiftPossible = [-1, 1].some(
+      (d) => shiftReference(ref, "end", d, numberOfVerses) !== null || shiftReference(ref, "start", d, numberOfVerses) !== null
+    );
+    if (!anyShiftPossible)
+      return;
+    const controls = container.createSpan({ cls: "bible-verse-shift" });
+    this.renderShiftButton(controls, view, -1);
+    this.renderShiftButton(controls, view, 1);
+  }
+  renderShiftButton(controls, view, delta) {
+    const { ref, numberOfVerses } = this.spec;
+    const canEnd = shiftReference(ref, "end", delta, numberOfVerses) !== null;
+    const canStart = shiftReference(ref, "start", delta, numberOfVerses) !== null;
+    const verb = delta > 0 ? "Extend" : "Shrink";
+    const btn = controls.createEl("button", {
+      cls: "bible-verse-shift-btn",
+      text: delta > 0 ? "+" : "\u2212",
+      attr: {
+        type: "button",
+        "data-delta": String(delta),
+        "aria-label": `${verb} passage (Alt-click to move the start verse)`,
+        title: `${verb} passage \u2014 Alt-click to move the start verse`
+      }
+    });
+    btn.disabled = !canEnd && !canStart;
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.applyShift(view, e.altKey ? "start" : "end", delta);
+    });
+  }
+  /**
+   * Rewrite the token in the document.
+   *
+   * The position is resolved here rather than captured at build time: `eq()`
+   * does not compare position, so CodeMirror reuses a widget instance when only
+   * its offset moved, and any stored offset would be stale. `posAtDOM` is
+   * always current, and the token is re-matched at that offset before writing —
+   * if anything has shifted underneath us, bail rather than corrupt the note.
+   */
+  applyShift(view, target, delta) {
+    var _a;
+    const base = (_a = this.pendingRef) != null ? _a : this.spec.ref;
+    const shifted = shiftReference(base, target, delta, this.spec.numberOfVerses);
+    if (!shifted)
+      return;
+    this.pendingRef = shifted;
+    this.showPendingReference(shifted);
+    this.updateButtonStates();
+    if (this.pendingTimer !== null)
+      window.clearTimeout(this.pendingTimer);
+    this.pendingTimer = window.setTimeout(() => {
+      this.pendingTimer = null;
+      const ref = this.pendingRef;
+      this.pendingRef = null;
+      if (ref)
+        this.commitShift(view, ref);
+    }, SHIFT_SETTLE_MS);
+  }
+  /**
+   * Reflect a pending shift in the reference label straight away. The verse
+   * text stays stale until the change lands, but the reference is what the user
+   * is tracking while tapping, and updating it keeps the controls from feeling
+   * dead during a burst.
+   */
+  showPendingReference(ref) {
+    if (!this.containerEl)
+      return;
+    const label = formatReference(ref);
+    this.containerEl.querySelectorAll(".bible-verse-ref, .bible-verse-pill").forEach((el) => {
+      var _a, _b, _c;
+      const suffix = (_c = (_b = (_a = el.textContent) == null ? void 0 : _a.match(/\s*\([^)]*\)\s*$/)) == null ? void 0 : _b[0]) != null ? _c : "";
+      el.textContent = `${label}${suffix}`;
+    });
+  }
+  /** Re-evaluate which buttons are still usable as a burst approaches a bound. */
+  updateButtonStates() {
+    var _a;
+    if (!this.containerEl)
+      return;
+    const ref = (_a = this.pendingRef) != null ? _a : this.spec.ref;
+    this.containerEl.querySelectorAll(".bible-verse-shift-btn").forEach((btn) => {
+      const delta = btn.dataset.delta === "1" ? 1 : -1;
+      const canEnd = shiftReference(ref, "end", delta, this.spec.numberOfVerses) !== null;
+      const canStart = shiftReference(ref, "start", delta, this.spec.numberOfVerses) !== null;
+      btn.disabled = !canEnd && !canStart;
+    });
+  }
+  /** Write an accumulated shift to the document. */
+  commitShift(view, shifted) {
+    if (!this.containerEl || !this.containerEl.isConnected)
+      return;
+    const from = view.posAtDOM(this.containerEl);
+    const line = view.state.doc.lineAt(from);
+    const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})`).exec(
+      view.state.doc.sliceString(from, line.to)
+    );
+    if (!match || match[0] !== this.spec.token)
+      return;
+    const insert = rewriteTokenReference(match[0], shifted);
+    if (insert === null)
+      return;
+    view.dispatch({
+      changes: { from, to: from + match[0].length, insert }
+    });
+    void this.prefetchNeighbours(shifted);
+  }
+  /**
+   * Warm the verse cache for the steps either side of where we just landed.
+   *
+   * buildDecorations reads the cache synchronously, so a warm entry means the
+   * next click renders the verse immediately instead of falling back to the
+   * pill placeholder and an async fetch. The chapter memo in BibleApi makes
+   * this nearly free — neighbours are almost always in the chapter already
+   * fetched, so this costs an assemble and a cache write, not a round trip.
+   */
+  async prefetchNeighbours(from) {
+    var _a, _b, _c;
+    const { plugin, translations, numberOfVerses } = this.spec;
+    if (translations.length >= 2)
+      return;
+    const id = translations.length === 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+    if (plugin.isTranslationLinkOnly(id))
+      return;
+    const abbr = plugin.getTranslationAbbrPublic(id);
+    const settings = {
+      verseNewLine: (_a = this.spec.verseNewLine) != null ? _a : plugin.settings.verseNewLine,
+      showVerseNumbers: (_b = this.spec.showVerseNumbers) != null ? _b : plugin.settings.showVerseNumbers,
+      paragraphBreaks: (_c = this.spec.paragraphBreaks) != null ? _c : plugin.settings.paragraphBreaks
+    };
+    for (const delta of [1, -1]) {
+      const next = shiftReference(from, "end", delta, numberOfVerses);
+      if (!next)
+        continue;
+      try {
+        await plugin.fetchFromProvider(next, id, abbr, settings);
+      } catch (e) {
+      }
+    }
+  }
+  /**
+   * Drop a pending timer when the widget goes away, so it cannot fire against
+   * detached DOM. Any taps not yet written are lost, which needs an external
+   * document change within the settle window to happen at all — and a dispatch
+   * from here would re-enter CodeMirror's update cycle, which is worse.
+   */
+  destroy() {
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    this.pendingRef = null;
+    this.containerEl = null;
   }
   renderPill(container) {
     const a = createEl("a", { cls: "bible-verse-pill" });
@@ -2289,21 +2607,26 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           vnL
         );
       }
+      this.renderShiftControls(container, view);
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
     } catch (e) {
       console.error("Bible Verse Live Preview: fetch failed", e);
       container.empty();
       renderError(container, `Could not load ${formatReference(ref)}.`);
+      this.renderShiftControls(container, view);
     }
   }
   eq(other) {
-    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers && this.spec.paragraphBreaks === other.spec.paragraphBreaks && this.spec.bake === other.spec.bake && this.spec.preferredWebsite === other.spec.preferredWebsite;
+    return this.spec.label === other.spec.label && this.spec.cachedVerses.length === other.spec.cachedVerses.length && this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) && this.spec.styleOverride === other.spec.styleOverride && this.spec.verseNewLine === other.spec.verseNewLine && this.spec.showVerseNumbers === other.spec.showVerseNumbers && this.spec.paragraphBreaks === other.spec.paragraphBreaks && this.spec.bake === other.spec.bake && this.spec.preferredWebsite === other.spec.preferredWebsite && this.spec.token === other.spec.token && // Drives which shift buttons are disabled, so a widget whose chapter
+    // length has just arrived must re-render.
+    this.spec.numberOfVerses === other.spec.numberOfVerses;
   }
   ignoreEvent(event) {
     const target = event.target;
     const isAnchorEvent = !!(target && target.closest("a"));
+    const isShiftControl = !!(target && target.closest(".bible-verse-shift"));
     if (event.type === "mousedown") {
-      return isAnchorEvent;
+      return isAnchorEvent || isShiftControl;
     }
     return true;
   }
@@ -2331,6 +2654,7 @@ function buildViewPlugin(plugin) {
         }
       }
       buildDecorations(view) {
+        var _a;
         if (!view.state.field(import_obsidian8.editorLivePreviewField)) {
           return import_view.Decoration.none;
         }
@@ -2387,6 +2711,8 @@ function buildViewPlugin(plugin) {
               label,
               href,
               ref,
+              token: match[0],
+              numberOfVerses: (_a = cachedVerses[0]) == null ? void 0 : _a.numberOfVerses,
               translations,
               styleOverride,
               verseNewLine,
@@ -2620,6 +2946,61 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       name: "Report a bug on GitHub",
       callback: () => window.open(bugReportUrl(this.manifest.version))
     });
+    this.addShiftCommand("end", 1, "shift-end-forward", "Extend passage by one verse");
+    this.addShiftCommand("end", -1, "shift-end-back", "Shrink passage by one verse");
+    this.addShiftCommand("start", 1, "shift-start-forward", "Move start verse forward");
+    this.addShiftCommand("start", -1, "shift-start-back", "Move start verse back");
+  }
+  /** Register one verse-shift command operating on the token at the cursor. */
+  addShiftCommand(target, delta, id, name) {
+    this.addCommand({
+      id,
+      name,
+      editorCallback: (editor) => {
+        const cursor = editor.getCursor();
+        const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
+        if (!found) {
+          new import_obsidian10.Notice("No Bible reference found at cursor.");
+          return;
+        }
+        const spec = parseInlineSpec(found.token.replace(/^\{+|\}+$/g, "").trim());
+        if (!spec) {
+          new import_obsidian10.Notice("Could not read the reference at the cursor.");
+          return;
+        }
+        const shifted = shiftReference(spec.ref, target, delta, this.lookupVerseCount(spec));
+        if (!shifted) {
+          new import_obsidian10.Notice("Cannot move that verse any further.");
+          return;
+        }
+        const replacement = rewriteTokenReference(found.token, shifted);
+        if (replacement === null)
+          return;
+        editor.replaceRange(
+          replacement,
+          { line: cursor.line, ch: found.start },
+          { line: cursor.line, ch: found.end }
+        );
+      }
+    });
+  }
+  /**
+   * The chapter length for a spec's reference, if it happens to be cached.
+   * Undefined means unknown, which shiftReference treats as "no upper bound" —
+   * the command still works, it just cannot convert to eoc or clamp.
+   */
+  lookupVerseCount(spec) {
+    var _a, _b, _c;
+    const id = spec.translations.length >= 1 ? this.resolveTranslationId(spec.translations[0]) : this.settings.defaultTranslation;
+    const abbr = this.getTranslationAbbr(id);
+    const cached = this.cache.get(
+      abbr,
+      formatReference(spec.ref),
+      (_a = spec.verseNewLine) != null ? _a : this.settings.verseNewLine,
+      (_b = spec.showVerseNumbers) != null ? _b : this.settings.showVerseNumbers,
+      (_c = spec.paragraphBreaks) != null ? _c : this.settings.paragraphBreaks
+    );
+    return cached == null ? void 0 : cached.numberOfVerses;
   }
   async loadSettings() {
     const saved = await this.loadData();
