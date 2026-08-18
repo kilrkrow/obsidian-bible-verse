@@ -22,6 +22,13 @@ import { renderVerse, renderComparison, renderError, renderBakePending } from ".
 import { verseFetchedEffect } from "./effects";
 
 /**
+ * Quiet period before a burst of verse-shift clicks is written to the document
+ * (#49). Long enough to coalesce repeated tapping into one change and one undo
+ * step, short enough that a single click still feels immediate.
+ */
+const SHIFT_SETTLE_MS = 250;
+
+/**
  * Live Preview widget for a {ref} token.
  */
 class BibleVerseWidget extends WidgetType {
@@ -53,6 +60,16 @@ class BibleVerseWidget extends WidgetType {
    * document offset at click time. Deliberately not a position — see applyShift.
    */
   private containerEl: HTMLElement | null = null;
+
+  /**
+   * Pending state for a burst of shift clicks. Clicks accumulate here and are
+   * written to the document once, after SHIFT_SETTLE_MS of quiet — so following
+   * a teacher through ten verses is one document change and one undo step
+   * rather than ten of each, and the widget survives the burst instead of being
+   * torn down and refetched on every tap.
+   */
+  private pendingRef: BibleReference | null = null;
+  private pendingTimer: number | null = null;
 
   toDOM(view: EditorView): HTMLElement {
     const container = createSpan({ cls: "bible-verse-livepreview" });
@@ -153,17 +170,16 @@ class BibleVerseWidget extends WidgetType {
       text: delta > 0 ? "+" : "−",
       attr: {
         type: "button",
+        "data-delta": String(delta),
         "aria-label": `${verb} passage (Alt-click to move the start verse)`,
         title: `${verb} passage — Alt-click to move the start verse`,
       },
     });
 
     // Disabled only when neither action is available, so Alt-click still works
-    // at a boundary the end verse cannot cross.
-    if (!canEnd && !canStart) {
-      btn.disabled = true;
-      return;
-    }
+    // at a boundary the end verse cannot cross. Listeners are attached either
+    // way, since updateButtonStates can re-enable the button mid-burst.
+    btn.disabled = !canEnd && !canStart;
 
     // Keep focus where it is. Without this the click moves the cursor into the
     // token, the decoration drops out (selectionOverlaps), and the widget is
@@ -186,8 +202,56 @@ class BibleVerseWidget extends WidgetType {
    * if anything has shifted underneath us, bail rather than corrupt the note.
    */
   private applyShift(view: EditorView, target: "start" | "end", delta: ShiftDelta): void {
-    const shifted = shiftReference(this.spec.ref, target, delta, this.spec.numberOfVerses);
+    // Chain from the pending reference, not the rendered one, so a second click
+    // during a burst advances from where the first one left off.
+    const base = this.pendingRef ?? this.spec.ref;
+    const shifted = shiftReference(base, target, delta, this.spec.numberOfVerses);
     if (!shifted) return;
+
+    this.pendingRef = shifted;
+    this.showPendingReference(shifted);
+    this.updateButtonStates();
+
+    if (this.pendingTimer !== null) window.clearTimeout(this.pendingTimer);
+    this.pendingTimer = window.setTimeout(() => {
+      this.pendingTimer = null;
+      const ref = this.pendingRef;
+      this.pendingRef = null;
+      if (ref) this.commitShift(view, ref);
+    }, SHIFT_SETTLE_MS);
+  }
+
+  /**
+   * Reflect a pending shift in the reference label straight away. The verse
+   * text stays stale until the change lands, but the reference is what the user
+   * is tracking while tapping, and updating it keeps the controls from feeling
+   * dead during a burst.
+   */
+  private showPendingReference(ref: BibleReference): void {
+    if (!this.containerEl) return;
+    const label = formatReference(ref);
+    this.containerEl.querySelectorAll<HTMLElement>(".bible-verse-ref, .bible-verse-pill").forEach((el) => {
+      // Labels carry a trailing "(KJV)" or "(KJV | ESV)"; keep it and swap only
+      // the reference in front of it.
+      const suffix = el.textContent?.match(/\s*\([^)]*\)\s*$/)?.[0] ?? "";
+      el.textContent = `${label}${suffix}`;
+    });
+  }
+
+  /** Re-evaluate which buttons are still usable as a burst approaches a bound. */
+  private updateButtonStates(): void {
+    if (!this.containerEl) return;
+    const ref = this.pendingRef ?? this.spec.ref;
+    this.containerEl.querySelectorAll<HTMLButtonElement>(".bible-verse-shift-btn").forEach((btn) => {
+      const delta = (btn.dataset.delta === "1" ? 1 : -1) as ShiftDelta;
+      const canEnd = shiftReference(ref, "end", delta, this.spec.numberOfVerses) !== null;
+      const canStart = shiftReference(ref, "start", delta, this.spec.numberOfVerses) !== null;
+      btn.disabled = !canEnd && !canStart;
+    });
+  }
+
+  /** Write an accumulated shift to the document. */
+  private commitShift(view: EditorView, shifted: BibleReference): void {
     if (!this.containerEl || !this.containerEl.isConnected) return;
 
     const from = view.posAtDOM(this.containerEl);
@@ -207,6 +271,62 @@ class BibleVerseWidget extends WidgetType {
     view.dispatch({
       changes: { from, to: from + match[0].length, insert },
     });
+
+    void this.prefetchNeighbours(shifted);
+  }
+
+  /**
+   * Warm the verse cache for the steps either side of where we just landed.
+   *
+   * buildDecorations reads the cache synchronously, so a warm entry means the
+   * next click renders the verse immediately instead of falling back to the
+   * pill placeholder and an async fetch. The chapter memo in BibleApi makes
+   * this nearly free — neighbours are almost always in the chapter already
+   * fetched, so this costs an assemble and a cache write, not a round trip.
+   */
+  private async prefetchNeighbours(from: BibleReference): Promise<void> {
+    const { plugin, translations, numberOfVerses } = this.spec;
+
+    // A comparison token would multiply the work by its translation count for
+    // little gain; skip it and let those fetch on demand.
+    if (translations.length >= 2) return;
+
+    const id = translations.length === 1
+      ? plugin.resolveTranslationIdPublic(translations[0])
+      : plugin.settings.defaultTranslation;
+    if (plugin.isTranslationLinkOnly(id)) return;
+
+    const abbr = plugin.getTranslationAbbrPublic(id);
+    const settings = {
+      verseNewLine: this.spec.verseNewLine ?? plugin.settings.verseNewLine,
+      showVerseNumbers: this.spec.showVerseNumbers ?? plugin.settings.showVerseNumbers,
+      paragraphBreaks: this.spec.paragraphBreaks ?? plugin.settings.paragraphBreaks,
+    };
+
+    for (const delta of [1, -1] as ShiftDelta[]) {
+      const next = shiftReference(from, "end", delta, numberOfVerses);
+      if (!next) continue;
+      try {
+        await plugin.fetchFromProvider(next, id, abbr, settings);
+      } catch {
+        // A prefetch is a convenience; a failure here must stay invisible.
+      }
+    }
+  }
+
+  /**
+   * Drop a pending timer when the widget goes away, so it cannot fire against
+   * detached DOM. Any taps not yet written are lost, which needs an external
+   * document change within the settle window to happen at all — and a dispatch
+   * from here would re-enter CodeMirror's update cycle, which is worse.
+   */
+  destroy(): void {
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    this.pendingRef = null;
+    this.containerEl = null;
   }
 
   private renderPill(container: HTMLElement): void {

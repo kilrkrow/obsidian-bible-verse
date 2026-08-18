@@ -19,11 +19,63 @@ interface HelloAoChapterResponse {
  * Fetches whole chapters and extracts specific verses client-side.
  * No API key required.
  */
+/**
+ * How many chapter payloads to keep in memory. The verse cache is keyed by
+ * reference string, so nudging a range one verse at a time (#49) misses it on
+ * every step and would otherwise re-download the same chapter for each nudge.
+ * A handful of chapters covers a note being actively edited.
+ */
+const CHAPTER_MEMO_LIMIT = 8;
+
 export class BibleApi {
   private cache: VerseCache;
 
+  /**
+   * In-flight and recently fetched chapter payloads, keyed by
+   * translation/book/chapter. Promises rather than values, so concurrent
+   * requests for the same chapter share one network round trip instead of
+   * racing — which is what a burst of verse-shift clicks produces.
+   *
+   * Process-lifetime only; the durable cache remains VerseCache on disk.
+   */
+  private chapters: Map<string, Promise<HelloAoChapterResponse>> = new Map();
+
   constructor(cache: VerseCache) {
     this.cache = cache;
+  }
+
+  /** Fetch a chapter payload, reusing an in-flight or memoised request. */
+  private async getChapter(
+    translationId: string,
+    usfm: string,
+    chapter: number
+  ): Promise<HelloAoChapterResponse> {
+    const key = `${translationId}/${usfm}/${chapter}`;
+
+    const memo = this.chapters.get(key);
+    if (memo) return memo;
+
+    const pending = (async () => {
+      const response = await requestUrl({
+        url: `${BASE_URL}/${translationId}/${usfm}/${chapter}.json`,
+      });
+      if (response.status !== 200) {
+        throw new Error(`HelloAO API returned status ${response.status}`);
+      }
+      return response.json as HelloAoChapterResponse;
+    })();
+
+    // A failed fetch must not be memoised, or one blip would stick for the rest
+    // of the session.
+    pending.catch(() => this.chapters.delete(key));
+
+    this.chapters.set(key, pending);
+    if (this.chapters.size > CHAPTER_MEMO_LIMIT) {
+      const oldest = this.chapters.keys().next();
+      if (!oldest.done) this.chapters.delete(oldest.value);
+    }
+
+    return pending;
   }
 
   /**
@@ -52,15 +104,7 @@ export class BibleApi {
 
     // For multi-chapter ranges, only fetch the starting chapter
     // (HelloAO serves one chapter at a time)
-    const url = `${BASE_URL}/${translationId}/${usfm}/${ref.chapter}.json`;
-
-    const response = await requestUrl({ url });
-
-    if (response.status !== 200) {
-      throw new Error(`HelloAO API returned status ${response.status}`);
-    }
-
-    const data = response.json as HelloAoChapterResponse;
+    const data = await this.getChapter(translationId, usfm, ref.chapter);
     const chapterContent: unknown[] = data.chapter.content;
     const requestedVerses = computeRequestedVerses(ref);
 
