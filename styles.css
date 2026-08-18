@@ -436,3 +436,49 @@
   border-color: var(--interactive-accent);
   text-decoration: none;
 }
+
+/* ── Verse shift controls (#49) ─────────────────────────────────────────── */
+
+.bible-verse-shift {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  margin-left: 0.35em;
+  vertical-align: middle;
+}
+
+.bible-verse-shift-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Sized as a comfortable pointer target without dominating an inline verse.
+     The sermon-notes case is repeated tapping, so it is deliberately larger
+     than the surrounding text rather than scaled to it. */
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0;
+  box-shadow: none;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bible-verse-shift-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.bible-verse-shift-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+}
+
+.bible-verse-shift-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

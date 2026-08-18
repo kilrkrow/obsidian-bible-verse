@@ -9,7 +9,14 @@ import {
 import { RangeSetBuilder } from "@codemirror/state";
 import { setIcon, editorLivePreviewField } from "obsidian";
 import type BibleVersePlugin from "./main";
-import { parseInlineSpec, formatReference, inlineTokenRegex, inlineTokenContent } from "./parser";
+import {
+  parseInlineSpec,
+  formatReference,
+  inlineTokenRegex,
+  inlineTokenContent,
+  INLINE_TOKEN_SOURCE,
+} from "./parser";
+import { shiftReference, rewriteTokenReference, ShiftDelta } from "./shift";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
@@ -32,13 +39,24 @@ class BibleVerseWidget extends WidgetType {
       cachedVerses: CachedVerse[];
       preferredWebsite: BibleWebsite;
       plugin: BibleVersePlugin;
+      /** Whole {…} token text, used to re-emit the same brace form on a shift. */
+      token: string;
+      /** Chapter length when a provider has reported one; undefined = unknown. */
+      numberOfVerses?: number;
     }
   ) {
     super();
   }
 
+  /**
+   * The rendered DOM, kept only so `posAtDOM` can resolve the widget's current
+   * document offset at click time. Deliberately not a position — see applyShift.
+   */
+  private containerEl: HTMLElement | null = null;
+
   toDOM(view: EditorView): HTMLElement {
     const container = createSpan({ cls: "bible-verse-livepreview" });
+    this.containerEl = container;
 
     const vnL = this.spec.verseNewLine ?? this.spec.plugin.settings.verseNewLine;
 
@@ -50,8 +68,11 @@ class BibleVerseWidget extends WidgetType {
       return container;
     }
 
+    // Link-only translations still carry a real reference, so the controls
+    // apply; they just have no chapter length to clamp against.
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
+      this.renderShiftControls(container, view);
       return container;
     }
 
@@ -91,7 +112,101 @@ class BibleVerseWidget extends WidgetType {
       }
     }
 
+    this.renderShiftControls(container, view);
     return container;
+  }
+
+  /**
+   * The +/- verse controls (#49). Plain click moves the end verse, Alt-click
+   * moves the start verse.
+   *
+   * Rendered as the container's last child. Every render path above builds its
+   * root element synchronously before awaiting, so appending here keeps the
+   * controls after the verse regardless of which path ran.
+   */
+  private renderShiftControls(container: HTMLElement, view: EditorView): void {
+    const { ref, numberOfVerses } = this.spec;
+
+    // Nothing to nudge — whole-chapter, multi-chapter, and discontinuous
+    // references have no unambiguous start or end verse. Render no chrome at
+    // all rather than four permanently dead buttons.
+    const anyShiftPossible = ([-1, 1] as ShiftDelta[]).some(
+      (d) =>
+        shiftReference(ref, "end", d, numberOfVerses) !== null ||
+        shiftReference(ref, "start", d, numberOfVerses) !== null
+    );
+    if (!anyShiftPossible) return;
+
+    const controls = container.createSpan({ cls: "bible-verse-shift" });
+    this.renderShiftButton(controls, view, -1);
+    this.renderShiftButton(controls, view, 1);
+  }
+
+  private renderShiftButton(controls: HTMLElement, view: EditorView, delta: ShiftDelta): void {
+    const { ref, numberOfVerses } = this.spec;
+    const canEnd = shiftReference(ref, "end", delta, numberOfVerses) !== null;
+    const canStart = shiftReference(ref, "start", delta, numberOfVerses) !== null;
+
+    const verb = delta > 0 ? "Extend" : "Shrink";
+    const btn = controls.createEl("button", {
+      cls: "bible-verse-shift-btn",
+      text: delta > 0 ? "+" : "−",
+      attr: {
+        type: "button",
+        "aria-label": `${verb} passage (Alt-click to move the start verse)`,
+        title: `${verb} passage — Alt-click to move the start verse`,
+      },
+    });
+
+    // Disabled only when neither action is available, so Alt-click still works
+    // at a boundary the end verse cannot cross.
+    if (!canEnd && !canStart) {
+      btn.disabled = true;
+      return;
+    }
+
+    // Keep focus where it is. Without this the click moves the cursor into the
+    // token, the decoration drops out (selectionOverlaps), and the widget is
+    // replaced by raw text mid-click.
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.applyShift(view, e.altKey ? "start" : "end", delta);
+    });
+  }
+
+  /**
+   * Rewrite the token in the document.
+   *
+   * The position is resolved here rather than captured at build time: `eq()`
+   * does not compare position, so CodeMirror reuses a widget instance when only
+   * its offset moved, and any stored offset would be stale. `posAtDOM` is
+   * always current, and the token is re-matched at that offset before writing —
+   * if anything has shifted underneath us, bail rather than corrupt the note.
+   */
+  private applyShift(view: EditorView, target: "start" | "end", delta: ShiftDelta): void {
+    const shifted = shiftReference(this.spec.ref, target, delta, this.spec.numberOfVerses);
+    if (!shifted) return;
+    if (!this.containerEl || !this.containerEl.isConnected) return;
+
+    const from = view.posAtDOM(this.containerEl);
+
+    // Confirm a token really does start here before writing. Cheap insurance
+    // against a stale DOM reference, and the difference between a no-op and
+    // mangling unrelated text.
+    const line = view.state.doc.lineAt(from);
+    const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})`).exec(
+      view.state.doc.sliceString(from, line.to)
+    );
+    if (!match || match[0] !== this.spec.token) return;
+
+    const insert = rewriteTokenReference(match[0], shifted);
+    if (insert === null) return;
+
+    view.dispatch({
+      changes: { from, to: from + match[0].length, insert },
+    });
   }
 
   private renderPill(container: HTMLElement): void {
@@ -167,11 +282,17 @@ class BibleVerseWidget extends WidgetType {
         );
       }
 
+      // container.empty() above took the controls with it.
+      this.renderShiftControls(container, view);
+
       view.dispatch({ effects: verseFetchedEffect.of(undefined) });
     } catch (e) {
       console.error("Bible Verse Live Preview: fetch failed", e);
       container.empty();
       renderError(container, `Could not load ${formatReference(ref)}.`);
+      // Keep the controls on an error, so overshooting the end of a chapter is
+      // recoverable by pressing the other button rather than editing by hand.
+      this.renderShiftControls(container, view);
     }
   }
 
@@ -185,16 +306,21 @@ class BibleVerseWidget extends WidgetType {
       this.spec.showVerseNumbers === other.spec.showVerseNumbers &&
       this.spec.paragraphBreaks === other.spec.paragraphBreaks &&
       this.spec.bake === other.spec.bake &&
-      this.spec.preferredWebsite === other.spec.preferredWebsite
+      this.spec.preferredWebsite === other.spec.preferredWebsite &&
+      this.spec.token === other.spec.token &&
+      // Drives which shift buttons are disabled, so a widget whose chapter
+      // length has just arrived must re-render.
+      this.spec.numberOfVerses === other.spec.numberOfVerses
     );
   }
 
   ignoreEvent(event: Event): boolean {
     const target = event.target as HTMLElement | null;
     const isAnchorEvent = !!(target && target.closest("a"));
+    const isShiftControl = !!(target && target.closest(".bible-verse-shift"));
 
     if (event.type === "mousedown") {
-      return isAnchorEvent;
+      return isAnchorEvent || isShiftControl;
     }
 
     return true;
@@ -306,6 +432,8 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               label,
               href,
               ref,
+              token: match[0],
+              numberOfVerses: cachedVerses[0]?.numberOfVerses,
               translations,
               styleOverride,
               verseNewLine,

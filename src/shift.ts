@@ -1,4 +1,10 @@
 import { BibleReference, EOC_VERSE } from "./types";
+import {
+  parseInlineSpec,
+  formatInlineSpec,
+  inlineTokenContent,
+  INLINE_TOKEN_SOURCE,
+} from "./parser";
 
 /**
  * Verse-range nudging for the interactive +/- controls (#49).
@@ -140,4 +146,27 @@ function withVerses(
     endVerse,
     raw: "",
   };
+}
+
+/**
+ * Rewrite a whole `{…}` token so its reference is replaced by `shifted`,
+ * preserving everything else the user typed and the brace form they used —
+ * a doubled `{{…}}` token stays doubled.
+ *
+ * Returns `null` if `token` is not a single well-formed inline token, or if its
+ * contents no longer parse. Callers treat that as "leave the document alone".
+ *
+ * Kept here rather than inline in the Live Preview widget so the rewrite is
+ * unit-testable without a CodeMirror instance.
+ */
+export function rewriteTokenReference(token: string, shifted: BibleReference): string | null {
+  const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`).exec(token);
+  if (!match) return null;
+
+  const spec = parseInlineSpec(inlineTokenContent(match).trim());
+  if (!spec) return null;
+
+  const body = formatInlineSpec({ ...spec, ref: shifted });
+  // Group 1 is the doubled form's contents; group 2 the single form's.
+  return match[1] !== undefined ? `{{${body}}}` : `{${body}}`;
 }
