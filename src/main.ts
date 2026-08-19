@@ -25,6 +25,13 @@ import { generateLink, generateSearchUrl } from "./linker";
 import { QuickInsertModal } from "./quick-insert-modal";
 import { BibleReferenceSuggest } from "./suggest";
 import { buildViewPlugin } from "./view-plugin";
+import {
+  shiftReference,
+  rewriteTokenReference,
+  findTokenAtCursor,
+  ShiftTarget,
+  ShiftDelta,
+} from "./shift";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { fetchEsvPassage, getEffectiveMode } from "./providers";
 import { verseFetchedEffect } from "./effects";
@@ -225,6 +232,76 @@ export default class BibleVersePlugin extends Plugin {
       name: "Report a bug on GitHub",
       callback: () => window.open(bugReportUrl(this.manifest.version)),
     });
+
+    // Verse-shift commands (#49). The widget's Alt-click covers the start verse
+    // on desktop only, so these are the sole route to it on touch devices — and
+    // the only one that works in Source mode, where no widget renders.
+    this.addShiftCommand("end", 1, "shift-end-forward", "Extend passage by one verse");
+    this.addShiftCommand("end", -1, "shift-end-back", "Shrink passage by one verse");
+    this.addShiftCommand("start", 1, "shift-start-forward", "Move start verse forward");
+    this.addShiftCommand("start", -1, "shift-start-back", "Move start verse back");
+  }
+
+  /** Register one verse-shift command operating on the token at the cursor. */
+  private addShiftCommand(
+    target: ShiftTarget,
+    delta: ShiftDelta,
+    id: string,
+    name: string
+  ): void {
+    this.addCommand({
+      id,
+      name,
+      editorCallback: (editor) => {
+        const cursor = editor.getCursor();
+        const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
+        if (!found) {
+          new Notice("No Bible reference found at cursor.");
+          return;
+        }
+
+        const spec = parseInlineSpec(found.token.replace(/^\{+|\}+$/g, "").trim());
+        if (!spec) {
+          new Notice("Could not read the reference at the cursor.");
+          return;
+        }
+
+        const shifted = shiftReference(spec.ref, target, delta, this.lookupVerseCount(spec));
+        if (!shifted) {
+          new Notice("Cannot move that verse any further.");
+          return;
+        }
+
+        const replacement = rewriteTokenReference(found.token, shifted);
+        if (replacement === null) return;
+
+        editor.replaceRange(
+          replacement,
+          { line: cursor.line, ch: found.start },
+          { line: cursor.line, ch: found.end }
+        );
+      },
+    });
+  }
+
+  /**
+   * The chapter length for a spec's reference, if it happens to be cached.
+   * Undefined means unknown, which shiftReference treats as "no upper bound" —
+   * the command still works, it just cannot convert to eoc or clamp.
+   */
+  private lookupVerseCount(spec: InlineSpec): number | undefined {
+    const id = spec.translations.length >= 1
+      ? this.resolveTranslationId(spec.translations[0])
+      : this.settings.defaultTranslation;
+    const abbr = this.getTranslationAbbr(id);
+    const cached = this.cache.get(
+      abbr,
+      formatReference(spec.ref),
+      spec.verseNewLine ?? this.settings.verseNewLine,
+      spec.showVerseNumbers ?? this.settings.showVerseNumbers,
+      spec.paragraphBreaks ?? this.settings.paragraphBreaks
+    );
+    return cached?.numberOfVerses;
   }
 
   async loadSettings(): Promise<void> {

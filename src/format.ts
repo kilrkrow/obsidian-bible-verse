@@ -1,4 +1,4 @@
-import { BibleReference } from "./types";
+import { BibleReference, EOC_VERSE } from "./types";
 
 /**
  * Pure verse-formatting logic for HelloAO chapter content.
@@ -49,7 +49,7 @@ export function computeRequestedVerses(ref: BibleReference): Set<number> | null 
   if (ref.startVerse === null) return null;
 
   // Special marker for "End of Chapter" (Issue #17)
-  if (ref.endVerse === 999) return null;
+  if (ref.endVerse === EOC_VERSE) return null;
 
   const verses = new Set<number>();
   if (ref.endVerse !== null && ref.endChapter === null) {

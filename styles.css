@@ -436,3 +436,75 @@
   border-color: var(--interactive-accent);
   text-decoration: none;
 }
+
+/* ── Verse shift controls (#49) ─────────────────────────────────────────── */
+
+/* Wraps the reference label together with the controls, so travelling from one
+   to the other never leaves the hover zone. */
+.bible-verse-shift-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.bible-verse-shift {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  vertical-align: middle;
+
+  /* Hidden rather than removed: the controls keep their width at all times, so
+     revealing them never reflows the surrounding text. That matters most for
+     the inline display style, where the label sits mid-sentence. */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+.bible-verse-shift-zone:hover .bible-verse-shift,
+.bible-verse-shift-zone.is-revealed .bible-verse-shift {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Keyboard users get the same reveal when a control takes focus. */
+.bible-verse-shift:focus-within {
+  visibility: visible;
+  opacity: 1;
+}
+
+.bible-verse-shift-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Sized as a comfortable pointer target without dominating an inline verse.
+     The sermon-notes case is repeated tapping, so it is deliberately larger
+     than the surrounding text rather than scaled to it. */
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0;
+  box-shadow: none;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bible-verse-shift-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.bible-verse-shift-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+}
+
+.bible-verse-shift-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
