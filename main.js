@@ -633,6 +633,21 @@ function parseReference(input) {
     raw: trimmed
   };
 }
+function referenceRejection(content) {
+  const parts = content.split(",");
+  for (let cut = parts.length; cut >= 1; cut--) {
+    const candidate = parts.slice(0, cut).join(",").trim();
+    const match = candidate.match(REF_REGEX);
+    if (!match)
+      continue;
+    if (match[4] === void 0 || match[5] === void 0)
+      continue;
+    if (!normalizeBookName(match[1]))
+      continue;
+    return `Multi-chapter references aren't supported: "${candidate}". Reference one chapter at a time.`;
+  }
+  return null;
+}
 var TRANS_CODE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 var KNOWN_STYLES = [
   "sidebar",
@@ -2317,6 +2332,23 @@ function pointerIsInside(el) {
   const r = el.getBoundingClientRect();
   return at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
 }
+var BibleVerseRejectionWidget = class extends import_view.WidgetType {
+  constructor(message) {
+    super();
+    this.message = message;
+  }
+  toDOM() {
+    const container = createSpan({ cls: "bible-verse-livepreview" });
+    renderError(container, this.message);
+    return container;
+  }
+  eq(other) {
+    return this.message === other.message;
+  }
+  ignoreEvent() {
+    return true;
+  }
+};
 var BibleVerseWidget = class extends import_view.WidgetType {
   constructor(spec) {
     super();
@@ -2856,8 +2888,17 @@ function buildViewPlugin(plugin) {
               continue;
             const content = inlineTokenContent(match).trim();
             const spec = parseInlineSpec(content);
-            if (!spec)
+            if (!spec) {
+              const rejection = referenceRejection(content);
+              if (rejection) {
+                builder.add(
+                  tokenStart,
+                  tokenEnd,
+                  import_view.Decoration.replace({ widget: new BibleVerseRejectionWidget(rejection) })
+                );
+              }
               continue;
+            }
             const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine != null ? verseNewLine : plugin.settings.verseNewLine;
@@ -3347,7 +3388,14 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
             }
           }
         } else {
-          frag.appendText(match[0]);
+          const rejection = referenceRejection(rawContent);
+          if (rejection) {
+            const span = createSpan({ cls: "bible-verse-container" });
+            renderError(span, rejection);
+            frag.appendChild(span);
+          } else {
+            frag.appendText(match[0]);
+          }
         }
         lastIndex = matchIndex + match[0].length;
       }
@@ -3440,7 +3488,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     });
   }
   async codeBlockProcessor(source, el, ctx) {
-    var _a;
+    var _a, _b;
     el.empty();
     ctx.addChild(new import_obsidian10.MarkdownRenderChild(el));
     const lines = source.trim().split("\n");
@@ -3451,7 +3499,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     const refStr = lines[0].trim();
     const ref = parseReference(refStr);
     if (!ref) {
-      renderError(el, `Could not parse reference: "${refStr}"`);
+      renderError(el, (_a = referenceRejection(refStr)) != null ? _a : `Could not parse reference: "${refStr}"`);
       return;
     }
     const config = {};
@@ -3472,7 +3520,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       }
     }
     const vnL = config["newline"] !== void 0 ? config["newline"].toLowerCase() === "true" : this.settings.verseNewLine;
-    const sVN = config["numbers"] !== void 0 || config["verse-numbers"] !== void 0 ? ((_a = config["numbers"]) != null ? _a : config["verse-numbers"]).toLowerCase() === "true" : this.settings.showVerseNumbers;
+    const sVN = config["numbers"] !== void 0 || config["verse-numbers"] !== void 0 ? ((_b = config["numbers"]) != null ? _b : config["verse-numbers"]).toLowerCase() === "true" : this.settings.showVerseNumbers;
     const pb = config["sections"] !== void 0 ? config["sections"].toLowerCase() === "true" : this.settings.paragraphBreaks;
     if (config["compare"]) {
       const translations = config["compare"].split(",").map((s) => s.trim());
