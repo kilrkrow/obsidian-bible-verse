@@ -550,6 +550,18 @@
   transform: rotate(-45deg);
 }
 
-.bible-verse-toggle-btn:hover {
+.bible-verse-toggle-btn:hover:not(:disabled) {
   opacity: 1;
+}
+
+/* A flag the active provider cannot honour — shown so the strip stays the same
+   shape across translations, but inert and without the on/off strike, which
+   would imply a state it does not have. */
+.bible-verse-toggle-btn.is-unsupported {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.bible-verse-toggle-btn.is-unsupported::after {
+  content: none;
 }

@@ -2454,6 +2454,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     }
     this.renderToggleButton(controls, view, "showVerseNumbers", "list-ordered", "Verse numbers");
     this.renderToggleButton(controls, view, "verseNewLine", "wrap-text", "Line breaks");
+    this.renderToggleButton(controls, view, "paragraphBreaks", "pilcrow", "Paragraph breaks");
     this.bindReveal(zone);
   }
   /**
@@ -2544,6 +2545,13 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     });
     (0, import_obsidian8.setIcon)(btn, icon);
     btn.dataset.name = name;
+    if (flag === "paragraphBreaks" && this.usesEsv()) {
+      btn.disabled = true;
+      btn.addClass("is-unsupported");
+      btn.setAttr("aria-label", `${name}: not supported by the ESV API`);
+      btn.setAttr("title", `${name}: not supported by the ESV API`);
+      return;
+    }
     this.paintToggle(btn);
     btn.addEventListener("mousedown", (e) => e.preventDefault());
     btn.addEventListener("click", (e) => {
@@ -2631,6 +2639,13 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   /** What the flag falls back to from plugin settings when the token omits it. */
   inheritedFlag(flag) {
     return this.spec.plugin.settings[flag];
+  }
+  /** Whether this token renders through the ESV provider rather than HelloAO. */
+  usesEsv() {
+    var _a;
+    const { plugin, translations } = this.spec;
+    const id = translations.length >= 1 ? plugin.resolveTranslationIdPublic(translations[0]) : plugin.settings.defaultTranslation;
+    return ((_a = plugin.findTranslation(id)) == null ? void 0 : _a.provider) === "esv";
   }
   /**
    * Reflect a pending shift in the reference label straight away. The verse

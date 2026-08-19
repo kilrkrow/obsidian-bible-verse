@@ -241,6 +241,7 @@ class BibleVerseWidget extends WidgetType {
     }
     this.renderToggleButton(controls, view, "showVerseNumbers", "list-ordered", "Verse numbers");
     this.renderToggleButton(controls, view, "verseNewLine", "wrap-text", "Line breaks");
+    this.renderToggleButton(controls, view, "paragraphBreaks", "pilcrow", "Paragraph breaks");
 
     this.bindReveal(zone);
   }
@@ -354,6 +355,19 @@ class BibleVerseWidget extends WidgetType {
     });
     setIcon(btn, icon);
     btn.dataset.name = name;
+
+    // The ESV endpoint has no notion of our paragraph sections, so the flag can
+    // never affect its output (see the note in format.ts). Show the control so
+    // the strip stays consistent between translations, but disable it rather
+    // than let a click rewrite the token for no visible reason.
+    if (flag === "paragraphBreaks" && this.usesEsv()) {
+      btn.disabled = true;
+      btn.addClass("is-unsupported");
+      btn.setAttr("aria-label", `${name}: not supported by the ESV API`);
+      btn.setAttr("title", `${name}: not supported by the ESV API`);
+      return;
+    }
+
     this.paintToggle(btn);
 
     btn.addEventListener("mousedown", (e) => e.preventDefault());
@@ -452,6 +466,15 @@ class BibleVerseWidget extends WidgetType {
   /** What the flag falls back to from plugin settings when the token omits it. */
   private inheritedFlag(flag: ModifierFlag): boolean {
     return this.spec.plugin.settings[flag];
+  }
+
+  /** Whether this token renders through the ESV provider rather than HelloAO. */
+  private usesEsv(): boolean {
+    const { plugin, translations } = this.spec;
+    const id = translations.length >= 1
+      ? plugin.resolveTranslationIdPublic(translations[0])
+      : plugin.settings.defaultTranslation;
+    return plugin.findTranslation(id)?.provider === "esv";
   }
 
   /**
