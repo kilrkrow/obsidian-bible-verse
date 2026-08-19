@@ -3,6 +3,7 @@ import {
   parseInlineSpec,
   formatInlineSpec,
   inlineTokenContent,
+  InlineSpec,
   INLINE_TOKEN_SOURCE,
 } from "./parser";
 
@@ -149,9 +150,9 @@ function withVerses(
 }
 
 /**
- * Rewrite a whole `{…}` token so its reference is replaced by `shifted`,
- * preserving everything else the user typed and the brace form they used —
- * a doubled `{{…}}` token stays doubled.
+ * Rewrite a whole `{…}` token, replacing the given fields and preserving
+ * everything else the user typed — including the brace form, so a doubled
+ * `{{…}}` token stays doubled.
  *
  * Returns `null` if `token` is not a single well-formed inline token, or if its
  * contents no longer parse. Callers treat that as "leave the document alone".
@@ -159,16 +160,48 @@ function withVerses(
  * Kept here rather than inline in the Live Preview widget so the rewrite is
  * unit-testable without a CodeMirror instance.
  */
-export function rewriteTokenReference(token: string, shifted: BibleReference): string | null {
+export function rewriteToken(token: string, patch: Partial<InlineSpec>): string | null {
   const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`).exec(token);
   if (!match) return null;
 
   const spec = parseInlineSpec(inlineTokenContent(match).trim());
   if (!spec) return null;
 
-  const body = formatInlineSpec({ ...spec, ref: shifted });
+  const body = formatInlineSpec({ ...spec, ...patch });
   // Group 1 is the doubled form's contents; group 2 the single form's.
   return match[1] !== undefined ? `{{${body}}}` : `{${body}}`;
+}
+
+/** Rewrite a token's reference, leaving every modifier untouched. */
+export function rewriteTokenReference(token: string, shifted: BibleReference): string | null {
+  return rewriteToken(token, { ref: shifted });
+}
+
+/**
+ * The `InlineSpec` fields that are tri-state formatting flags: `true` and
+ * `false` pin an explicit value into the token, `null` inherits from settings.
+ */
+export type ModifierFlag = "showVerseNumbers" | "verseNewLine" | "paragraphBreaks";
+
+/**
+ * Next value for a flag the user just clicked (#51).
+ *
+ * Three states, one button, and the order adapts so the *first* click always
+ * changes what is rendered. Starting from unset, going to the value already
+ * inherited would edit the token without altering the verse — the click would
+ * look broken. So unset jumps to the opposite instead, and the cycle unwinds
+ * through the matching explicit value back to unset:
+ *
+ *   settings on:   unset(on) -> no -> yes -> unset(on)
+ *   settings off:  unset(off) -> yes -> no -> unset(off)
+ *
+ * Only the final step leaves the rendering unchanged, which is inherent to
+ * unpinning rather than a quirk of the order.
+ */
+export function cycleModifier(current: boolean | null, inherited: boolean): boolean | null {
+  if (current === null) return !inherited;
+  if (current !== inherited) return inherited;
+  return null;
 }
 
 /** A `{…}` token located within a single line of text. */

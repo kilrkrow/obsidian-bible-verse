@@ -12,11 +12,18 @@ import type BibleVersePlugin from "./main";
 import {
   parseInlineSpec,
   formatReference,
+  InlineSpec,
   inlineTokenRegex,
   inlineTokenContent,
   INLINE_TOKEN_SOURCE,
 } from "./parser";
-import { shiftReference, rewriteTokenReference, ShiftDelta } from "./shift";
+import {
+  shiftReference,
+  rewriteToken,
+  cycleModifier,
+  ModifierFlag,
+  ShiftDelta,
+} from "./shift";
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
@@ -107,7 +114,7 @@ class BibleVerseWidget extends WidgetType {
    * rather than ten of each, and the widget survives the burst instead of being
    * torn down and refetched on every tap.
    */
-  private pendingRef: BibleReference | null = null;
+  private pendingPatch: Partial<InlineSpec> = {};
   private pendingTimer: number | null = null;
 
   /** Non-null while a recent click is holding the control strip open. */
@@ -192,15 +199,15 @@ class BibleVerseWidget extends WidgetType {
   private attachShiftControls(container: HTMLElement, view: EditorView): void {
     const { ref, numberOfVerses } = this.spec;
 
-    // Nothing to nudge — whole-chapter, multi-chapter, and discontinuous
-    // references have no unambiguous start or end verse. Render no chrome at
-    // all rather than permanently dead buttons.
-    const anyShiftPossible = ([-1, 1] as ShiftDelta[]).some(
+    // Two independent decisions. Nudging needs an unambiguous verse range, so
+    // whole-chapter, multi-chapter and discontinuous references get no +/-.
+    // The formatting flags apply to every reference — "John 3" renders verse
+    // numbers like any other — so those toggles show regardless.
+    const canShift = ([-1, 1] as ShiftDelta[]).some(
       (d) =>
         shiftReference(ref, "end", d, numberOfVerses) !== null ||
         shiftReference(ref, "start", d, numberOfVerses) !== null
     );
-    if (!anyShiftPossible) return;
 
     // Fully undo any previous attach before re-attaching: drop the controls,
     // then unwrap the zone back around the label. Removing only the controls
@@ -228,8 +235,13 @@ class BibleVerseWidget extends WidgetType {
     }
 
     const controls = zone.createSpan({ cls: "bible-verse-shift" });
-    this.renderShiftButton(controls, view, -1);
-    this.renderShiftButton(controls, view, 1);
+    if (canShift) {
+      this.renderShiftButton(controls, view, -1);
+      this.renderShiftButton(controls, view, 1);
+    }
+    this.renderToggleButton(controls, view, "showVerseNumbers", "list-ordered", "Verse numbers");
+    this.renderToggleButton(controls, view, "verseNewLine", "wrap-text", "Line breaks");
+    this.renderToggleButton(controls, view, "paragraphBreaks", "pilcrow", "Paragraph breaks");
 
     this.bindReveal(zone);
   }
@@ -323,6 +335,76 @@ class BibleVerseWidget extends WidgetType {
   }
 
   /**
+   * A formatting-flag toggle (#51).
+   *
+   * Three states on one button. The icon shows the *effective* value — what the
+   * verse is actually doing — dimmed when that comes from settings and solid
+   * when the token pins it. So the current state is readable without clicking,
+   * which matters because clicking is what edits the note.
+   */
+  private renderToggleButton(
+    controls: HTMLElement,
+    view: EditorView,
+    flag: ModifierFlag,
+    icon: string,
+    name: string
+  ): void {
+    const btn = controls.createEl("button", {
+      cls: "bible-verse-toggle-btn",
+      attr: { type: "button", "data-flag": flag },
+    });
+    setIcon(btn, icon);
+    btn.dataset.name = name;
+
+    // The ESV endpoint has no notion of our paragraph sections, so the flag can
+    // never affect its output (see the note in format.ts). Show the control so
+    // the strip stays consistent between translations, but disable it rather
+    // than let a click rewrite the token for no visible reason.
+    if (flag === "paragraphBreaks" && this.usesEsv()) {
+      btn.disabled = true;
+      btn.addClass("is-unsupported");
+      btn.setAttr("aria-label", `${name}: not supported by the ESV API`);
+      btn.setAttr("title", `${name}: not supported by the ESV API`);
+      return;
+    }
+
+    this.paintToggle(btn);
+
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.holdRevealed();
+      this.applyToggle(view, flag);
+    });
+  }
+
+  /** Set a toggle's on/off look, pinned state, and description. */
+  private paintToggle(btn: HTMLButtonElement): void {
+    const flag = btn.dataset.flag as ModifierFlag;
+    const pinned = this.currentFlag(flag);
+    const effective = pinned ?? this.inheritedFlag(flag);
+    const name = btn.dataset.name ?? "";
+
+    btn.toggleClass("is-on", effective);
+    btn.toggleClass("is-pinned", pinned !== null);
+
+    const state = effective ? "on" : "off";
+    const source = pinned === null ? "from settings" : "set here";
+    const label = `${name}: ${state} (${source})`;
+    btn.setAttr("aria-label", label);
+    btn.setAttr("title", label);
+    btn.setAttr("aria-pressed", String(effective));
+  }
+
+  /** Repaint every toggle after a click changes the pending state. */
+  private updateToggleStates(): void {
+    this.containerEl
+      ?.querySelectorAll<HTMLButtonElement>(".bible-verse-toggle-btn")
+      .forEach((btn) => this.paintToggle(btn));
+  }
+
+  /**
    * Rewrite the token in the document.
    *
    * The position is resolved here rather than captured at build time: `eq()`
@@ -334,21 +416,65 @@ class BibleVerseWidget extends WidgetType {
   private applyShift(view: EditorView, target: "start" | "end", delta: ShiftDelta): void {
     // Chain from the pending reference, not the rendered one, so a second click
     // during a burst advances from where the first one left off.
-    const base = this.pendingRef ?? this.spec.ref;
-    const shifted = shiftReference(base, target, delta, this.spec.numberOfVerses);
+    const shifted = shiftReference(this.currentRef(), target, delta, this.spec.numberOfVerses);
     if (!shifted) return;
 
-    this.pendingRef = shifted;
+    this.pendingPatch.ref = shifted;
     this.showPendingReference(shifted);
     this.updateButtonStates();
+    this.scheduleCommit(view);
+  }
 
+  /**
+   * Cycle a formatting flag and queue the change (#51).
+   *
+   * Routed through the same pending patch as a shift rather than writing
+   * immediately: a toggle clicked while a shift is still settling would
+   * otherwise rewrite the token first, and the shift's own token re-match would
+   * then fail and silently drop it. One patch, one commit, one undo step.
+   */
+  private applyToggle(view: EditorView, flag: ModifierFlag): void {
+    const next = cycleModifier(this.currentFlag(flag), this.inheritedFlag(flag));
+
+    this.pendingPatch[flag] = next;
+    this.updateToggleStates();
+    this.scheduleCommit(view);
+  }
+
+  /** Restart the settle timer; whatever has accumulated lands when it fires. */
+  private scheduleCommit(view: EditorView): void {
     if (this.pendingTimer !== null) window.clearTimeout(this.pendingTimer);
     this.pendingTimer = window.setTimeout(() => {
       this.pendingTimer = null;
-      const ref = this.pendingRef;
-      this.pendingRef = null;
-      if (ref) this.commitShift(view, ref);
+      const patch = this.pendingPatch;
+      this.pendingPatch = {};
+      if (Object.keys(patch).length > 0) this.commitPatch(view, patch);
     }, SHIFT_SETTLE_MS);
+  }
+
+  /** The reference as it will be once pending edits land. */
+  private currentRef(): BibleReference {
+    return this.pendingPatch.ref ?? this.spec.ref;
+  }
+
+  /** A flag's value as it will be once pending edits land. */
+  private currentFlag(flag: ModifierFlag): boolean | null {
+    const pending = this.pendingPatch[flag];
+    return pending !== undefined ? pending : this.spec[flag];
+  }
+
+  /** What the flag falls back to from plugin settings when the token omits it. */
+  private inheritedFlag(flag: ModifierFlag): boolean {
+    return this.spec.plugin.settings[flag];
+  }
+
+  /** Whether this token renders through the ESV provider rather than HelloAO. */
+  private usesEsv(): boolean {
+    const { plugin, translations } = this.spec;
+    const id = translations.length >= 1
+      ? plugin.resolveTranslationIdPublic(translations[0])
+      : plugin.settings.defaultTranslation;
+    return plugin.findTranslation(id)?.provider === "esv";
   }
 
   /**
@@ -371,7 +497,7 @@ class BibleVerseWidget extends WidgetType {
   /** Re-evaluate which buttons are still usable as a burst approaches a bound. */
   private updateButtonStates(): void {
     if (!this.containerEl) return;
-    const ref = this.pendingRef ?? this.spec.ref;
+    const ref = this.currentRef();
     this.containerEl.querySelectorAll<HTMLButtonElement>(".bible-verse-shift-btn").forEach((btn) => {
       const delta = (btn.dataset.delta === "1" ? 1 : -1) as ShiftDelta;
       const canEnd = shiftReference(ref, "end", delta, this.spec.numberOfVerses) !== null;
@@ -380,8 +506,8 @@ class BibleVerseWidget extends WidgetType {
     });
   }
 
-  /** Write an accumulated shift to the document. */
-  private commitShift(view: EditorView, shifted: BibleReference): void {
+  /** Write the accumulated edits to the document as one change. */
+  private commitPatch(view: EditorView, patch: Partial<InlineSpec>): void {
     if (!this.containerEl || !this.containerEl.isConnected) return;
 
     const from = view.posAtDOM(this.containerEl);
@@ -395,14 +521,14 @@ class BibleVerseWidget extends WidgetType {
     );
     if (!match || match[0] !== this.spec.token) return;
 
-    const insert = rewriteTokenReference(match[0], shifted);
+    const insert = rewriteToken(match[0], patch);
     if (insert === null) return;
 
     view.dispatch({
       changes: { from, to: from + match[0].length, insert },
     });
 
-    void this.prefetchNeighbours(shifted);
+    if (patch.ref) void this.prefetchNeighbours(patch.ref);
   }
 
   /**
@@ -456,7 +582,7 @@ class BibleVerseWidget extends WidgetType {
       this.pendingTimer = null;
     }
     this.clearRevealTimer();
-    this.pendingRef = null;
+    this.pendingPatch = {};
     this.containerEl = null;
   }
 
