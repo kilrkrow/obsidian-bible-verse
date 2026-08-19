@@ -473,7 +473,8 @@
   opacity: 1;
 }
 
-.bible-verse-shift-btn {
+.bible-verse-shift-btn,
+.bible-verse-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -494,17 +495,61 @@
   cursor: pointer;
 }
 
-.bible-verse-shift-btn:hover:not(:disabled) {
+.bible-verse-shift-btn:hover:not(:disabled),
+.bible-verse-toggle-btn:hover:not(:disabled) {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   border-color: var(--interactive-accent);
 }
 
-.bible-verse-shift-btn:active:not(:disabled) {
+.bible-verse-shift-btn:active:not(:disabled),
+.bible-verse-toggle-btn:active:not(:disabled) {
   background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
 }
 
 .bible-verse-shift-btn:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.bible-verse-toggle-btn .svg-icon {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+/* Two independent signals on one button (#51):
+   colour carries the effective value (is the verse doing this right now),
+   opacity and border carry where that value came from. A dimmed toggle is
+   inheriting the plugin setting; a solid one is pinned by the token itself. */
+.bible-verse-toggle-btn {
+  position: relative;
+  opacity: 0.5;
+  color: var(--text-faint);
+}
+
+.bible-verse-toggle-btn.is-on {
+  color: var(--interactive-accent);
+}
+
+.bible-verse-toggle-btn.is-pinned {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--interactive-accent) 55%, var(--background-modifier-border));
+}
+
+/* "Off" needs a mark of its own. Colour alone is ambiguous at icon size, and
+   text-decoration does nothing to an SVG, so strike the icon through. Keyed on
+   the effective value, not on pinning: off is off whether it came from the
+   token or from settings. */
+.bible-verse-toggle-btn:not(.is-on)::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 50%;
+  border-top: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.bible-verse-toggle-btn:hover {
+  opacity: 1;
 }
