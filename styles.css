@@ -512,6 +512,13 @@
   cursor: default;
 }
 
+/* Separate the nudge pair from the formatting toggles. The sibling selector
+   only matches a toggle that directly follows a shift button, so references
+   with no +/- (whole-chapter and friends) get no stray leading gap. */
+.bible-verse-shift-btn + .bible-verse-toggle-btn {
+  margin-left: 0.45em;
+}
+
 .bible-verse-toggle-btn .svg-icon {
   width: 0.95em;
   height: 0.95em;
