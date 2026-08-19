@@ -15,6 +15,7 @@ import {
   InlineSpec,
   inlineTokenRegex,
   inlineTokenContent,
+  referenceRejection,
   INLINE_TOKEN_SOURCE,
 } from "./parser";
 import {
@@ -72,6 +73,32 @@ function pointerIsInside(el: HTMLElement): boolean {
   if (!at || at.x < 0) return false;
   const r = el.getBoundingClientRect();
   return at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
+}
+
+/**
+ * Live Preview widget for a reference the plugin recognises but refuses.
+ *
+ * Mirrors what codeBlockProcessor already does for an unparseable ```bible
+ * block, so both surfaces explain the same input the same way.
+ */
+class BibleVerseRejectionWidget extends WidgetType {
+  constructor(private readonly message: string) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const container = createSpan({ cls: "bible-verse-livepreview" });
+    renderError(container, this.message);
+    return container;
+  }
+
+  eq(other: BibleVerseRejectionWidget): boolean {
+    return this.message === other.message;
+  }
+
+  ignoreEvent(): boolean {
+    return true;
+  }
 }
 
 /**
@@ -765,7 +792,20 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
 
             const content = inlineTokenContent(match).trim();
             const spec = parseInlineSpec(content);
-            if (!spec) continue;
+            if (!spec) {
+              // Not every {…} is ours, so an unrecognised token is left alone.
+              // One the plugin deliberately refuses is another matter: say so,
+              // rather than leave it looking like nothing happened (#52).
+              const rejection = referenceRejection(content);
+              if (rejection) {
+                builder.add(
+                  tokenStart,
+                  tokenEnd,
+                  Decoration.replace({ widget: new BibleVerseRejectionWidget(rejection) })
+                );
+              }
+              continue;
+            }
 
             const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake } = spec;
             const refLabel = formatReference(ref);

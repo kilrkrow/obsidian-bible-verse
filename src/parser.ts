@@ -134,6 +134,37 @@ export function parseReference(input: string): BibleReference | null {
   };
 }
 
+/**
+ * Why a well-formed-looking reference was refused, or null when the input is
+ * not a reference we recognise at all.
+ *
+ * Callers need this distinction. An unrecognised `{…}` token must be left
+ * alone — arbitrary braces in a note are not ours to claim — but one the plugin
+ * deliberately refuses should say so instead of rendering as plain text, which
+ * looks like the plugin simply failed to notice it.
+ *
+ * Accepts either a bare reference or the full contents of an inline token, so
+ * "John 1:10-2:10" and "John 1:10-2:10, KJV" both report the same reason.
+ */
+export function referenceRejection(content: string): string | null {
+  // Peel trailing modifiers one at a time. The reference itself may contain
+  // commas ("John 3:16-21,25"), so try the longest prefix first.
+  const parts = content.split(",");
+  for (let cut = parts.length; cut >= 1; cut--) {
+    const candidate = parts.slice(0, cut).join(",").trim();
+    const match = candidate.match(REF_REGEX);
+    if (!match) continue;
+
+    // Groups 4 and 5 are the end chapter and verse of a span.
+    if (match[4] === undefined || match[5] === undefined) continue;
+    if (!normalizeBookName(match[1])) continue;
+
+    return `Multi-chapter references aren't supported: "${candidate}". Reference one chapter at a time.`;
+  }
+
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline spec parser — handles {ref}, {ref, TRANS}, {ref, TRANS1, TRANS2},
 // plus an optional display-style override token anywhere in the trailing

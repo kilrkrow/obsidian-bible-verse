@@ -9,6 +9,7 @@ import {
   INLINE_TOKEN_SOURCE,
   inlineTokenRegex,
   inlineTokenContent,
+  referenceRejection,
 } from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
@@ -515,7 +516,16 @@ export default class BibleVersePlugin extends Plugin {
             }
           }
         } else {
-          frag.appendText(match[0]);
+          // Same distinction as the Live Preview path: leave tokens that are
+          // not ours, but explain the ones we deliberately refuse (#52).
+          const rejection = referenceRejection(rawContent);
+          if (rejection) {
+            const span = createSpan({ cls: "bible-verse-container" });
+            renderError(span, rejection);
+            frag.appendChild(span);
+          } else {
+            frag.appendText(match[0]);
+          }
         }
 
         lastIndex = matchIndex + match[0].length;
@@ -658,7 +668,7 @@ export default class BibleVersePlugin extends Plugin {
     const refStr = lines[0].trim();
     const ref = parseReference(refStr);
     if (!ref) {
-      renderError(el, `Could not parse reference: "${refStr}"`);
+      renderError(el, referenceRejection(refStr) ?? `Could not parse reference: "${refStr}"`);
       return;
     }
 
