@@ -2305,6 +2305,26 @@ var verseFetchedEffect = import_state.StateEffect.define();
 
 // src/view-plugin.ts
 var SHIFT_SETTLE_MS = 250;
+var REVEAL_STICKY_MS = 3e3;
+var REVEALED_CLASS = "is-revealed";
+var pointerPositions = /* @__PURE__ */ new WeakMap();
+function trackPointer(doc) {
+  if (pointerPositions.has(doc))
+    return;
+  pointerPositions.set(doc, { x: -1, y: -1 });
+  doc.addEventListener(
+    "pointermove",
+    (e) => pointerPositions.set(doc, { x: e.clientX, y: e.clientY }),
+    { passive: true }
+  );
+}
+function pointerIsInside(el) {
+  const at = pointerPositions.get(el.ownerDocument);
+  if (!at || at.x < 0)
+    return false;
+  const r = el.getBoundingClientRect();
+  return at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
+}
 var BibleVerseWidget = class extends import_view.WidgetType {
   constructor(spec) {
     super();
@@ -2323,6 +2343,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
      */
     this.pendingRef = null;
     this.pendingTimer = null;
+    /** Non-null while a recent click is holding the control strip open. */
+    this.revealTimer = null;
   }
   toDOM(view) {
     var _a, _b, _c, _d;
@@ -2336,7 +2358,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     }
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
       return container;
     }
     if (this.spec.translations.length >= 2) {
@@ -2349,7 +2371,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin
-        );
+        ).then(() => this.attachShiftControls(container, view));
       } else {
         this.renderPill(container);
         void this.fetchAndUpdate(container, view);
@@ -2368,33 +2390,108 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           this.spec.plugin,
           (_d = this.spec.paragraphBreaks) != null ? _d : this.spec.plugin.settings.paragraphBreaks,
           vnL
-        );
+        ).then(() => this.attachShiftControls(container, view));
       } else {
         this.renderPill(container);
         void this.fetchAndUpdate(container, view);
       }
     }
-    this.renderShiftControls(container, view);
     return container;
   }
   /**
    * The +/- verse controls (#49). Plain click moves the end verse, Alt-click
    * moves the start verse.
    *
-   * Rendered as the container's last child. Every render path above builds its
-   * root element synchronously before awaiting, so appending here keeps the
-   * controls after the verse regardless of which path ran.
+   * Attached beside the reference label rather than at the end of the block:
+   * the label is the one landmark every display style shares, though it sits in
+   * a header for callout and a footer for sidebar and blockquote. Label and
+   * controls are wrapped together so hovering either keeps both visible —
+   * without the wrapper, travelling from the label to a button would cross a
+   * gap and the controls would vanish under the cursor.
+   *
+   * Must be called after the renderer's promise settles. Sidebar, blockquote,
+   * and inline only create the label after awaiting the verse text, so it does
+   * not exist yet when the render call returns.
    */
-  renderShiftControls(container, view) {
+  attachShiftControls(container, view) {
     const { ref, numberOfVerses } = this.spec;
     const anyShiftPossible = [-1, 1].some(
       (d) => shiftReference(ref, "end", d, numberOfVerses) !== null || shiftReference(ref, "start", d, numberOfVerses) !== null
     );
     if (!anyShiftPossible)
       return;
-    const controls = container.createSpan({ cls: "bible-verse-shift" });
+    container.querySelectorAll(".bible-verse-shift").forEach((el) => el.remove());
+    container.querySelectorAll(".bible-verse-shift-zone").forEach((old) => {
+      const parent = old.parentElement;
+      if (!parent)
+        return;
+      while (old.firstChild)
+        parent.insertBefore(old.firstChild, old);
+      old.remove();
+    });
+    const label = container.querySelector(
+      ".bible-verse-ref, .bible-verse-comparison-header, .bible-verse-pill"
+    );
+    const zone = createSpan({ cls: "bible-verse-shift-zone" });
+    if (label && label.parentElement) {
+      label.parentElement.insertBefore(zone, label);
+      zone.appendChild(label);
+    } else {
+      container.appendChild(zone);
+    }
+    const controls = zone.createSpan({ cls: "bible-verse-shift" });
     this.renderShiftButton(controls, view, -1);
     this.renderShiftButton(controls, view, 1);
+    this.bindReveal(zone);
+  }
+  /**
+   * Wire the hover reveal.
+   *
+   * CSS `:hover` alone is not enough. When a shift commits, the widget is
+   * rebuilt, and Chromium will not re-apply `:hover` to a freshly inserted
+   * element until the pointer next moves — so the controls would disappear
+   * under a stationary cursor mid-burst, exactly when they are being used. The
+   * pointer position is tracked globally and re-checked against the new zone
+   * once it lands, which restores the reveal without needing a mouse move.
+   */
+  bindReveal(zone) {
+    trackPointer(zone.ownerDocument);
+    zone.addEventListener("pointerenter", () => {
+      this.clearRevealTimer();
+      zone.addClass(REVEALED_CLASS);
+    });
+    zone.addEventListener("pointerleave", () => {
+      if (this.revealTimer === null)
+        zone.removeClass(REVEALED_CLASS);
+    });
+    requestAnimationFrame(() => {
+      if (!zone.isConnected)
+        return;
+      if (pointerIsInside(zone) || this.revealTimer !== null) {
+        zone.addClass(REVEALED_CLASS);
+      }
+    });
+  }
+  /** Hold the strip open for a moment after a click, then let hover decide. */
+  holdRevealed() {
+    var _a;
+    const zone = (_a = this.containerEl) == null ? void 0 : _a.querySelector(".bible-verse-shift-zone");
+    if (zone)
+      zone.addClass(REVEALED_CLASS);
+    this.clearRevealTimer();
+    this.revealTimer = window.setTimeout(() => {
+      var _a2;
+      this.revealTimer = null;
+      const current = (_a2 = this.containerEl) == null ? void 0 : _a2.querySelector(".bible-verse-shift-zone");
+      if (current && !pointerIsInside(current))
+        current.removeClass(REVEALED_CLASS);
+    }, REVEAL_STICKY_MS);
+  }
+  clearRevealTimer() {
+    if (this.revealTimer !== null) {
+      window.clearTimeout(this.revealTimer);
+      this.revealTimer = null;
+    }
   }
   renderShiftButton(controls, view, delta) {
     const { ref, numberOfVerses } = this.spec;
@@ -2416,6 +2513,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      this.holdRevealed();
       this.applyShift(view, e.altKey ? "start" : "end", delta);
     });
   }
@@ -2539,6 +2637,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       window.clearTimeout(this.pendingTimer);
       this.pendingTimer = null;
     }
+    this.clearRevealTimer();
     this.pendingRef = null;
     this.containerEl = null;
   }
@@ -2607,13 +2706,13 @@ var BibleVerseWidget = class extends import_view.WidgetType {
           vnL
         );
       }
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
       view.dispatch({ effects: verseFetchedEffect.of(void 0) });
     } catch (e) {
       console.error("Bible Verse Live Preview: fetch failed", e);
       container.empty();
       renderError(container, `Could not load ${formatReference(ref)}.`);
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
     }
   }
   eq(other) {

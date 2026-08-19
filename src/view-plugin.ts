@@ -29,6 +29,45 @@ import { verseFetchedEffect } from "./effects";
 const SHIFT_SETTLE_MS = 250;
 
 /**
+ * How long the control strip stays open after a click, regardless of hover.
+ * Covers the rebuild that follows a commit and absorbs small mouse drift while
+ * tapping, without leaving the strip open once you have moved on.
+ */
+const REVEAL_STICKY_MS = 3000;
+
+/** Set on the label/controls wrapper while the controls should be visible. */
+const REVEALED_CLASS = "is-revealed";
+
+/**
+ * Last known pointer position per document, so a rebuilt control strip can tell
+ * whether the cursor is already sitting on it. Chromium does not re-evaluate
+ * `:hover` for a newly inserted element until the pointer moves, and a burst of
+ * shift clicks rebuilds the widget under a stationary cursor.
+ *
+ * One passive listener per document, registered on first use. Obsidian pop-out
+ * windows each have their own, hence the map rather than a single pair.
+ */
+const pointerPositions = new WeakMap<Document, { x: number; y: number }>();
+
+function trackPointer(doc: Document): void {
+  if (pointerPositions.has(doc)) return;
+  pointerPositions.set(doc, { x: -1, y: -1 });
+  doc.addEventListener(
+    "pointermove",
+    (e: PointerEvent) => pointerPositions.set(doc, { x: e.clientX, y: e.clientY }),
+    { passive: true }
+  );
+}
+
+/** Whether the last known pointer position falls inside an element's box. */
+function pointerIsInside(el: HTMLElement): boolean {
+  const at = pointerPositions.get(el.ownerDocument);
+  if (!at || at.x < 0) return false;
+  const r = el.getBoundingClientRect();
+  return at.x >= r.left && at.x <= r.right && at.y >= r.top && at.y <= r.bottom;
+}
+
+/**
  * Live Preview widget for a {ref} token.
  */
 class BibleVerseWidget extends WidgetType {
@@ -71,6 +110,9 @@ class BibleVerseWidget extends WidgetType {
   private pendingRef: BibleReference | null = null;
   private pendingTimer: number | null = null;
 
+  /** Non-null while a recent click is holding the control strip open. */
+  private revealTimer: number | null = null;
+
   toDOM(view: EditorView): HTMLElement {
     const container = createSpan({ cls: "bible-verse-livepreview" });
     this.containerEl = container;
@@ -89,7 +131,7 @@ class BibleVerseWidget extends WidgetType {
     // apply; they just have no chapter length to clamp against.
     if (this.spec.translations.length === 1 && this.spec.plugin.isTranslationLinkOnly(this.spec.translations[0])) {
       this.renderPill(container);
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
       return container;
     }
 
@@ -103,7 +145,7 @@ class BibleVerseWidget extends WidgetType {
           this.spec.plugin.settings.showAttribution,
           this.spec.plugin.app,
           this.spec.plugin
-        );
+        ).then(() => this.attachShiftControls(container, view));
       } else {
         this.renderPill(container);
         void this.fetchAndUpdate(container, view);
@@ -122,14 +164,13 @@ class BibleVerseWidget extends WidgetType {
           this.spec.plugin,
           this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks,
           vnL
-        );
+        ).then(() => this.attachShiftControls(container, view));
       } else {
         this.renderPill(container);
         void this.fetchAndUpdate(container, view);
       }
     }
 
-    this.renderShiftControls(container, view);
     return container;
   }
 
@@ -137,16 +178,23 @@ class BibleVerseWidget extends WidgetType {
    * The +/- verse controls (#49). Plain click moves the end verse, Alt-click
    * moves the start verse.
    *
-   * Rendered as the container's last child. Every render path above builds its
-   * root element synchronously before awaiting, so appending here keeps the
-   * controls after the verse regardless of which path ran.
+   * Attached beside the reference label rather than at the end of the block:
+   * the label is the one landmark every display style shares, though it sits in
+   * a header for callout and a footer for sidebar and blockquote. Label and
+   * controls are wrapped together so hovering either keeps both visible —
+   * without the wrapper, travelling from the label to a button would cross a
+   * gap and the controls would vanish under the cursor.
+   *
+   * Must be called after the renderer's promise settles. Sidebar, blockquote,
+   * and inline only create the label after awaiting the verse text, so it does
+   * not exist yet when the render call returns.
    */
-  private renderShiftControls(container: HTMLElement, view: EditorView): void {
+  private attachShiftControls(container: HTMLElement, view: EditorView): void {
     const { ref, numberOfVerses } = this.spec;
 
     // Nothing to nudge — whole-chapter, multi-chapter, and discontinuous
     // references have no unambiguous start or end verse. Render no chrome at
-    // all rather than four permanently dead buttons.
+    // all rather than permanently dead buttons.
     const anyShiftPossible = ([-1, 1] as ShiftDelta[]).some(
       (d) =>
         shiftReference(ref, "end", d, numberOfVerses) !== null ||
@@ -154,9 +202,90 @@ class BibleVerseWidget extends WidgetType {
     );
     if (!anyShiftPossible) return;
 
-    const controls = container.createSpan({ cls: "bible-verse-shift" });
+    // Fully undo any previous attach before re-attaching: drop the controls,
+    // then unwrap the zone back around the label. Removing only the controls
+    // would leave the old wrapper in place and nest a second one inside it.
+    container.querySelectorAll(".bible-verse-shift").forEach((el) => el.remove());
+    container.querySelectorAll(".bible-verse-shift-zone").forEach((old) => {
+      const parent = old.parentElement;
+      if (!parent) return;
+      while (old.firstChild) parent.insertBefore(old.firstChild, old);
+      old.remove();
+    });
+
+    const label = container.querySelector<HTMLElement>(
+      ".bible-verse-ref, .bible-verse-comparison-header, .bible-verse-pill"
+    );
+
+    const zone = createSpan({ cls: "bible-verse-shift-zone" });
+    if (label && label.parentElement) {
+      label.parentElement.insertBefore(zone, label);
+      zone.appendChild(label);
+    } else {
+      // No recognisable label (an error render, say) — fall back to the end of
+      // the block so the controls still exist.
+      container.appendChild(zone);
+    }
+
+    const controls = zone.createSpan({ cls: "bible-verse-shift" });
     this.renderShiftButton(controls, view, -1);
     this.renderShiftButton(controls, view, 1);
+
+    this.bindReveal(zone);
+  }
+
+  /**
+   * Wire the hover reveal.
+   *
+   * CSS `:hover` alone is not enough. When a shift commits, the widget is
+   * rebuilt, and Chromium will not re-apply `:hover` to a freshly inserted
+   * element until the pointer next moves — so the controls would disappear
+   * under a stationary cursor mid-burst, exactly when they are being used. The
+   * pointer position is tracked globally and re-checked against the new zone
+   * once it lands, which restores the reveal without needing a mouse move.
+   */
+  private bindReveal(zone: HTMLElement): void {
+    trackPointer(zone.ownerDocument);
+
+    zone.addEventListener("pointerenter", () => {
+      this.clearRevealTimer();
+      zone.addClass(REVEALED_CLASS);
+    });
+
+    zone.addEventListener("pointerleave", () => {
+      // A recent click holds the strip open through small mouse drift; let the
+      // sticky timer close it instead of closing immediately.
+      if (this.revealTimer === null) zone.removeClass(REVEALED_CLASS);
+    });
+
+    // The zone is not in the document yet. Once it is, reveal it if the pointer
+    // is already inside — the post-commit rebuild case.
+    requestAnimationFrame(() => {
+      if (!zone.isConnected) return;
+      if (pointerIsInside(zone) || this.revealTimer !== null) {
+        zone.addClass(REVEALED_CLASS);
+      }
+    });
+  }
+
+  /** Hold the strip open for a moment after a click, then let hover decide. */
+  private holdRevealed(): void {
+    const zone = this.containerEl?.querySelector<HTMLElement>(".bible-verse-shift-zone");
+    if (zone) zone.addClass(REVEALED_CLASS);
+
+    this.clearRevealTimer();
+    this.revealTimer = window.setTimeout(() => {
+      this.revealTimer = null;
+      const current = this.containerEl?.querySelector<HTMLElement>(".bible-verse-shift-zone");
+      if (current && !pointerIsInside(current)) current.removeClass(REVEALED_CLASS);
+    }, REVEAL_STICKY_MS);
+  }
+
+  private clearRevealTimer(): void {
+    if (this.revealTimer !== null) {
+      window.clearTimeout(this.revealTimer);
+      this.revealTimer = null;
+    }
   }
 
   private renderShiftButton(controls: HTMLElement, view: EditorView, delta: ShiftDelta): void {
@@ -188,6 +317,7 @@ class BibleVerseWidget extends WidgetType {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      this.holdRevealed();
       this.applyShift(view, e.altKey ? "start" : "end", delta);
     });
   }
@@ -325,6 +455,7 @@ class BibleVerseWidget extends WidgetType {
       window.clearTimeout(this.pendingTimer);
       this.pendingTimer = null;
     }
+    this.clearRevealTimer();
     this.pendingRef = null;
     this.containerEl = null;
   }
@@ -403,7 +534,7 @@ class BibleVerseWidget extends WidgetType {
       }
 
       // container.empty() above took the controls with it.
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
 
       view.dispatch({ effects: verseFetchedEffect.of(undefined) });
     } catch (e) {
@@ -412,7 +543,7 @@ class BibleVerseWidget extends WidgetType {
       renderError(container, `Could not load ${formatReference(ref)}.`);
       // Keep the controls on an error, so overshooting the end of a chapter is
       // recoverable by pressing the other button rather than editing by hand.
-      this.renderShiftControls(container, view);
+      this.attachShiftControls(container, view);
     }
   }
 

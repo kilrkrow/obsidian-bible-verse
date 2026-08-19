@@ -439,12 +439,38 @@
 
 /* ── Verse shift controls (#49) ─────────────────────────────────────────── */
 
+/* Wraps the reference label together with the controls, so travelling from one
+   to the other never leaves the hover zone. */
+.bible-verse-shift-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
 .bible-verse-shift {
   display: inline-flex;
   align-items: center;
   gap: 0.15em;
-  margin-left: 0.35em;
   vertical-align: middle;
+
+  /* Hidden rather than removed: the controls keep their width at all times, so
+     revealing them never reflows the surrounding text. That matters most for
+     the inline display style, where the label sits mid-sentence. */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+.bible-verse-shift-zone:hover .bible-verse-shift,
+.bible-verse-shift-zone.is-revealed .bible-verse-shift {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Keyboard users get the same reveal when a control takes focus. */
+.bible-verse-shift:focus-within {
+  visibility: visible;
+  opacity: 1;
 }
 
 .bible-verse-shift-btn {
