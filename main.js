@@ -603,17 +603,7 @@ function parseReference(input) {
   }
   const startVerse = parseInt(match[3], 10);
   if (match[4] !== void 0 && match[5] !== void 0) {
-    const endChapter = parseInt(match[4], 10);
-    const endVerse2 = parseInt(match[5], 10);
-    return {
-      book,
-      chapter,
-      startVerse,
-      endVerse: endVerse2,
-      additionalVerses: [],
-      endChapter,
-      raw: trimmed
-    };
+    return null;
   }
   let endVerse = null;
   if (match[6] !== void 0) {
@@ -840,23 +830,15 @@ function computeRequestedVerses(ref) {
   if (ref.endVerse === EOC_VERSE)
     return null;
   const verses = /* @__PURE__ */ new Set();
-  if (ref.endVerse !== null && ref.endChapter === null) {
+  if (ref.endVerse !== null) {
     for (let v = ref.startVerse; v <= ref.endVerse; v++) {
       verses.add(v);
     }
-  } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-    verses.add(ref.startVerse);
   } else {
-    if (ref.endVerse !== null) {
-      for (let v = ref.startVerse; v <= ref.endVerse; v++) {
-        verses.add(v);
-      }
-    } else {
-      verses.add(ref.startVerse);
-    }
-    for (const v of ref.additionalVerses) {
-      verses.add(v);
-    }
+    verses.add(ref.startVerse);
+  }
+  for (const v of ref.additionalVerses) {
+    verses.add(v);
   }
   return verses;
 }

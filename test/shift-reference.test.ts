@@ -144,8 +144,14 @@ describe("shiftReference — shapes it refuses", () => {
   });
 
   it("refuses multi-chapter ranges", () => {
-    expect(shift("John 3:16-4:3", "end", 1, JOHN_3)).toBeNull();
-    expect(shift("John 3:16-4:3", "start", 1, JOHN_3)).toBeNull();
+    // The parser rejects this shape outright now (#52), so it cannot arrive via
+    // text. The guard stays because endChapter is still on the type, and a
+    // reference built in code could carry one.
+    expect(parseReference("John 3:16-4:3")).toBeNull();
+
+    const spanning = { ...parseReference("John 3:16-20")!, endChapter: 4 };
+    expect(shiftReference(spanning, "end", 1, JOHN_3)).toBeNull();
+    expect(shiftReference(spanning, "start", 1, JOHN_3)).toBeNull();
   });
 
   it("refuses discontinuous references", () => {

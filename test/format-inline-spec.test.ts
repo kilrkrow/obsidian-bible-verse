@@ -18,7 +18,6 @@ describe("formatInlineSpec — round-trips", () => {
     "John 3:16-21",
     "John 3:16-eoc",
     "John 3",
-    "John 3:16-4:3",
     "John 3:16-21,25",
     "1 Corinthians 13:4-7",
     "Song of Solomon 2:1-3",
@@ -49,6 +48,13 @@ describe("formatInlineSpec — round-trips", () => {
       expect(roundTrip(once)).toBe(once);
     });
   }
+});
+
+describe("formatInlineSpec — multi-chapter is no longer parseable (#52)", () => {
+  it("rejects a multi-chapter token outright", () => {
+    expect(parseInlineSpec("John 3:16-4:3")).toBeNull();
+    expect(parseInlineSpec("John 3:16-4:3, KJV")).toBeNull();
+  });
 });
 
 describe("formatInlineSpec — preserves meaning", () => {
