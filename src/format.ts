@@ -51,24 +51,20 @@ export function computeRequestedVerses(ref: BibleReference): Set<number> | null 
   // Special marker for "End of Chapter" (Issue #17)
   if (ref.endVerse === EOC_VERSE) return null;
 
+  // A range, or the single start verse when there is no range — then any
+  // comma-separated extras on top. Previously the range branch returned early,
+  // so "John 3:16-21,25" silently dropped verse 25 while the reference still
+  // displayed it (#53).
   const verses = new Set<number>();
-  if (ref.endVerse !== null && ref.endChapter === null) {
+  if (ref.endVerse !== null) {
     for (let v = ref.startVerse; v <= ref.endVerse; v++) {
       verses.add(v);
     }
-  } else if (ref.endVerse === null && ref.additionalVerses.length === 0) {
-    verses.add(ref.startVerse);
   } else {
-    if (ref.endVerse !== null) {
-      for (let v = ref.startVerse; v <= ref.endVerse; v++) {
-        verses.add(v);
-      }
-    } else {
-      verses.add(ref.startVerse);
-    }
-    for (const v of ref.additionalVerses) {
-      verses.add(v);
-    }
+    verses.add(ref.startVerse);
+  }
+  for (const v of ref.additionalVerses) {
+    verses.add(v);
   }
   return verses;
 }

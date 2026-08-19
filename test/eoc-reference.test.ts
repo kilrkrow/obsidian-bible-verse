@@ -31,8 +31,8 @@ describe("formatReference — end-of-chapter ranges (#49)", () => {
     expect(formatReference(parseReference("John 3")!)).toBe("John 3");
   });
 
-  it("leaves a multi-chapter range untouched", () => {
-    expect(formatReference(parseReference("John 3:16-4:3")!)).toBe("John 3:16-4:3");
+  it("no longer sees multi-chapter ranges, which the parser now rejects (#52)", () => {
+    expect(parseReference("John 3:16-4:3")).toBeNull();
   });
 
   it("still emits additional verses alongside a range", () => {

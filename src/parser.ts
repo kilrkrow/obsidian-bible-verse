@@ -90,19 +90,16 @@ export function parseReference(input: string): BibleReference | null {
 
   const startVerse = parseInt(match[3], 10);
 
-  // Multi-chapter range: "John 3:16-4:3"
+  // Multi-chapter range: "John 3:16-4:3". Rejected rather than returned (#52).
+  //
+  // The fetch layer serves one chapter at a time and its requested-verse set is
+  // a flat list of verse numbers with no chapter dimension, so a span could
+  // never be assembled — it failed at fetch with "No verses found" after
+  // looking perfectly valid. Failing here instead reports the real problem at
+  // the point the user typed it, and keeps the suggester from offering a form
+  // that cannot work.
   if (match[4] !== undefined && match[5] !== undefined) {
-    const endChapter = parseInt(match[4], 10);
-    const endVerse = parseInt(match[5], 10);
-    return {
-      book,
-      chapter,
-      startVerse,
-      endVerse,
-      additionalVerses: [],
-      endChapter,
-      raw: trimmed,
-    };
+    return null;
   }
 
   // Simple range: "John 3:16-21" or "John 3:16-eoc"
