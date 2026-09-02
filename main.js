@@ -2491,7 +2491,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       if (this.revealTimer === null)
         zone.removeClass(REVEALED_CLASS);
     });
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       if (!zone.isConnected)
         return;
       if (pointerIsInside(zone) || this.revealTimer !== null) {

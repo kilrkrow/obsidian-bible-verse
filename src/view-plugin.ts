@@ -299,7 +299,7 @@ class BibleVerseWidget extends WidgetType {
 
     // The zone is not in the document yet. Once it is, reveal it if the pointer
     // is already inside — the post-commit rebuild case.
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       if (!zone.isConnected) return;
       if (pointerIsInside(zone) || this.revealTimer !== null) {
         zone.addClass(REVEALED_CLASS);
@@ -526,7 +526,7 @@ class BibleVerseWidget extends WidgetType {
     if (!this.containerEl) return;
     const ref = this.currentRef();
     this.containerEl.querySelectorAll<HTMLButtonElement>(".bible-verse-shift-btn").forEach((btn) => {
-      const delta = (btn.dataset.delta === "1" ? 1 : -1) as ShiftDelta;
+      const delta: ShiftDelta = btn.dataset.delta === "1" ? 1 : -1;
       const canEnd = shiftReference(ref, "end", delta, this.spec.numberOfVerses) !== null;
       const canStart = shiftReference(ref, "start", delta, this.spec.numberOfVerses) !== null;
       btn.disabled = !canEnd && !canStart;
