@@ -21,6 +21,22 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by the
 - **Theme Integrated** — Uses native Obsidian design tokens for a premium look in both Light and Dark mode
 - **No API key needed** — The built-in translations use the free HelloAO Bible API with no registration required (the ESV is optional, with your own key)
 
+## Screenshots
+
+Hero — curly-brace reference to rendered verse in Live Preview:
+
+![`{John 3:16}` renders in Live Preview](docs/images/hero-john-316.png)
+
+Display styles (Settings → Display style, or per-reference overrides):
+
+| Style | Preview |
+|-------|---------|
+| Sidebar | ![Sidebar style](docs/images/style-sidebar.png) |
+| Callout | ![Callout style](docs/images/style-callout.png) |
+| Blockquote | ![Blockquote style](docs/images/style-blockquote.png) |
+| Inline | ![Inline style](docs/images/style-inline.png) |
+| Native callout (bake) | ![Native callout bake](docs/images/style-native-callout.png) |
+
 ## Installation
 
 ### Manual Installation
@@ -235,6 +251,31 @@ Baking & cache:
 - **Bake all existing verses across vault** — Bake all `{ref}` markers in every note
 - **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
 - **Clear verse cache** — Clear the local verse cache to free up space
+
+## Troubleshooting
+
+### Verse not found
+
+- Check the book name and chapter/verse (typos and unsupported abbreviations fail the lookup).
+- Use IntelliSense inside `{` ... `}` to pick a known book and translation.
+- Link-only translations (NIV, NLT, ...) never show inline text — they open as a website link by design.
+- ESV needs a valid key under **Settings → Bible Verse → ESV API key**; without it ESV is link-only.
+
+### Offline / cache behavior
+
+- Built-in translations are cached locally after the first successful fetch so reopening a note works offline for those verses.
+- Enable **Persist verse text in notes** (or bake commands) to store text inside the note itself — that is the offline-ready path for sharing vaults.
+- A cold cache plus no network shows an error until the verse can be fetched once.
+
+### Clear verse cache
+
+Command palette → **Clear verse cache** (command id `clear-cache`). Use this if a translation looks stale after an upstream fix, or to reclaim space. The next view of each reference refetches.
+
+### Footguns
+
+- Default display style **Native callout** auto-bakes references; that rewrites note content — switch back to Callout/Sidebar if you only wanted live rendering.
+- Comparison tokens (multiple translations) ignore a style override in the same brace.
+- Baking / refresh vault-wide commands rewrite many notes — prefer note-scoped bake/refresh first.
 
 ## Data Source
 
