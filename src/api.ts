@@ -102,8 +102,6 @@ export class BibleApi {
     const usfm = USFM_CODES[ref.book];
     if (!usfm) throw new Error(`Unknown book: ${ref.book}`);
 
-    // For multi-chapter ranges, only fetch the starting chapter
-    // (HelloAO serves one chapter at a time)
     const data = await this.getChapter(translationId, usfm, ref.chapter);
     const chapterContent: unknown[] = data.chapter.content;
     const requestedVerses = computeRequestedVerses(ref);

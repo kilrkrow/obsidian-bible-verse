@@ -61,7 +61,6 @@ export function normalizeBookName(raw: string): string | null {
  *   - "1 Corinthians 13:4-7"
  *   - "John 3:16-21,25"
  *   - "Psalm 23" (whole chapter)
- *   - "John 3:16-4:3" (multi-chapter)
  *   - "John 3:16-eoc" or "John 3:16-" (Issue #17)
  */
 export function parseReference(input: string): BibleReference | null {
