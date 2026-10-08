@@ -70,6 +70,40 @@ export function computeRequestedVerses(ref: BibleReference): Set<number> | null 
 }
 
 /**
+ * True when a parsed reference resolves to exactly one verse. Counted on the
+ * resolved verse list, not the raw string, so "John 3:16" qualifies (as do the
+ * degenerate "John 3:16-16" and "John 3:16,16"), while a range, a comma list,
+ * an "-eoc" span and a whole chapter do not.
+ */
+export function isSingleVerse(ref: BibleReference): boolean {
+  const verses = computeRequestedVerses(ref);
+  return verses !== null && verses.size === 1;
+}
+
+/**
+ * The one place that decides whether verse numbers are shown for a reference.
+ * Every renderer (live, Reading view, code block, comparison, bake, ESV) routes
+ * through here so the rule cannot drift between them:
+ *
+ *   1. An explicit choice always wins: the inline `v` / `no-v` token, or
+ *      `numbers: true|false` in a ```bible block.
+ *   2. Otherwise a lone verse shows no number. With the global setting on, a
+ *      single "16." adds nothing; with it off, the number was hidden anyway.
+ *   3. Otherwise (range, comma list, whole chapter) the global setting decides.
+ *
+ * `explicit` is null / undefined when the user set nothing for this reference.
+ */
+export function resolveShowVerseNumbers(
+  ref: BibleReference,
+  explicit: boolean | null | undefined,
+  globalSetting: boolean
+): boolean {
+  if (explicit !== null && explicit !== undefined) return explicit;
+  if (isSingleVerse(ref)) return false;
+  return globalSetting;
+}
+
+/**
  * Assemble the display text for a chapter's content, given the requested verses
  * and formatting settings. Returns "" when no matching verses are found.
  */

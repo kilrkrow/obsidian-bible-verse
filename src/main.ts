@@ -36,6 +36,7 @@ import {
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { fetchEsvPassage, getEffectiveMode } from "./providers";
 import { verseFetchedEffect } from "./effects";
+import { resolveShowVerseNumbers } from "./format";
 import { bugReportUrl } from "./feedback";
 
 export default class BibleVersePlugin extends Plugin {
@@ -299,7 +300,7 @@ export default class BibleVersePlugin extends Plugin {
       abbr,
       formatReference(spec.ref),
       spec.verseNewLine ?? this.settings.verseNewLine,
-      spec.showVerseNumbers ?? this.settings.showVerseNumbers,
+      resolveShowVerseNumbers(spec.ref, spec.showVerseNumbers, this.settings.showVerseNumbers),
       spec.paragraphBreaks ?? this.settings.paragraphBreaks
     );
     return cached?.numberOfVerses;
@@ -364,7 +365,7 @@ export default class BibleVersePlugin extends Plugin {
       const id = translationId ?? this.settings.defaultTranslation;
       const abbr = translationAbbr ?? this.getTranslationAbbr(id);
       const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
-      const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+      const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
       const passageSettings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
 
@@ -475,7 +476,7 @@ export default class BibleVersePlugin extends Plugin {
           if (wantsBake && translations.length >= 2) {
             // Baking a side-by-side comparison isn't supported — render it live.
             new Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
-            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined, spec.showVerseNumbers);
             frag.appendChild(span);
           } else if (wantsBake) {
             // Show a placeholder now; the bake rewrites the note on Reading-view render.
@@ -483,7 +484,7 @@ export default class BibleVersePlugin extends Plugin {
             frag.appendChild(span);
             void this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
           } else if (translations.length >= 2) {
-            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined);
+            void this.renderInlineComparison(span, ref, translations, spec.paragraphBreaks ?? undefined, spec.showVerseNumbers);
             frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
@@ -498,7 +499,7 @@ export default class BibleVersePlugin extends Plugin {
 
             const style = effectiveStyle;
             const vnL = spec.verseNewLine ?? this.settings.verseNewLine;
-            const sVN = spec.showVerseNumbers ?? this.settings.showVerseNumbers;
+            const sVN = resolveShowVerseNumbers(ref, spec.showVerseNumbers, this.settings.showVerseNumbers);
             const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
 
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
@@ -551,7 +552,7 @@ export default class BibleVersePlugin extends Plugin {
   ): Promise<void> {
     try {
       const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
-      const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+      const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
       const verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
@@ -581,16 +582,18 @@ export default class BibleVersePlugin extends Plugin {
     container: HTMLElement,
     ref: BibleReference,
     translations: string[],
-    paragraphBreaksOverride?: boolean
+    paragraphBreaksOverride?: boolean,
+    showVerseNumbersOverride?: boolean | null
   ): Promise<void> {
     const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
     const verses = [];
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
         const verse = await this.fetchFromProvider(ref, id, abbr, {
-          showVerseNumbers: this.settings.showVerseNumbers,
+          showVerseNumbers: sVN,
           verseNewLine: this.settings.verseNewLine,
           paragraphBreaks: pb,
         });
@@ -640,7 +643,7 @@ export default class BibleVersePlugin extends Plugin {
           // baked block renders as fetched, independent of global settings (#37).
           format: "codeblock" as const,
           verseNewLine: verseNewLine ?? this.settings.verseNewLine,
-          showVerseNumbers: showVerseNumbers ?? this.settings.showVerseNumbers,
+          showVerseNumbers: resolveShowVerseNumbers(ref, showVerseNumbers, this.settings.showVerseNumbers),
           style: spec.styleOverride && spec.styleOverride !== "native-callout"
             ? spec.styleOverride
             : undefined,
@@ -695,9 +698,12 @@ export default class BibleVersePlugin extends Plugin {
     const vnL = config["newline"] !== undefined
       ? config["newline"].toLowerCase() === "true"
       : this.settings.verseNewLine;
-    const sVN = config["numbers"] !== undefined || config["verse-numbers"] !== undefined
-      ? (config["numbers"] ?? config["verse-numbers"]).toLowerCase() === "true"
-      : this.settings.showVerseNumbers;
+    const numbersKey = config["numbers"] ?? config["verse-numbers"];
+    const sVN = resolveShowVerseNumbers(
+      ref,
+      numbersKey !== undefined ? numbersKey.toLowerCase() === "true" : null,
+      this.settings.showVerseNumbers
+    );
     const pb = config["sections"] !== undefined
       ? config["sections"].toLowerCase() === "true"
       : this.settings.paragraphBreaks;
@@ -772,7 +778,7 @@ export default class BibleVersePlugin extends Plugin {
   ): Promise<void> {
     const verses: CachedVerse[] = [];
     const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
-    const sVN = showVerseNumbersOverride ?? this.settings.showVerseNumbers;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
     const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
 
     for (const trans of translations) {

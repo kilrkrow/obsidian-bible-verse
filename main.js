@@ -857,6 +857,17 @@ function computeRequestedVerses(ref) {
   }
   return verses;
 }
+function isSingleVerse(ref) {
+  const verses = computeRequestedVerses(ref);
+  return verses !== null && verses.size === 1;
+}
+function resolveShowVerseNumbers(ref, explicit, globalSetting) {
+  if (explicit !== null && explicit !== void 0)
+    return explicit;
+  if (isSingleVerse(ref))
+    return false;
+  return globalSetting;
+}
 function assembleChapterText(chapterContent, requestedVerses, startVerse, settings) {
   const paragraphs = [[]];
   for (const item of chapterContent) {
@@ -1225,7 +1236,7 @@ var Baker = class {
       if (type === "inline") {
         const block = formatCodeBlockBake(verse, {
           verseNewLine: verseNewLine != null ? verseNewLine : defaults == null ? void 0 : defaults.verseNewLine,
-          showVerseNumbers: showVerseNumbers != null ? showVerseNumbers : defaults == null ? void 0 : defaults.showVerseNumbers,
+          showVerseNumbers: defaults ? resolveShowVerseNumbers(ref, showVerseNumbers, defaults.showVerseNumbers) : showVerseNumbers != null ? showVerseNumbers : void 0,
           style: styleOverride && styleOverride !== "native-callout" ? styleOverride : void 0
         });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);
@@ -1718,8 +1729,8 @@ function generateSearchUrl(query, translation, website) {
 function bibleHubUrl(ref, translation) {
   const slug = BIBLEHUB_SLUGS[ref.book] || ref.book.toLowerCase().replace(/\s+/g, "_");
   const trans = translation.toLowerCase();
-  const isSingleVerse = ref.startVerse !== null && ref.endVerse === null && ref.additionalVerses.length === 0;
-  if (isSingleVerse) {
+  const isSingleVerse2 = ref.startVerse !== null && ref.endVerse === null && ref.additionalVerses.length === 0;
+  if (isSingleVerse2) {
     return `https://biblehub.com/${slug}/${ref.chapter}-${ref.startVerse}.htm`;
   } else {
     return `https://biblehub.com/${trans}/${slug}/${ref.chapter}.htm`;
@@ -2650,9 +2661,17 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     const pending = this.pendingPatch[flag];
     return pending !== void 0 ? pending : this.spec[flag];
   }
-  /** What the flag falls back to from plugin settings when the token omits it. */
+  /**
+   * What the flag falls back to when the token omits it. For verse numbers that
+   * is the shared resolver's default (a lone verse inherits "off"), so the
+   * toggle paints what is rendered and its first click still changes it.
+   */
   inheritedFlag(flag) {
-    return this.spec.plugin.settings[flag];
+    const { settings } = this.spec.plugin;
+    if (flag === "showVerseNumbers") {
+      return resolveShowVerseNumbers(this.currentRef(), null, settings.showVerseNumbers);
+    }
+    return settings[flag];
   }
   /** Whether this token renders through the ESV provider rather than HelloAO. */
   usesEsv() {
@@ -2719,7 +2738,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
    * fetched, so this costs an assemble and a cache write, not a round trip.
    */
   async prefetchNeighbours(from) {
-    var _a, _b, _c;
+    var _a, _b;
     const { plugin, translations, numberOfVerses } = this.spec;
     if (translations.length >= 2)
       return;
@@ -2727,15 +2746,15 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     if (plugin.isTranslationLinkOnly(id))
       return;
     const abbr = plugin.getTranslationAbbrPublic(id);
-    const settings = {
-      verseNewLine: (_a = this.spec.verseNewLine) != null ? _a : plugin.settings.verseNewLine,
-      showVerseNumbers: (_b = this.spec.showVerseNumbers) != null ? _b : plugin.settings.showVerseNumbers,
-      paragraphBreaks: (_c = this.spec.paragraphBreaks) != null ? _c : plugin.settings.paragraphBreaks
-    };
     for (const delta of [1, -1]) {
       const next = shiftReference(from, "end", delta, numberOfVerses);
       if (!next)
         continue;
+      const settings = {
+        verseNewLine: (_a = this.spec.verseNewLine) != null ? _a : plugin.settings.verseNewLine,
+        showVerseNumbers: resolveShowVerseNumbers(next, this.spec.showVerseNumbers, plugin.settings.showVerseNumbers),
+        paragraphBreaks: (_b = this.spec.paragraphBreaks) != null ? _b : plugin.settings.paragraphBreaks
+      };
       try {
         await plugin.fetchFromProvider(next, id, abbr, settings);
       } catch (e) {
@@ -2772,7 +2791,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     var _a;
     const { plugin, ref, translations, verseNewLine, showVerseNumbers, paragraphBreaks } = this.spec;
     const vnL = verseNewLine != null ? verseNewLine : plugin.settings.verseNewLine;
-    const sVN = showVerseNumbers != null ? showVerseNumbers : plugin.settings.showVerseNumbers;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbers, plugin.settings.showVerseNumbers);
     const pb = paragraphBreaks != null ? paragraphBreaks : plugin.settings.paragraphBreaks;
     try {
       const verses = [];
@@ -2902,7 +2921,7 @@ function buildViewPlugin(plugin) {
             const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine != null ? verseNewLine : plugin.settings.verseNewLine;
-            const sVN = showVerseNumbers != null ? showVerseNumbers : plugin.settings.showVerseNumbers;
+            const sVN = resolveShowVerseNumbers(ref, showVerseNumbers, plugin.settings.showVerseNumbers);
             const pb = paragraphBreaks != null ? paragraphBreaks : plugin.settings.paragraphBreaks;
             const cachedVerses = [];
             if (translations.length >= 2) {
@@ -3214,15 +3233,15 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
    * the command still works, it just cannot convert to eoc or clamp.
    */
   lookupVerseCount(spec) {
-    var _a, _b, _c;
+    var _a, _b;
     const id = spec.translations.length >= 1 ? this.resolveTranslationId(spec.translations[0]) : this.settings.defaultTranslation;
     const abbr = this.getTranslationAbbr(id);
     const cached = this.cache.get(
       abbr,
       formatReference(spec.ref),
       (_a = spec.verseNewLine) != null ? _a : this.settings.verseNewLine,
-      (_b = spec.showVerseNumbers) != null ? _b : this.settings.showVerseNumbers,
-      (_c = spec.paragraphBreaks) != null ? _c : this.settings.paragraphBreaks
+      resolveShowVerseNumbers(spec.ref, spec.showVerseNumbers, this.settings.showVerseNumbers),
+      (_b = spec.paragraphBreaks) != null ? _b : this.settings.paragraphBreaks
     );
     return cached == null ? void 0 : cached.numberOfVerses;
   }
@@ -3274,7 +3293,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       const id = translationId != null ? translationId : this.settings.defaultTranslation;
       const abbr = translationAbbr != null ? translationAbbr : this.getTranslationAbbr(id);
       const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
-      const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+      const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
       const passageSettings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
       return await this.fetchFromProvider(ref, id, abbr, passageSettings);
@@ -3309,7 +3328,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
    * Inline markdown postprocessor: finds {ref} in rendered text and replaces them.
    */
   async inlinePostProcessor(el, ctx) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const escapedBudget = /* @__PURE__ */ new Map();
     const sectionInfo = ctx.getSectionInfo(el);
     if (sectionInfo) {
@@ -3356,14 +3375,14 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           const wantsBake = spec.bake || effectiveStyle === "native-callout";
           if (wantsBake && translations.length >= 2) {
             new import_obsidian10.Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
-            void this.renderInlineComparison(span, ref, translations, (_d = spec.paragraphBreaks) != null ? _d : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_d = spec.paragraphBreaks) != null ? _d : void 0, spec.showVerseNumbers);
             frag.appendChild(span);
           } else if (wantsBake) {
             renderBakePending(span, ref);
             frag.appendChild(span);
             void this.handleBake(ctx, match[0], spec, effectiveStyle === "native-callout" ? "callout" : "codeblock");
           } else if (translations.length >= 2) {
-            void this.renderInlineComparison(span, ref, translations, (_e = spec.paragraphBreaks) != null ? _e : void 0);
+            void this.renderInlineComparison(span, ref, translations, (_e = spec.paragraphBreaks) != null ? _e : void 0, spec.showVerseNumbers);
             frag.appendChild(span);
           } else if (translations.length === 1 && this.isTranslationLinkOnly(translations[0])) {
             renderLink(span, ref, translations[0].toUpperCase(), this.settings.preferredWebsite);
@@ -3373,8 +3392,8 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
             const abbr = translations.length === 1 ? this.getTranslationAbbr(translationId) : this.getTranslationAbbr();
             const style = effectiveStyle;
             const vnL = (_f = spec.verseNewLine) != null ? _f : this.settings.verseNewLine;
-            const sVN = (_g = spec.showVerseNumbers) != null ? _g : this.settings.showVerseNumbers;
-            const pb = (_h = spec.paragraphBreaks) != null ? _h : this.settings.paragraphBreaks;
+            const sVN = resolveShowVerseNumbers(ref, spec.showVerseNumbers, this.settings.showVerseNumbers);
+            const pb = (_g = spec.paragraphBreaks) != null ? _g : this.settings.paragraphBreaks;
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
@@ -3402,13 +3421,13 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       if (lastIndex < text.length) {
         frag.appendText(text.slice(lastIndex));
       }
-      (_i = node2.parentNode) == null ? void 0 : _i.replaceChild(frag, node2);
+      (_h = node2.parentNode) == null ? void 0 : _h.replaceChild(frag, node2);
     }
   }
   async fetchAndRenderWithTranslation(container, ref, translationId, translationAbbr, style, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
     try {
       const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
-      const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+      const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
       const verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
         showVerseNumbers: sVN,
@@ -3432,15 +3451,16 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       console.error("Bible Verse: Failed to fetch verse", e);
     }
   }
-  async renderInlineComparison(container, ref, translations, paragraphBreaksOverride) {
+  async renderInlineComparison(container, ref, translations, paragraphBreaksOverride, showVerseNumbersOverride) {
     const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
     const verses = [];
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
       const abbr = this.getTranslationAbbr(id);
       try {
         const verse = await this.fetchFromProvider(ref, id, abbr, {
-          showVerseNumbers: this.settings.showVerseNumbers,
+          showVerseNumbers: sVN,
           verseNewLine: this.settings.verseNewLine,
           paragraphBreaks: pb
         });
@@ -3480,7 +3500,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       // baked block renders as fetched, independent of global settings (#37).
       format: "codeblock",
       verseNewLine: verseNewLine != null ? verseNewLine : this.settings.verseNewLine,
-      showVerseNumbers: showVerseNumbers != null ? showVerseNumbers : this.settings.showVerseNumbers,
+      showVerseNumbers: resolveShowVerseNumbers(ref, showVerseNumbers, this.settings.showVerseNumbers),
       style: spec.styleOverride && spec.styleOverride !== "native-callout" ? spec.styleOverride : void 0
     };
     await this.app.vault.process(file, (content) => {
@@ -3520,7 +3540,12 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       }
     }
     const vnL = config["newline"] !== void 0 ? config["newline"].toLowerCase() === "true" : this.settings.verseNewLine;
-    const sVN = config["numbers"] !== void 0 || config["verse-numbers"] !== void 0 ? ((_b = config["numbers"]) != null ? _b : config["verse-numbers"]).toLowerCase() === "true" : this.settings.showVerseNumbers;
+    const numbersKey = (_b = config["numbers"]) != null ? _b : config["verse-numbers"];
+    const sVN = resolveShowVerseNumbers(
+      ref,
+      numbersKey !== void 0 ? numbersKey.toLowerCase() === "true" : null,
+      this.settings.showVerseNumbers
+    );
     const pb = config["sections"] !== void 0 ? config["sections"].toLowerCase() === "true" : this.settings.paragraphBreaks;
     if (config["compare"]) {
       const translations = config["compare"].split(",").map((s) => s.trim());
@@ -3576,7 +3601,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   async renderComparisonBlock(el, ref, translations, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
     const verses = [];
     const vnL = verseNewLineOverride != null ? verseNewLineOverride : this.settings.verseNewLine;
-    const sVN = showVerseNumbersOverride != null ? showVerseNumbersOverride : this.settings.showVerseNumbers;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
     const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
     for (const trans of translations) {
       const id = this.resolveTranslationId(trans);
