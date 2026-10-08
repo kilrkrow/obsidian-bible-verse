@@ -1,0 +1,532 @@
+[
+  {
+    "name": "01-on-single",
+    "mode": "preview",
+    "file": "01-on-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - plain single verse - expect NO number\n\n{John 3:16}\n"
+  },
+  {
+    "name": "01-on-single",
+    "mode": "live",
+    "file": "01-on-single--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - plain single verse - expect NO number\n\n{John 3:16}\n"
+  },
+  {
+    "name": "02-on-single-v",
+    "mode": "preview",
+    "file": "02-on-single-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - single verse with v - expect 16.\n\n{John 3:16, v}\n"
+  },
+  {
+    "name": "02-on-single-v",
+    "mode": "live",
+    "file": "02-on-single-v--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - single verse with v - expect 16.\n\n{John 3:16, v}\n"
+  },
+  {
+    "name": "03-on-range",
+    "mode": "preview",
+    "file": "03-on-range--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved."
+    ],
+    "source": "# Setting ON - range - expect 16. and 17.\n\n{John 3:16-17}\n"
+  },
+  {
+    "name": "03-on-range",
+    "mode": "live",
+    "file": "03-on-range--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved."
+    ],
+    "source": "# Setting ON - range - expect 16. and 17.\n\n{John 3:16-17}\n"
+  },
+  {
+    "name": "04-on-single-no-v",
+    "mode": "preview",
+    "file": "04-on-single-no-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - single verse with no-v - expect NO number\n\n{John 3:16, no-v}\n"
+  },
+  {
+    "name": "04-on-single-no-v",
+    "mode": "live",
+    "file": "04-on-single-no-v--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - single verse with no-v - expect NO number\n\n{John 3:16, no-v}\n"
+  },
+  {
+    "name": "05-on-comma-list",
+    "mode": "preview",
+    "file": "05-on-comma-list--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved. 21. But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God."
+    ],
+    "source": "# Setting ON - comma list (control) - expect 16. 17. 21.\n\n{John 3:16-17,21}\n"
+  },
+  {
+    "name": "05-on-comma-list",
+    "mode": "live",
+    "file": "05-on-comma-list--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved. 21. But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God."
+    ],
+    "source": "# Setting ON - comma list (control) - expect 16. 17. 21.\n\n{John 3:16-17,21}\n"
+  },
+  {
+    "name": "06-off-single",
+    "mode": "preview",
+    "file": "06-off-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - plain single verse - expect NO number\n\n{John 3:16}\n"
+  },
+  {
+    "name": "06-off-single",
+    "mode": "live",
+    "file": "06-off-single--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - plain single verse - expect NO number\n\n{John 3:16}\n"
+  },
+  {
+    "name": "07-off-single-v",
+    "mode": "preview",
+    "file": "07-off-single-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - single verse with v - expect 16.\n\n{John 3:16, v}\n"
+  },
+  {
+    "name": "07-off-single-v",
+    "mode": "live",
+    "file": "07-off-single-v--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - single verse with v - expect 16.\n\n{John 3:16, v}\n"
+  },
+  {
+    "name": "08-off-single-no-v",
+    "mode": "preview",
+    "file": "08-off-single-no-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - single verse with no-v - expect NO number\n\n{John 3:16, no-v}\n"
+  },
+  {
+    "name": "08-off-single-no-v",
+    "mode": "live",
+    "file": "08-off-single-no-v--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - single verse with no-v - expect NO number\n\n{John 3:16, no-v}\n"
+  },
+  {
+    "name": "09-off-range",
+    "mode": "preview",
+    "file": "09-off-range--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. For God sent not his Son into the world to condemn the world; but that the world through him might be saved."
+    ],
+    "source": "# Setting OFF - range (control) - expect NO numbers\n\n{John 3:16-17}\n"
+  },
+  {
+    "name": "09-off-range",
+    "mode": "live",
+    "file": "09-off-range--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. For God sent not his Son into the world to condemn the world; but that the world through him might be saved."
+    ],
+    "source": "# Setting OFF - range (control) - expect NO numbers\n\n{John 3:16-17}\n"
+  },
+  {
+    "name": "10-on-codeblock-numbers-unset",
+    "mode": "preview",
+    "file": "10-on-codeblock-numbers-unset--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers unset - expect NO number\n\n```bible\nJohn 3:16\n```\n"
+  },
+  {
+    "name": "10-on-codeblock-numbers-unset",
+    "mode": "live",
+    "file": "10-on-codeblock-numbers-unset--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers unset - expect NO number\n\n```bible\nJohn 3:16\n```\n"
+  },
+  {
+    "name": "11-on-codeblock-numbers-true",
+    "mode": "preview",
+    "file": "11-on-codeblock-numbers-true--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers true - expect 16.\n\n```bible\nJohn 3:16\nnumbers: true\n```\n"
+  },
+  {
+    "name": "11-on-codeblock-numbers-true",
+    "mode": "live",
+    "file": "11-on-codeblock-numbers-true--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers true - expect 16.\n\n```bible\nJohn 3:16\nnumbers: true\n```\n"
+  },
+  {
+    "name": "12-on-codeblock-numbers-false",
+    "mode": "preview",
+    "file": "12-on-codeblock-numbers-false--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers false - expect NO number\n\n```bible\nJohn 3:16\nnumbers: false\n```\n"
+  },
+  {
+    "name": "12-on-codeblock-numbers-false",
+    "mode": "live",
+    "file": "12-on-codeblock-numbers-false--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - one-verse bible block, numbers false - expect NO number\n\n```bible\nJohn 3:16\nnumbers: false\n```\n"
+  },
+  {
+    "name": "13-off-codeblocks-unset-true-false",
+    "mode": "preview",
+    "file": "13-off-codeblocks-unset-true-false--reading.png",
+    "verdict": "PASS",
+    "rendered": 3,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - one-verse bible blocks unset / true / false - expect none / 16. / none\n\n```bible\nJohn 3:16\n```\n\n```bible\nJohn 3:16\nnumbers: true\n```\n\n```bible\nJohn 3:16\nnumbers: false\n```\n"
+  },
+  {
+    "name": "13-off-codeblocks-unset-true-false",
+    "mode": "live",
+    "file": "13-off-codeblocks-unset-true-false--live.png",
+    "verdict": "PASS",
+    "rendered": 3,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting OFF - one-verse bible blocks unset / true / false - expect none / 16. / none\n\n```bible\nJohn 3:16\n```\n\n```bible\nJohn 3:16\nnumbers: true\n```\n\n```bible\nJohn 3:16\nnumbers: false\n```\n"
+  },
+  {
+    "name": "14-baked-bake-token-on-single",
+    "mode": "preview",
+    "file": "14-baked-bake-token-on-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - bake token on a single verse - expect NO number, header numbers false\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: false\n\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "14-baked-bake-token-on-single",
+    "mode": "live",
+    "file": "14-baked-bake-token-on-single--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - bake token on a single verse - expect NO number, header numbers false\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: false\n\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "15-baked-bake-token-on-single-v",
+    "mode": "preview",
+    "file": "15-baked-bake-token-on-single-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - bake token on a single verse with v - expect 16., header numbers true\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: true\n\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "15-baked-bake-token-on-single-v",
+    "mode": "live",
+    "file": "15-baked-bake-token-on-single-v--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - bake token on a single verse with v - expect 16., header numbers true\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: true\n\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "16-baked-native-callout-on-single",
+    "mode": "preview",
+    "file": "16-baked-native-callout-on-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - native-callout bake of a single verse - expect NO number\n\n> [!quote]+ [John 3:16 (KJV)](https://www.biblegateway.com/passage/?search=John+3%3A16&version=KJV)\n> For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n"
+  },
+  {
+    "name": "16-baked-native-callout-on-single",
+    "mode": "live",
+    "file": "16-baked-native-callout-on-single--live.png",
+    "verdict": "PASS",
+    "rendered": 1,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - native-callout bake of a single verse - expect NO number\n\n> [!quote]+ [John 3:16 (KJV)](https://www.biblegateway.com/passage/?search=John+3%3A16&version=KJV)\n> For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n"
+  },
+  {
+    "name": "17-baked-bake-command-on-codeblocks",
+    "mode": "live",
+    "file": "17-baked-bake-command-on-codeblocks--live.png",
+    "verdict": "PASS",
+    "rendered": 4,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - Bake all verses command - blocks unset / true / false + inline token - expect none / 16. / none / none\n\n```bible\nJohn 3:16\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: true\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: false\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: false\n\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "17-baked-bake-command-on-codeblocks",
+    "mode": "preview",
+    "file": "17-baked-bake-command-on-codeblocks--reading.png",
+    "verdict": "PASS",
+    "rendered": 4,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - Bake all verses command - blocks unset / true / false + inline token - expect none / 16. / none / none\n\n```bible\nJohn 3:16\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: true\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: false\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\ntranslation: KJV\nnewline: false\nnumbers: false\n\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "18-baked-refresh-command-on-codeblocks",
+    "mode": "live",
+    "file": "18-baked-refresh-command-on-codeblocks--live.png",
+    "verdict": "PASS",
+    "rendered": 3,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - Refresh baked verses command - blocks unset / true / false - expect none / 16. / none\n\n```bible\nJohn 3:16\ntranslation: KJV\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: true\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: false\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "18-baked-refresh-command-on-codeblocks",
+    "mode": "preview",
+    "file": "18-baked-refresh-command-on-codeblocks--reading.png",
+    "verdict": "PASS",
+    "rendered": 3,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+    ],
+    "source": "# Setting ON - Refresh baked verses command - blocks unset / true / false - expect none / 16. / none\n\n```bible\nJohn 3:16\ntranslation: KJV\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: true\n---\n16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n\n```bible\nJohn 3:16\nnumbers: false\n---\nFor God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n```\n"
+  },
+  {
+    "name": "19-comparison-on-single",
+    "mode": "preview",
+    "file": "19-comparison-on-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison KJV vs WEB - expect NO number in every column\n\n{John 3:16, KJV, WEB}\n"
+  },
+  {
+    "name": "19-comparison-on-single",
+    "mode": "live",
+    "file": "19-comparison-on-single--live.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison KJV vs WEB - expect NO number in every column\n\n{John 3:16, KJV, WEB}\n"
+  },
+  {
+    "name": "20-comparison-on-single-codeblock",
+    "mode": "preview",
+    "file": "20-comparison-on-single-codeblock--reading.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison block KJV vs WEB - expect NO number in every column\n\n```bible\nJohn 3:16\ncompare: KJV, WEB\n```\n"
+  },
+  {
+    "name": "20-comparison-on-single-codeblock",
+    "mode": "live",
+    "file": "20-comparison-on-single-codeblock--live.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison block KJV vs WEB - expect NO number in every column\n\n```bible\nJohn 3:16\ncompare: KJV, WEB\n```\n"
+  },
+  {
+    "name": "21-comparison-on-single-v",
+    "mode": "preview",
+    "file": "21-comparison-on-single-v--reading.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison with v - expect 16. in every column\n\n{John 3:16, KJV, WEB, v}\n"
+  },
+  {
+    "name": "21-comparison-on-single-v",
+    "mode": "live",
+    "file": "21-comparison-on-single-v--live.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "16. For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting ON - one-verse comparison with v - expect 16. in every column\n\n{John 3:16, KJV, WEB, v}\n"
+  },
+  {
+    "name": "22-comparison-off-single",
+    "mode": "preview",
+    "file": "22-comparison-off-single--reading.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting OFF - one-verse comparison - expect NO number in every column\n\n{John 3:16, KJV, WEB}\n"
+  },
+  {
+    "name": "22-comparison-off-single",
+    "mode": "live",
+    "file": "22-comparison-off-single--live.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+      "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life."
+    ],
+    "source": "# Setting OFF - one-verse comparison - expect NO number in every column\n\n{John 3:16, KJV, WEB}\n"
+  },
+  {
+    "name": "23-comparison-on-range",
+    "mode": "preview",
+    "file": "23-comparison-on-range--reading.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+      "16. For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life. 17. For God didn’t send his Son into the world to judge the world, but that the world should be saved through him."
+    ],
+    "source": "# Setting ON - range comparison (control) - expect 16. and 17. in every column\n\n{John 3:16-17, KJV, WEB}\n"
+  },
+  {
+    "name": "23-comparison-on-range",
+    "mode": "live",
+    "file": "23-comparison-on-range--live.png",
+    "verdict": "PASS",
+    "rendered": 2,
+    "texts": [
+      "16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. 17. For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+      "16. For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life. 17. For God didn’t send his Son into the world to judge the world, but that the world should be saved through him."
+    ],
+    "source": "# Setting ON - range comparison (control) - expect 16. and 17. in every column\n\n{John 3:16-17, KJV, WEB}\n"
+  }
+]
