@@ -1,6 +1,7 @@
 import { App } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
+import { resolveShowVerseNumbers } from "./format";
 
 /** Regex to find bible code blocks */
 const CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
@@ -221,7 +222,9 @@ export class Baker {
         // baked block renders as fetched, independent of global settings (#37).
         const block = formatCodeBlockBake(verse, {
           verseNewLine: verseNewLine ?? defaults?.verseNewLine,
-          showVerseNumbers: showVerseNumbers ?? defaults?.showVerseNumbers,
+          showVerseNumbers: defaults
+            ? resolveShowVerseNumbers(ref, showVerseNumbers, defaults.showVerseNumbers)
+            : showVerseNumbers ?? undefined,
           style: styleOverride && styleOverride !== "native-callout" ? styleOverride : undefined,
         });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);

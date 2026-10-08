@@ -28,6 +28,7 @@ import {
 import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types";
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
+import { resolveShowVerseNumbers } from "./format";
 
 /**
  * Quiet period before a burst of verse-shift clicks is written to the document
@@ -490,9 +491,17 @@ class BibleVerseWidget extends WidgetType {
     return pending !== undefined ? pending : this.spec[flag];
   }
 
-  /** What the flag falls back to from plugin settings when the token omits it. */
+  /**
+   * What the flag falls back to when the token omits it. For verse numbers that
+   * is the shared resolver's default (a lone verse inherits "off"), so the
+   * toggle paints what is rendered and its first click still changes it.
+   */
   private inheritedFlag(flag: ModifierFlag): boolean {
-    return this.spec.plugin.settings[flag];
+    const { settings } = this.spec.plugin;
+    if (flag === "showVerseNumbers") {
+      return resolveShowVerseNumbers(this.currentRef(), null, settings.showVerseNumbers);
+    }
+    return settings[flag];
   }
 
   /** Whether this token renders through the ESV provider rather than HelloAO. */
@@ -580,15 +589,17 @@ class BibleVerseWidget extends WidgetType {
     if (plugin.isTranslationLinkOnly(id)) return;
 
     const abbr = plugin.getTranslationAbbrPublic(id);
-    const settings = {
-      verseNewLine: this.spec.verseNewLine ?? plugin.settings.verseNewLine,
-      showVerseNumbers: this.spec.showVerseNumbers ?? plugin.settings.showVerseNumbers,
-      paragraphBreaks: this.spec.paragraphBreaks ?? plugin.settings.paragraphBreaks,
-    };
 
     for (const delta of [1, -1] as ShiftDelta[]) {
       const next = shiftReference(from, "end", delta, numberOfVerses);
       if (!next) continue;
+      // Resolved per neighbour: shrinking a range to one verse changes the
+      // number default, and the warm entry must match what will render.
+      const settings = {
+        verseNewLine: this.spec.verseNewLine ?? plugin.settings.verseNewLine,
+        showVerseNumbers: resolveShowVerseNumbers(next, this.spec.showVerseNumbers, plugin.settings.showVerseNumbers),
+        paragraphBreaks: this.spec.paragraphBreaks ?? plugin.settings.paragraphBreaks,
+      };
       try {
         await plugin.fetchFromProvider(next, id, abbr, settings);
       } catch {
@@ -630,7 +641,7 @@ class BibleVerseWidget extends WidgetType {
   private async fetchAndUpdate(container: HTMLElement, view: EditorView): Promise<void> {
     const { plugin, ref, translations, verseNewLine, showVerseNumbers, paragraphBreaks } = this.spec;
     const vnL = verseNewLine ?? plugin.settings.verseNewLine;
-    const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
+    const sVN = resolveShowVerseNumbers(ref, showVerseNumbers, plugin.settings.showVerseNumbers);
     const pb = paragraphBreaks ?? plugin.settings.paragraphBreaks;
 
     try {
@@ -810,7 +821,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
             const { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake } = spec;
             const refLabel = formatReference(ref);
             const vnL = verseNewLine ?? plugin.settings.verseNewLine;
-            const sVN = showVerseNumbers ?? plugin.settings.showVerseNumbers;
+            const sVN = resolveShowVerseNumbers(ref, showVerseNumbers, plugin.settings.showVerseNumbers);
             const pb = paragraphBreaks ?? plugin.settings.paragraphBreaks;
 
             const cachedVerses: CachedVerse[] = [];

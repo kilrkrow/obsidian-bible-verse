@@ -103,6 +103,20 @@ You can override your global settings for verse numbers and line breaks on a per
 {John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
 ```
 
+**Verse numbers on a single verse.** A reference that resolves to exactly one verse (like `{John 3:16}`) shows no verse number unless you ask for one, since a lone `16.` adds nothing:
+
+*   An explicit choice always wins: `v` / `no-v` inline, or `numbers: true` / `numbers: false` in a ` ```bible ` block.
+*   With nothing explicit, a single verse shows no number, whether **Show verse numbers** is on or off.
+*   Ranges, whole chapters, and comma lists (e.g. `{John 3:16-21,25}`) follow the **Show verse numbers** setting as before.
+
+The same rule applies everywhere a verse is shown: Live Preview, Reading view, ` ```bible ` blocks, comparison views, ESV, and baked text (`bake`, `native-callout`, and the bake/refresh commands).
+
+```
+{John 3:16}                      -- no number
+{John 3:16, v}                   -- 16. For God so loved...
+{John 3:16-17}                   -- 16. ... 17. ... (when Show verse numbers is on)
+```
+
 ### Baking into your note (`bake` and `native-callout`)
 
 "Baking" writes a verse's **text permanently into your note** as ordinary Markdown, so it reads even without the plugin. Two tokens trigger a one-way bake on render — after which the plugin no longer tracks that reference (it's just text you own):
@@ -215,7 +229,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Preferred Bible website | Which Bible website to link to | BibleGateway |
 | Display style | Visual presentation of verses | Callout |
 | Sidebar top padding | Top spacing for the Sidebar style (in ems) | 0.5 |
-| Show verse numbers | Toggle verse numbers (e.g. `1.`) | On |
+| Show verse numbers | Toggle verse numbers (e.g. `1.`) for ranges, whole chapters, and comma lists. A single verse (e.g. `{John 3:16}`) shows no number unless you add `v` or `numbers: true` | On |
 | New line per verse | Each verse starts on a new line | Off |
 | Persist verse text in notes | Automatically bake verse text when rendering | Off |
 | Show attribution | Display license and copyright links below verses | Off |
