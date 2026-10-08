@@ -2,6 +2,13 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [1.10.0] — 2026-10-08
+
+### Changed
+
+- **A lone verse hides its verse number by default** — a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.
+- **Reading-view comparisons obey `v` / `no-v`** — inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.
+
 ## [1.8.1] — 2026-08-12
 
 ### Added
