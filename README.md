@@ -291,6 +291,14 @@ Command palette → **Clear verse cache** (command id `clear-cache`). Use this i
 - Comparison tokens (multiple translations) ignore a style override in the same brace.
 - Baking / refresh vault-wide commands rewrite many notes — prefer note-scoped bake/refresh first.
 
+## Feedback and ideas
+
+I'd love to hear how you use Bible Verse.
+
+- **Questions, ideas, or show-and-tell:** [GitHub Discussions](https://github.com/kilrkrow/obsidian-bible-verse/discussions)
+- **Bug reports:** [open an issue](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=bug.yml)
+- **From inside Obsidian:** Settings → Bible Verse → Feedback has buttons for both, with your version info filled in for bug reports.
+
 ## Data Source
 
 Text for the built-in translations is provided by the [HelloAO Bible API](https://bible.helloao.org) — no API key or registration required. ESV text is fetched from the [ESV API](https://api.esv.org) using your own key, and its copyright notice is displayed automatically as required by Crossway's license.
