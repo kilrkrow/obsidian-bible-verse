@@ -3,7 +3,7 @@ import type { SettingDefinitionItem } from "obsidian";
 import type BibleVersePlugin from "./main";
 import { BibleVerseSettings, BibleWebsite, DisplayStyle } from "./types";
 import { HELLOAO_TRANSLATIONS } from "./constants";
-import { addFeedbackSetting, configureFeedbackSetting } from "./feedback";
+import { addFeedbackSetting, configureDiscussionsSetting, configureFeedbackSetting } from "./feedback";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
   const frag = createFragment();
@@ -262,6 +262,12 @@ export class BibleVerseSettingTab extends PluginSettingTab {
             name: "Send feedback",
             desc: "Report a bug (version info pre-filled) or suggest an idea on GitHub.",
             render: (setting) => configureFeedbackSetting(setting, this.plugin.manifest.version),
+          },
+          {
+            name: "Questions and ideas",
+            desc: "Ask a question, share how you use Bible Verse, or talk through an idea with other users.",
+            aliases: ["discussions", "community", "help"],
+            render: (setting) => configureDiscussionsSetting(setting),
           },
         ],
       },

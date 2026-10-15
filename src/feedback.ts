@@ -32,6 +32,11 @@ export function ideaUrl(): string {
   return `https://github.com/${REPO}/issues/new?template=feature.yml`;
 }
 
+/** Discussions: open-ended questions, sharing how you use the plugin, ideas. */
+export function discussionsUrl(): string {
+  return `https://github.com/${REPO}/discussions`;
+}
+
 // Configure an existing row. Used by both settings paths: the declarative
 // `render` callback (1.13+) hands us its Setting, and `addFeedbackSetting`
 // below makes one for the legacy display() path, so the two can't drift.
@@ -53,8 +58,19 @@ export function configureFeedbackSetting(setting: Setting, pluginVersion: string
     );
 }
 
+// The "Questions and ideas" row, shared by both settings paths like the one above.
+export function configureDiscussionsSetting(setting: Setting): void {
+  setting
+    .setName("Questions and ideas")
+    .setDesc("Ask a question, share how you use Bible Verse, or talk through an idea with other users.")
+    .addButton((btn) =>
+      btn.setButtonText("Open Discussions").onClick(() => window.open(discussionsUrl())),
+    );
+}
+
 // Settings tab: call this inside BibleVerseSettingTab.display().
 // `this.plugin.manifest.version` gives the installed plugin version.
 export function addFeedbackSetting(containerEl: HTMLElement, pluginVersion: string): void {
   configureFeedbackSetting(new Setting(containerEl), pluginVersion);
+  configureDiscussionsSetting(new Setting(containerEl));
 }
