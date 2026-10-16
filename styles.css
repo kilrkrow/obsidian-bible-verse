@@ -572,3 +572,23 @@
 .bible-verse-toggle-btn.is-unsupported::after {
   content: none;
 }
+
+/* ========================
+   What's new pop-up
+   ======================== */
+.bible-verse-whats-new-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.bible-verse-whats-new-release + .bible-verse-whats-new-release {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 1em;
+}
+
+.bible-verse-whats-new-date {
+  margin-left: 0.5em;
+  font-size: 0.7em;
+  font-weight: normal;
+  color: var(--text-muted);
+}

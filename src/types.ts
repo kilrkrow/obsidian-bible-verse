@@ -38,6 +38,10 @@ export interface BibleVerseSettings {
   esvApiKey: string;
   /** Callout type used when baking as a native callout (e.g. "quote", "bible"). */
   nativeCalloutType: string;
+  /** Show release notes once after the plugin updates. */
+  showWhatsNew: boolean;
+  /** Plugin version the user last saw release notes for; "" until first recorded. */
+  lastSeenVersion: string;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   helperMode: true,
   esvApiKey: "",
   nativeCalloutType: "quote",
+  showWhatsNew: true,
+  lastSeenVersion: "",
 };
 
 /** Cached verse entry */

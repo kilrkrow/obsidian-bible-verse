@@ -39,6 +39,9 @@ function translationOptions(): Record<string, string> {
   return Object.fromEntries(HELLOAO_TRANSLATIONS.map((t) => [t.id, t.name]));
 }
 
+const WHATS_NEW_NAME = "Show what's new after updates";
+const WHATS_NEW_DESC = "After Bible Verse updates, show a short summary of what changed, once. The “Show what's new” command opens it any time.";
+
 const SIDEBAR_PADDING_LIMITS = { min: 0, max: 2, step: 0.1 };
 
 const BAKE_NOTE =
@@ -192,6 +195,12 @@ export class BibleVerseSettingTab extends PluginSettingTab {
         name: "IntelliSense helper mode",
         desc: "When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).",
         control: { type: "toggle", key: "helperMode" },
+      },
+      {
+        name: WHATS_NEW_NAME,
+        desc: WHATS_NEW_DESC,
+        aliases: ["release notes", "changelog", "update"],
+        control: { type: "toggle", key: "showWhatsNew" },
       },
       {
         type: "group",
@@ -493,6 +502,18 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.helperMode)
           .onChange(async (value) => {
             this.plugin.settings.helperMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(WHATS_NEW_NAME)
+      .setDesc(WHATS_NEW_DESC)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showWhatsNew)
+          .onChange(async (value) => {
+            this.plugin.settings.showWhatsNew = value;
             await this.plugin.saveSettings();
           })
       );
