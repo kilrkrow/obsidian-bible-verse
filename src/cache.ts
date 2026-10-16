@@ -54,6 +54,11 @@ export class VerseCache {
     this.loaded = true;
   }
 
+  /** Number of cached verses loaded from disk. */
+  get size(): number {
+    return this.cache.size;
+  }
+
   /** Get a cached verse, or null if not cached */
   get(translation: string, reference: string, nl = false, vn = true, pb = false): CachedVerse | null {
     return this.cache.get(this.key(translation, reference, nl, vn, pb)) ?? null;

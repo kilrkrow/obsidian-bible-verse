@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => BibleVersePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/types.ts
 var EOC_VERSE = 999;
@@ -44,7 +44,9 @@ var DEFAULT_SETTINGS = {
   paragraphBreaks: false,
   helperMode: true,
   esvApiKey: "",
-  nativeCalloutType: "quote"
+  nativeCalloutType: "quote",
+  showWhatsNew: true,
+  lastSeenVersion: ""
 };
 
 // src/constants.ts
@@ -1051,6 +1053,10 @@ var VerseCache = class {
     }
     this.loaded = true;
   }
+  /** Number of cached verses loaded from disk. */
+  get size() {
+    return this.cache.size;
+  }
   /** Get a cached verse, or null if not cached */
   get(translation, reference, nl = false, vn = true, pb = false) {
     var _a;
@@ -1307,6 +1313,9 @@ function bugReportUrl(pluginVersion) {
 function ideaUrl() {
   return `https://github.com/${REPO}/issues/new?template=feature.yml`;
 }
+function discussionsUrl() {
+  return `https://github.com/${REPO}/discussions`;
+}
 function configureFeedbackSetting(setting, pluginVersion) {
   setting.setName("Send feedback").setDesc("Report a bug (version info pre-filled) or suggest an idea on GitHub.").addButton(
     (btn) => btn.setButtonText("Report a bug").setCta().onClick(() => window.open(bugReportUrl(pluginVersion)))
@@ -1314,8 +1323,14 @@ function configureFeedbackSetting(setting, pluginVersion) {
     (btn) => btn.setIcon("lightbulb").setTooltip("Suggest an idea").onClick(() => window.open(ideaUrl()))
   );
 }
+function configureDiscussionsSetting(setting) {
+  setting.setName("Questions and ideas").setDesc("Ask a question, share how you use Bible Verse, or talk through an idea with other users.").addButton(
+    (btn) => btn.setButtonText("Open Discussions").onClick(() => window.open(discussionsUrl()))
+  );
+}
 function addFeedbackSetting(containerEl, pluginVersion) {
   configureFeedbackSetting(new import_obsidian3.Setting(containerEl), pluginVersion);
+  configureDiscussionsSetting(new import_obsidian3.Setting(containerEl));
 }
 
 // src/settings.ts
@@ -1344,6 +1359,8 @@ var DISPLAY_STYLE_OPTIONS = {
 function translationOptions() {
   return Object.fromEntries(HELLOAO_TRANSLATIONS.map((t) => [t.id, t.name]));
 }
+var WHATS_NEW_NAME = "Show what's new after updates";
+var WHATS_NEW_DESC = "After Bible Verse updates, show a short summary of what changed, once. The \u201CShow what's new\u201D command opens it any time.";
 var SIDEBAR_PADDING_LIMITS = { min: 0, max: 2, step: 0.1 };
 var BAKE_NOTE = "\u201CBake\u201D means writing a verse\u2019s text permanently into your note as ordinary Markdown, so it reads without the plugin. The {\u2026, bake} token bakes to a code block; the \u201CNative callout\u201D style (or {\u2026, native-callout} / {\u2026, nco}) bakes to a real, collapsible Obsidian callout. Baking is one-way \u2014 the plugin stops tracking it afterward. Note: choosing \u201CNative callout\u201D as your default here will auto-bake every scripture reference you add.";
 var COMMERCIAL_NOTE = "Enter an ESV API key to unlock inline ESV text. ESV attribution is always shown, as required by Crossway's license. Other commercial translations (NIV, NKJV, NLT, AMP, CSB, NASB) render as links only.";
@@ -1479,6 +1496,12 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
         control: { type: "toggle", key: "helperMode" }
       },
       {
+        name: WHATS_NEW_NAME,
+        desc: WHATS_NEW_DESC,
+        aliases: ["release notes", "changelog", "update"],
+        control: { type: "toggle", key: "showWhatsNew" }
+      },
+      {
         type: "group",
         heading: "Syntax reference",
         items: [
@@ -1544,6 +1567,12 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
             name: "Send feedback",
             desc: "Report a bug (version info pre-filled) or suggest an idea on GitHub.",
             render: (setting) => configureFeedbackSetting(setting, this.plugin.manifest.version)
+          },
+          {
+            name: "Questions and ideas",
+            desc: "Ask a question, share how you use Bible Verse, or talk through an idea with other users.",
+            aliases: ["discussions", "community", "help"],
+            render: (setting) => configureDiscussionsSetting(setting)
           }
         ]
       }
@@ -1673,6 +1702,12 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
     new import_obsidian4.Setting(containerEl).setName("IntelliSense helper mode").setDesc("When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.helperMode).onChange(async (value) => {
         this.plugin.settings.helperMode = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian4.Setting(containerEl).setName(WHATS_NEW_NAME).setDesc(WHATS_NEW_DESC).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.showWhatsNew).onChange(async (value) => {
+        this.plugin.settings.showWhatsNew = value;
         await this.plugin.saveSettings();
       })
     );
@@ -3018,14 +3053,109 @@ function getEffectiveMode(def, esvApiKey) {
   return "linkOnly";
 }
 
+// src/whats-new.ts
+var MAX_RELEASES_SHOWN = 5;
+var HEADING = /^##\s+\[?v?(\d+\.\d+\.\d+)\]?(?:\s*[—–-]\s*(.+?))?\s*$/;
+function parseChangelog(markdown) {
+  var _a;
+  const notes = [];
+  let current = null;
+  const flush = () => {
+    if (current)
+      notes.push({ version: current.version, date: current.date, body: current.lines.join("\n").trim() });
+  };
+  for (const line of markdown.split(/\r?\n/)) {
+    if (/^##\s/.test(line)) {
+      flush();
+      const m = HEADING.exec(line);
+      current = m ? { version: m[1], date: (_a = m[2]) != null ? _a : "", lines: [] } : null;
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  flush();
+  return notes;
+}
+function compareVersions(a, b) {
+  var _a, _b;
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = ((_a = pa[i]) != null ? _a : 0) - ((_b = pb[i]) != null ? _b : 0);
+    if (d !== 0)
+      return d;
+  }
+  return 0;
+}
+function notesSince(notes, since, current) {
+  const eligible = notes.filter((n) => compareVersions(n.version, current) <= 0).sort((a, b) => compareVersions(b.version, a.version));
+  if (since === null)
+    return eligible.slice(0, 1);
+  return eligible.filter((n) => compareVersions(n.version, since) > 0).slice(0, MAX_RELEASES_SHOWN);
+}
+function decideWhatsNew(state) {
+  const { enabled, lastSeenVersion, currentVersion, isExistingUser } = state;
+  if (lastSeenVersion === currentVersion)
+    return { show: false, since: null, record: false };
+  if (!lastSeenVersion) {
+    return { show: enabled && isExistingUser, since: null, record: true };
+  }
+  const isUpgrade = compareVersions(currentVersion, lastSeenVersion) > 0;
+  return { show: enabled && isUpgrade, since: lastSeenVersion, record: true };
+}
+
+// src/whats-new-modal.ts
+var import_obsidian10 = require("obsidian");
+
+// CHANGELOG.md
+var CHANGELOG_default = '# Changelog\n\nAll notable changes to Bible Verse are documented here.\n\n## [Unreleased]\n\n### Added\n\n- **What\'s new after an update** \u2014 the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what\'s new after updates" in settings. The "Show what\'s new" command opens it any time.\n\n## [1.10.0] \u2014 2026-10-08\n\n### Changed\n\n- **A lone verse hides its verse number by default** \u2014 a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.\n- **Reading-view comparisons obey `v` / `no-v`** \u2014 inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.\n\n## [1.8.1] \u2014 2026-08-12\n\n### Added\n\n- **Settings are searchable** \u2014 on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian\'s settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.\n\n### Changed\n\n- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can\'t drift apart.\n- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian\'s `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian\'s plugin review scan; there is no change in behavior.\n\n### Known issues\n\n- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately \u2014 the row updates the next time the settings tab is drawn. Obsidian\'s API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.\n\n## [1.8.0] \u2014 2026-08-05\n\n### Added\n\n- **Doubled braces are accepted** \u2014 `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{\u2026}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.\n\n### Changed\n\n- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.\n- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{\u2026` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.\n\n## [1.6.5] \u2014 2026-07-04\n\n### Added\n\n- **Bake to a native, collapsible callout** \u2014 the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](\u2026)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.\n- **`bake` token** \u2014 `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.\n\nBaking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.\n\n## [1.6.4] \u2014 2026-07-03\n\n### Added\n\n- **ESV (English Standard Version) inline text** \u2014 display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.\n- **In-plugin feedback** \u2014 a "Send feedback" button in settings and a "Report a bug on GitHub" command.\n- **GitHub issue templates** \u2014 structured bug-report and feature-request forms.\n\n### Fixed\n\n- **`nl` now takes effect in the inline display style** \u2014 "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).\n- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.\n- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.\n\n## [1.6.3] \u2014 2026-06-08\n\n### Fixed\n\n- **Verse double-spacing in Live Preview** \u2014 Verses in `nl` mode were rendering with a blank line between each verse in Live Preview (edit mode) while appearing correctly in reading mode. Root cause: CodeMirror 6\'s editor inherits `white-space: pre-wrap` into rendered content, causing the whitespace text nodes that Obsidian\'s markdown renderer emits after each `<br>` to render as real line breaks. Fixed by explicitly setting `white-space: normal` on the verse body container.\n- **Inline style line breaks** \u2014 `{ref, inline}` displayed verses on separate lines instead of as continuous quoted text, in both reading mode and Live Preview. Root cause: `<br>` elements from the markdown renderer were left in place after paragraph unwrapping. Fixed by replacing `<br>` with a space in the inline rendering path.\n\n## [1.6.2] \u2014 2026-05-20\n\n### Added\n\n- Reading sections (`para` mode) \u2014 display a full chapter with paragraph groupings preserved, matching the structure of the original text\n- IntelliSense helper mode \u2014 after accepting a verse suggestion, a follow-up menu offers common modifiers (callout, sidebar, verse numbers, etc.)\n- Inline syntax examples and collapsible quick-reference in the settings tab\n\n### Fixed\n\n- KJV pilcrow (`\xB6`) character stripped before verse-number prepend to prevent broken line breaks\n- Paragraph spacing normalised across inline and block display styles\n- Verse number list markers escaped so `1.` is not misread as a markdown ordered list\n\n## [1.6.0] \u2014 2026-04-25\n\n### Added\n\n- Initial public release prepared for Obsidian community plugin submission\n- Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags\n- Display styles: callout, sidebar, blockquote, inline\n- Side-by-side translation comparison (`{ref, KJV | NIV}`)\n- Baked verse text via `Bake` and `Refresh` commands\n- Verse cache with optional persistence\n- Quick Insert command palette modal\n- Settings tab with per-option syntax examples\n';
+
+// src/whats-new-modal.ts
+var CHANGELOG_URL = "https://github.com/kilrkrow/obsidian-bible-verse/blob/main/CHANGELOG.md";
+function releaseNotesSince(since, current) {
+  return notesSince(parseChangelog(CHANGELOG_default), since, current);
+}
+var WhatsNewModal = class extends import_obsidian10.Modal {
+  constructor(app, notes) {
+    super(app);
+    this.component = new import_obsidian10.Component();
+    this.notes = notes;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    this.modalEl.addClass("bible-verse-whats-new");
+    this.titleEl.setText("What's new in Bible Verse");
+    this.component.load();
+    const body = contentEl.createDiv({ cls: "bible-verse-whats-new-body" });
+    for (const note of this.notes) {
+      const section = body.createDiv({ cls: "bible-verse-whats-new-release" });
+      const heading = section.createEl("h2", { text: note.version });
+      if (note.date)
+        heading.createSpan({ cls: "bible-verse-whats-new-date", text: note.date });
+      void import_obsidian10.MarkdownRenderer.render(this.app, note.body, section.createDiv(), "", this.component);
+    }
+    contentEl.createEl("p", {
+      cls: "bible-verse-settings-note",
+      text: "This appears once after each update. You can turn it off in Settings \u2192 Bible Verse."
+    });
+    new import_obsidian10.Setting(contentEl).setName("Questions and ideas").setDesc("Ask about a change, or tell us what you'd like next.").addButton((btn) => btn.setButtonText("Open Discussions").onClick(() => window.open(discussionsUrl()))).addButton((btn) => btn.setButtonText("Full changelog").onClick(() => window.open(CHANGELOG_URL))).addButton((btn) => btn.setButtonText("Close").setCta().onClick(() => this.close()));
+  }
+  onClose() {
+    this.component.unload();
+    this.contentEl.empty();
+  }
+};
+
 // src/main.ts
-var BibleVersePlugin = class extends import_obsidian10.Plugin {
+var BibleVersePlugin = class extends import_obsidian11.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
     this.api = null;
     this.cache = null;
     this.baker = null;
+    /** Whether data.json existed at load; false on a fresh install. */
+    this.hadSavedData = false;
   }
   async onload() {
     await this.loadSettings();
@@ -3039,6 +3169,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
     this.registerEditorExtension(buildViewPlugin(this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
+    this.app.workspace.onLayoutReady(() => void this.maybeShowWhatsNew());
     this.addCommand({
       id: "bake-current-note",
       name: "Bake all verses in this note",
@@ -3052,9 +3183,9 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         );
         if (newContent !== content) {
           editor.setValue(newContent);
-          new import_obsidian10.Notice("Bible verses baked into note.");
+          new import_obsidian11.Notice("Bible verses baked into note.");
         } else {
-          new import_obsidian10.Notice("No verses to bake.");
+          new import_obsidian11.Notice("No verses to bake.");
         }
       }
     });
@@ -3071,7 +3202,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         editor.setValue(newContent);
-        new import_obsidian10.Notice("Bible verses refreshed.");
+        new import_obsidian11.Notice("Bible verses refreshed.");
       }
     });
     this.addCommand({
@@ -3084,7 +3215,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
-        new import_obsidian10.Notice(`Refreshed baked verses in ${count} files.`);
+        new import_obsidian11.Notice(`Refreshed baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -3097,7 +3228,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
-        new import_obsidian10.Notice(`Baked verses in ${count} files.`);
+        new import_obsidian11.Notice(`Baked verses in ${count} files.`);
       }
     });
     this.addCommand({
@@ -3105,7 +3236,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       name: "Strip baked text from all notes",
       callback: async () => {
         const count = await this.baker.processVault("strip", false);
-        new import_obsidian10.Notice(`Stripped baked text from ${count} files.`);
+        new import_obsidian11.Notice(`Stripped baked text from ${count} files.`);
       }
     });
     this.addCommand({
@@ -3113,7 +3244,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
       name: "Clear verse cache",
       callback: async () => {
         await this.cache.clear();
-        new import_obsidian10.Notice("Bible verse cache cleared.");
+        new import_obsidian11.Notice("Bible verse cache cleared.");
       }
     });
     this.addCommand({
@@ -3150,11 +3281,11 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const editorSelection = (_b = (_a = this.app.workspace.activeEditor) == null ? void 0 : _a.editor) == null ? void 0 : _b.getSelection();
         const selection = (editorSelection || ((_c = activeWindow.getSelection()) == null ? void 0 : _c.toString()) || "").trim();
         if (selection.length === 0) {
-          new import_obsidian10.Notice("No text selected.");
+          new import_obsidian11.Notice("No text selected.");
           return;
         }
         void navigator.clipboard.writeText(selection);
-        new import_obsidian10.Notice("Copied to clipboard. Opening search...");
+        new import_obsidian11.Notice("Copied to clipboard. Opening search...");
         const abbr = this.getTranslationAbbr();
         const url = generateSearchUrl(selection, abbr, this.settings.preferredWebsite);
         window.open(url, "_blank");
@@ -3181,13 +3312,24 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
             }
           }
         }
-        new import_obsidian10.Notice("No Bible reference found at cursor.");
+        new import_obsidian11.Notice("No Bible reference found at cursor.");
       }
     });
     this.addCommand({
       id: "report-bug",
       name: "Report a bug on GitHub",
       callback: () => window.open(bugReportUrl(this.manifest.version))
+    });
+    this.addCommand({
+      id: "show-whats-new",
+      name: "Show what's new",
+      callback: () => {
+        const notes = releaseNotesSince(null, this.manifest.version);
+        if (notes.length > 0)
+          new WhatsNewModal(this.app, notes).open();
+        else
+          new import_obsidian11.Notice("No release notes for this version.");
+      }
     });
     this.addShiftCommand("end", 1, "shift-end-forward", "Extend passage by one verse");
     this.addShiftCommand("end", -1, "shift-end-back", "Shrink passage by one verse");
@@ -3203,17 +3345,17 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
         const cursor = editor.getCursor();
         const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
         if (!found) {
-          new import_obsidian10.Notice("No Bible reference found at cursor.");
+          new import_obsidian11.Notice("No Bible reference found at cursor.");
           return;
         }
         const spec = parseInlineSpec(found.token.replace(/^\{+|\}+$/g, "").trim());
         if (!spec) {
-          new import_obsidian10.Notice("Could not read the reference at the cursor.");
+          new import_obsidian11.Notice("Could not read the reference at the cursor.");
           return;
         }
         const shifted = shiftReference(spec.ref, target, delta, this.lookupVerseCount(spec));
         if (!shifted) {
-          new import_obsidian10.Notice("Cannot move that verse any further.");
+          new import_obsidian11.Notice("Cannot move that verse any further.");
           return;
         }
         const replacement = rewriteTokenReference(found.token, shifted);
@@ -3247,6 +3389,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   }
   async loadSettings() {
     const saved = await this.loadData();
+    this.hadSavedData = saved !== null && saved !== void 0;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
   }
   updateStyles() {
@@ -3257,6 +3400,30 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   }
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+  /** Open the "What's new" pop-up if this is the first start since an update. */
+  async maybeShowWhatsNew() {
+    try {
+      const currentVersion = this.manifest.version;
+      const isExistingUser = this.hadSavedData || this.cache.size > 0;
+      const decision = decideWhatsNew({
+        enabled: this.settings.showWhatsNew,
+        lastSeenVersion: this.settings.lastSeenVersion,
+        currentVersion,
+        isExistingUser
+      });
+      if (decision.record) {
+        this.settings.lastSeenVersion = currentVersion;
+        await this.saveSettings();
+      }
+      if (!decision.show)
+        return;
+      const notes = releaseNotesSince(decision.since, currentVersion);
+      if (notes.length > 0)
+        new WhatsNewModal(this.app, notes).open();
+    } catch (e) {
+      console.error("Bible Verse: could not show release notes", e);
+    }
   }
   /**
    * Get a short abbreviation for the current translation.
@@ -3374,7 +3541,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
           const effectiveStyle = (_c = spec.styleOverride) != null ? _c : this.settings.displayStyle;
           const wantsBake = spec.bake || effectiveStyle === "native-callout";
           if (wantsBake && translations.length >= 2) {
-            new import_obsidian10.Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
+            new import_obsidian11.Notice("Bible Verse: baking isn't supported for multi-translation comparisons.");
             void this.renderInlineComparison(span, ref, translations, (_d = spec.paragraphBreaks) != null ? _d : void 0, spec.showVerseNumbers);
             frag.appendChild(span);
           } else if (wantsBake) {
@@ -3478,7 +3645,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   async handleBake(ctx, refMarker, spec, format = "codeblock") {
     var _a;
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-    if (!(file instanceof import_obsidian10.TFile))
+    if (!(file instanceof import_obsidian11.TFile))
       return;
     const forced = spec.bake || spec.styleOverride === "native-callout";
     if (!forced && !this.settings.bakeInline)
@@ -3510,7 +3677,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   async codeBlockProcessor(source, el, ctx) {
     var _a, _b;
     el.empty();
-    ctx.addChild(new import_obsidian10.MarkdownRenderChild(el));
+    ctx.addChild(new import_obsidian11.MarkdownRenderChild(el));
     const lines = source.trim().split("\n");
     if (lines.length === 0) {
       renderError(el, "Empty bible code block.");
@@ -3641,7 +3808,7 @@ var BibleVersePlugin = class extends import_obsidian10.Plugin {
   refreshLivePreview() {
     this.app.workspace.iterateAllLeaves((leaf) => {
       var _a;
-      if (leaf.view instanceof import_obsidian10.MarkdownView) {
+      if (leaf.view instanceof import_obsidian11.MarkdownView) {
         const cm = (_a = leaf.view.editor) == null ? void 0 : _a.cm;
         if (cm && cm.dispatch) {
           cm.dispatch({ effects: verseFetchedEffect.of(void 0) });

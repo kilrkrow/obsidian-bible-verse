@@ -37,6 +37,8 @@ const context = await esbuild.context({
   logLevel: "info",
   sourcemap: prod ? false : "inline",
   treeShaking: true,
+  // CHANGELOG.md is imported as text for the "What's new" pop-up.
+  loader: { ".md": "text" },
   outfile: "main.js",
 });
 

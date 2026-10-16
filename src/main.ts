@@ -38,12 +38,16 @@ import { fetchEsvPassage, getEffectiveMode } from "./providers";
 import { verseFetchedEffect } from "./effects";
 import { resolveShowVerseNumbers } from "./format";
 import { bugReportUrl } from "./feedback";
+import { decideWhatsNew } from "./whats-new";
+import { releaseNotesSince, WhatsNewModal } from "./whats-new-modal";
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
   api: BibleApi = null!;
   cache: VerseCache = null!;
   baker: Baker = null!;
+  /** Whether data.json existed at load; false on a fresh install. */
+  private hadSavedData = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -69,6 +73,10 @@ export default class BibleVersePlugin extends Plugin {
 
     // Settings tab
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
+
+    // Release notes once after an update; wait for the workspace so the pop-up
+    // doesn't compete with Obsidian's own startup.
+    this.app.workspace.onLayoutReady(() => void this.maybeShowWhatsNew());
 
     // Commands
     this.addCommand({
@@ -235,6 +243,16 @@ export default class BibleVersePlugin extends Plugin {
       callback: () => window.open(bugReportUrl(this.manifest.version)),
     });
 
+    this.addCommand({
+      id: "show-whats-new",
+      name: "Show what's new",
+      callback: () => {
+        const notes = releaseNotesSince(null, this.manifest.version);
+        if (notes.length > 0) new WhatsNewModal(this.app, notes).open();
+        else new Notice("No release notes for this version.");
+      },
+    });
+
     // Verse-shift commands (#49). The widget's Alt-click covers the start verse
     // on desktop only, so these are the sole route to it on touch devices — and
     // the only one that works in Source mode, where no widget renders.
@@ -308,6 +326,7 @@ export default class BibleVersePlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     const saved = (await this.loadData()) as Partial<BibleVerseSettings> | null;
+    this.hadSavedData = saved !== null && saved !== undefined;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
   }
 
@@ -320,6 +339,32 @@ export default class BibleVersePlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  /** Open the "What's new" pop-up if this is the first start since an update. */
+  private async maybeShowWhatsNew(): Promise<void> {
+    try {
+      const currentVersion = this.manifest.version;
+      // Someone who never changed a setting has no data.json, but cached verses
+      // still show they've used the plugin before. (The cache folder itself is
+      // created on every load, so it's the entries that count.)
+      const isExistingUser = this.hadSavedData || this.cache.size > 0;
+      const decision = decideWhatsNew({
+        enabled: this.settings.showWhatsNew,
+        lastSeenVersion: this.settings.lastSeenVersion,
+        currentVersion,
+        isExistingUser,
+      });
+      if (decision.record) {
+        this.settings.lastSeenVersion = currentVersion;
+        await this.saveSettings();
+      }
+      if (!decision.show) return;
+      const notes = releaseNotesSince(decision.since, currentVersion);
+      if (notes.length > 0) new WhatsNewModal(this.app, notes).open();
+    } catch (e) {
+      console.error("Bible Verse: could not show release notes", e);
+    }
   }
 
   /**

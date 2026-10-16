@@ -234,6 +234,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Persist verse text in notes | Automatically bake verse text when rendering | Off |
 | Show attribution | Display license and copyright links below verses | Off |
 | Bake inline references | Convert `{ref}` to code block when baking | Off |
+| Show what's new after updates | Once after each update, show a short pop-up of what changed | On |
 | ESV API key | Your [api.esv.org](https://api.esv.org) key, to display ESV text inline | (empty) |
 
 ## Baking and Persisting Text
@@ -265,6 +266,11 @@ Baking & cache:
 - **Bake all existing verses across vault** — Bake all `{ref}` markers in every note
 - **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
 - **Clear verse cache** — Clear the local verse cache to free up space
+
+Help:
+
+- **Show what's new** — Open the release notes for the installed version
+- **Report a bug on GitHub** — Open a bug report with your version info filled in
 
 ## Troubleshooting
 
