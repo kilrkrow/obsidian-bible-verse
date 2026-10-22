@@ -300,7 +300,14 @@ class BibleVerseWidget extends WidgetType {
 
     // The zone is not in the document yet. Once it is, reveal it if the pointer
     // is already inside — the post-commit rebuild case.
-    window.requestAnimationFrame(() => {
+    //
+    // Scheduled on the window that owns the element, not the main window: in an
+    // Obsidian pop-out the strip lives in another document driven by that
+    // window's own frame loop, and a main-window callback would run out of step
+    // with the layout it is measuring. The pointer map below is keyed by
+    // document for the same reason.
+    const win = zone.ownerDocument.defaultView ?? window;
+    win.requestAnimationFrame(() => {
       if (!zone.isConnected) return;
       if (pointerIsInside(zone) || this.revealTimer !== null) {
         zone.addClass(REVEALED_CLASS);

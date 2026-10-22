@@ -2528,6 +2528,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
    * once it lands, which restores the reveal without needing a mouse move.
    */
   bindReveal(zone) {
+    var _a;
     trackPointer(zone.ownerDocument);
     zone.addEventListener("pointerenter", () => {
       this.clearRevealTimer();
@@ -2537,7 +2538,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       if (this.revealTimer === null)
         zone.removeClass(REVEALED_CLASS);
     });
-    window.requestAnimationFrame(() => {
+    const win = (_a = zone.ownerDocument.defaultView) != null ? _a : window;
+    win.requestAnimationFrame(() => {
       if (!zone.isConnected)
         return;
       if (pointerIsInside(zone) || this.revealTimer !== null) {
