@@ -10,7 +10,8 @@ import { BOOK_ALIASES } from "./constants";
  *   1: Book name (e.g., "1 Corinthians", "John", "Song of Solomon")
  *   2: Chapter number
  *   3: Start verse (optional — absent means whole chapter)
- *   4: End chapter for multi-chapter range (optional, e.g., "-4" in "3:16-4:3")
+ *   4: End chapter of a span (optional, e.g., "-4" in "3:16-4:3") — matched
+ *      only so the shape can be recognised and refused; see referenceRejection
  *   5: End verse (optional)
  *   6: Additional comma-separated verses (optional, e.g., ",25,30")
  */
@@ -62,6 +63,10 @@ export function normalizeBookName(raw: string): string | null {
  *   - "John 3:16-21,25"
  *   - "Psalm 23" (whole chapter)
  *   - "John 3:16-eoc" or "John 3:16-" (Issue #17)
+ *
+ * Not supported: multi-chapter spans such as "John 3:16-4:3". The shape is
+ * still recognised so it can be refused with an explanation rather than
+ * silently ignored (#52, #56), but it never yields a reference.
  */
 export function parseReference(input: string): BibleReference | null {
   const trimmed = input.trim();
