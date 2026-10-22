@@ -599,7 +599,6 @@ function parseReference(input) {
       startVerse: null,
       endVerse: null,
       additionalVerses: [],
-      endChapter: null,
       raw: trimmed
     };
   }
@@ -631,7 +630,6 @@ function parseReference(input) {
     startVerse,
     endVerse,
     additionalVerses,
-    endChapter: null,
     raw: trimmed
   };
 }
@@ -801,9 +799,7 @@ function formatReference(ref) {
   let s = `${ref.book} ${ref.chapter}`;
   if (ref.startVerse !== null) {
     s += `:${ref.startVerse}`;
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      s += `-${ref.endChapter}:${ref.endVerse}`;
-    } else if (ref.endVerse === EOC_VERSE) {
+    if (ref.endVerse === EOC_VERSE) {
       s += "-eoc";
     } else if (ref.endVerse !== null) {
       s += `-${ref.endVerse}`;
@@ -1775,9 +1771,7 @@ function bibleGatewayUrl(ref, translation) {
   let search = ref.book + "+" + ref.chapter;
   if (ref.startVerse !== null) {
     search += "%3A" + ref.startVerse;
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      search += `-${ref.endChapter}%3A${ref.endVerse}`;
-    } else if (ref.endVerse !== null) {
+    if (ref.endVerse !== null) {
       search += `-${ref.endVerse}`;
     }
     if (ref.additionalVerses.length > 0) {
@@ -2262,8 +2256,6 @@ var import_obsidian8 = require("obsidian");
 // src/shift.ts
 function shiftReference(ref, target, delta, numberOfVerses) {
   if (ref.startVerse === null)
-    return null;
-  if (ref.endChapter !== null)
     return null;
   if (ref.additionalVerses.length > 0)
     return null;

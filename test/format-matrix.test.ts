@@ -23,7 +23,6 @@ function ref(partial: Partial<BibleReference> & { book: string; chapter: number 
     startVerse: null,
     endVerse: null,
     additionalVerses: [],
-    endChapter: null,
     raw: "",
     ...partial,
   };

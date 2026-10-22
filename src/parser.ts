@@ -82,7 +82,6 @@ export function parseReference(input: string): BibleReference | null {
       startVerse: null,
       endVerse: null,
       additionalVerses: [],
-      endChapter: null,
       raw: trimmed,
     };
   }
@@ -128,7 +127,6 @@ export function parseReference(input: string): BibleReference | null {
     startVerse,
     endVerse,
     additionalVerses,
-    endChapter: null,
     raw: trimmed,
   };
 }
@@ -408,9 +406,7 @@ export function formatReference(ref: BibleReference): string {
   let s = `${ref.book} ${ref.chapter}`;
   if (ref.startVerse !== null) {
     s += `:${ref.startVerse}`;
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      s += `-${ref.endChapter}:${ref.endVerse}`;
-    } else if (ref.endVerse === EOC_VERSE) {
+    if (ref.endVerse === EOC_VERSE) {
       s += "-eoc";
     } else if (ref.endVerse !== null) {
       s += `-${ref.endVerse}`;
