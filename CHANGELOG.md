@@ -8,6 +8,11 @@ All notable changes to Bible Verse are documented here.
 
 - **What's new after an update** — the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what's new after updates" in settings. The "Show what's new" command opens it any time.
 
+### Fixed
+
+- **Verse controls in pop-out windows** — hovering a verse in a note opened in a separate Obsidian window now reliably reveals the verse controls, including right after you edit the reference. Previously the reveal check ran on the main window and could miss.
+- Removed leftover support for multi-chapter spans (such as `John 3:16-4:20`), which Bible Verse already refuses, so a reference the plugin writes out can always be read back in. No change in behavior is expected.
+
 ## [1.10.0] — 2026-10-08
 
 ### Changed

@@ -15,11 +15,6 @@ interface HelloAoChapterResponse {
 }
 
 /**
- * Client for the HelloAO Bible API.
- * Fetches whole chapters and extracts specific verses client-side.
- * No API key required.
- */
-/**
  * How many chapter payloads to keep in memory. The verse cache is keyed by
  * reference string, so nudging a range one verse at a time (#49) misses it on
  * every step and would otherwise re-download the same chapter for each nudge.
@@ -27,6 +22,11 @@ interface HelloAoChapterResponse {
  */
 const CHAPTER_MEMO_LIMIT = 8;
 
+/**
+ * Client for the HelloAO Bible API.
+ * Fetches whole chapters and extracts specific verses client-side.
+ * No API key required.
+ */
 export class BibleApi {
   private cache: VerseCache;
 

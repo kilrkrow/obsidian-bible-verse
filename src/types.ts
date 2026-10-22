@@ -14,7 +14,6 @@ export interface BibleReference {
   endVerse: number | null;
   /** Additional individual verses, e.g. "16-21,25" → additionalVerses = [25] */
   additionalVerses: number[];
-  endChapter: number | null;
   /** Raw input string for display */
   raw: string;
 }

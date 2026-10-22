@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseReference, parseInlineSpec } from "../src/parser";
+import { parseReference, parseInlineSpec, formatReference } from "../src/parser";
 
 /**
  * Multi-chapter references used to parse into a valid-looking BibleReference
@@ -54,9 +54,13 @@ describe("parseReference — everything else still parses", () => {
     expect(ref!.additionalVerses).toEqual([25]);
   });
 
-  it("never produces an endChapter any more", () => {
+  it("round-trips every shape it accepts", () => {
+    // With endChapter removed (#58), formatReference can no longer emit a
+    // string parseReference refuses — so parse/format is total again.
     for (const input of ["John 3:16", "John 3:16-21", "John 3", "John 3:16-eoc", "John 3:16-21,25"]) {
-      expect(parseReference(input)!.endChapter).toBeNull();
+      const once = formatReference(parseReference(input)!);
+      expect(parseReference(once)).not.toBeNull();
+      expect(formatReference(parseReference(once)!)).toBe(once);
     }
   });
 });

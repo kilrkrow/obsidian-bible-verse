@@ -67,9 +67,7 @@ function bibleGatewayUrl(ref: BibleReference, translation: string): string {
   let search = ref.book + "+" + ref.chapter;
   if (ref.startVerse !== null) {
     search += "%3A" + ref.startVerse;
-    if (ref.endChapter !== null && ref.endVerse !== null) {
-      search += `-${ref.endChapter}%3A${ref.endVerse}`;
-    } else if (ref.endVerse !== null) {
+    if (ref.endVerse !== null) {
       search += `-${ref.endVerse}`;
     }
     if (ref.additionalVerses.length > 0) {

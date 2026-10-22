@@ -30,8 +30,6 @@ export type ShiftDelta = -1 | 1;
  * end verse is ambiguous:
  *
  *   - whole-chapter references ("John 3") have no verse range to move
- *   - multi-chapter ranges ("John 3:16-4:3") would need the end chapter's own
- *     verse count to move safely, and rolling between chapters is out of scope
  *   - discontinuous references ("John 3:16-21,25") have no single end verse
  *
  * `numberOfVerses` is the chapter's verse count when known. It is optional
@@ -54,7 +52,6 @@ export function shiftReference(
   numberOfVerses?: number
 ): BibleReference | null {
   if (ref.startVerse === null) return null;
-  if (ref.endChapter !== null) return null;
   if (ref.additionalVerses.length > 0) return null;
 
   // A count of zero or less tells us nothing usable; treat it as unknown so a
