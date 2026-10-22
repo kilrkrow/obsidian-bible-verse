@@ -4,9 +4,12 @@ All notable changes to Bible Verse are documented here.
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-10-22
+
 ### Added
 
 - **What's new after an update** — the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what's new after updates" in settings. The "Show what's new" command opens it any time.
+- **A map of supported translations** — the README now has a chart of which translations Bible Verse can show, and a Request a translation button that opens a GitHub issue form.
 
 ### Fixed
 
