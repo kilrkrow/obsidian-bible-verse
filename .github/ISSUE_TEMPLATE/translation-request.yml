@@ -1,0 +1,32 @@
+name: Translation request
+description: Ask for a Bible translation to be supported by the plugin.
+title: "Translation request: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for asking! Check the **[translation support map](https://github.com/kilrkrow/obsidian-bible-verse#translation-support-map)**
+        first: translations marked *planned* are feasible, and a request helps prioritize them.
+        Translations marked *not planned* can't be supported.
+  - type: input
+    id: translation
+    attributes:
+      label: Translation
+      description: Name and abbreviation of the translation you'd like supported (for example, Legacy Standard Bible (LSB)).
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why do you want it?
+      description: How would you use it in your notes?
+    validations:
+      required: false
+  - type: textarea
+    id: source
+    attributes:
+      label: Where can the text be legally obtained?
+      description: Optional. A free API, a licensing page, or a publisher contact, if you know of one.
+    validations:
+      required: false

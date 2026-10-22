@@ -182,6 +182,33 @@ compare: KJV, BSB, ASV
 
 ## Available Translations
 
+### Translation support map
+
+Which translations the plugin supports today, and which are planned. [Open the interactive map](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html) to hover over any bubble for the full translation name, or [download the HTML file](docs/bible_translations.html).
+
+[![Bible translation map: textual fidelity vs. translation style, colored by plugin support](docs/images/translation-map.png)](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html)
+
+| Label | Color | Meaning |
+|-------|-------|---------|
+| **supported** | Indigo | Shows inline verse text through the free HelloAO API, no key needed. |
+| **supported\*** | Light indigo | Link-only today: renders as a link to your preferred Bible website. ESV shows inline text once you add your own free API key. |
+| **planned** | Plum | Feasible, but not supported yet. You can request it below. |
+| **not planned** | Orange | Not possible to support. |
+
+Bubble size shows readability. Position shows the translation philosophy from literal to paraphrase (left to right) and textual fidelity (bottom to top).
+
+#### Request a translation
+
+Missing one you'd like? [![Request a translation](https://img.shields.io/badge/Request%20a%20translation-open%20an%20issue-5B4FCF?style=for-the-badge)](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+) opens a GitHub issue form. For the planned translations, these links open it with the translation name already filled in:
+
+| Translation | |
+|-------------|--|
+| Legacy Standard Bible (LSB) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+LSB&translation=Legacy+Standard+Bible+%28LSB%29) |
+| New Revised Standard Version (NRSV) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+NRSV&translation=New+Revised+Standard+Version+%28NRSV%29) |
+| Contemporary English Version (CEV) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+CEV&translation=Contemporary+English+Version+%28CEV%29) |
+| Living Bible (TLB) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+TLB&translation=Living+Bible+%28TLB%29) |
+| The Message (MSG) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+MSG&translation=The+Message+%28MSG%29) |
+
 ### Text-Display Translations (Freely Available)
 
 | Abbreviation | Translation |
