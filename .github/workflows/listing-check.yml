@@ -3,27 +3,46 @@ name: Listing check
 # Catches the two ways users silently lose the plugin:
 #
 #   1. manifest.json on main names a version that has no matching GitHub
-#      release. Obsidian resolves the download by manifest version, so a
+#      release, or that release is missing main.js, manifest.json, or
+#      styles.css. Obsidian resolves the download by manifest version, so a
 #      version with no release means it cannot scan or distribute us, and its
 #      mirror drops us from community-plugins.json. This is exactly what
 #      happened to 1.8.0: bumped 2026-08-05, delisted 2026-08-06.
 #   2. We are missing from obsidianmd/obsidian-releases for any reason at all.
 #
-# release.yml already checks tag -> manifest when a release is published. That
-# is the opposite direction and cannot catch a bump that was never released,
-# because nothing runs. This checks manifest -> release plus the end state, on
-# a timer, so an unreleased bump cannot sit unnoticed.
+# release.yml checks tag -> manifest when a release is published, then builds
+# and uploads the assets. That is the opposite direction and cannot catch a
+# bump that was never released, because nothing runs. This checks manifest ->
+# release once those assets have been uploaded, plus the community list on a
+# timer, so an unreleased bump cannot sit unnoticed.
 #
-# A push that touches manifest.json only fails the run (red X on main): a bump
-# merged a few minutes before you publish the release is briefly and
-# legitimately red, and it goes green by itself on the next scheduled run.
-# The daily run also opens an issue, because still-broken a day later is a real
-# outage for users.
+# Do not run the release check on push. The version-bump commit reaches main
+# before the release exists, so a push-time check fails in that gap (1.11.0:
+# push at 22:42:07Z, release published at 22:42:19Z). Do not run it on
+# release: published either. That event is what starts release.yml, and the
+# assets are uploaded only in that workflow's last step (1.11.0: uploaded at
+# 22:42:43Z, Release finished at 22:42:47Z). Checking at publish time would
+# report missing assets that are about to appear.
+#
+# workflow_run runs after Release completes, so a missing tag or a missing
+# asset is a real failure. The daily schedule still catches a bump that was
+# never released: Release does not run in that case, so workflow_run does not
+# either.
+#
+# Do not add branches: [main] under workflow_run. Release is started by the
+# tag, so its head branch is the tag name (for example 1.11.0), not main.
+# That filter would never match.
+#
+# The community-plugins.json check stays on the daily run and on manual
+# dispatch. Right after a release the mirror takes hours to pick us up, so
+# checking it from workflow_run would be a false alarm. Push is not a trigger.
+# On push this workflow only checked the release, which is the race above.
 
 on:
-  push:
-    branches: [main]
-    paths: ["manifest.json"]
+  workflow_run:
+    # Must match the `name` in release.yml.
+    workflows: ["Release"]
+    types: [completed]
   schedule:
     - cron: "17 14 * * *" # 14:17 UTC daily
   workflow_dispatch:
@@ -36,7 +55,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      # Always judge manifest.json on main. workflow_run's default SHA is
+      # already the default branch; pinning it keeps a manual run on the same
+      # contract.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Check release and listing
         id: check
@@ -48,7 +72,7 @@ jobs:
 
           VERSION="$(jq -r .version manifest.json)"
           PLUGIN_ID="$(jq -r .id manifest.json)"
-          echo "manifest.json: id=$PLUGIN_ID version=$VERSION"
+          echo "manifest.json: id=$PLUGIN_ID version=$VERSION (event=$EVENT)"
 
           : > problems.md
 
@@ -65,37 +89,45 @@ jobs:
             echo "- \`manifest.json\` on \`main\` says \`$VERSION\`, but no GitHub release is tagged \`$VERSION\`. Obsidian resolves the download by manifest version, so it cannot scan or distribute the plugin and will drop it from the community list. Publish a release tagged \`$VERSION\` (no \`v\` prefix)." >> problems.md
           fi
 
-          # Only on the timer: after a fresh release the mirror takes hours to
-          # pick us back up, so checking this on the push would be a false alarm.
-          if [ "$EVENT" != "push" ]; then
+          # Daily run and manual dispatch only. workflow_run fires as soon as
+          # Release finishes, and the community mirror takes hours to catch up.
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
             LISTED="$(curl -fsSL https://raw.githubusercontent.com/obsidianmd/obsidian-releases/HEAD/community-plugins.json \
               | jq --arg id "$PLUGIN_ID" '[.[] | select(.id == $id)] | length')"
             echo "entries in community-plugins.json for $PLUGIN_ID: $LISTED"
             if [ "$LISTED" -eq 0 ]; then
               echo "- \`$PLUGIN_ID\` is not in \`community-plugins.json\` in obsidianmd/obsidian-releases. Users cannot find or install the plugin from inside Obsidian." >> problems.md
             fi
+            LISTING_CHECKED=1
+          else
+            LISTING_CHECKED=0
           fi
 
+          SHA="$(git rev-parse HEAD)"
           if [ -s problems.md ]; then
             {
               echo "## Bible Verse is at risk of delisting"
               echo
               cat problems.md
               echo
-              echo "Checked \`$PLUGIN_ID\` at manifest version \`$VERSION\` from ${{ github.sha }}."
+              echo "Checked \`$PLUGIN_ID\` at manifest version \`$VERSION\` from $SHA."
             } > report.md
             echo "status=fail" >> "$GITHUB_OUTPUT"
           else
             echo "## Bible Verse listing is healthy" > report.md
             echo "" >> report.md
-            echo "Release \`$VERSION\` exists with all assets, and the plugin is listed." >> report.md
+            if [ "$LISTING_CHECKED" -eq 1 ]; then
+              echo "Release \`$VERSION\` exists with all assets, and the plugin is listed." >> report.md
+            else
+              echo "Release \`$VERSION\` exists with all assets." >> report.md
+            fi
             echo "status=ok" >> "$GITHUB_OUTPUT"
           fi
 
           cat report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open an issue
-        if: steps.check.outputs.status == 'fail' && github.event_name != 'push'
+        if: steps.check.outputs.status == 'fail'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TITLE: "Plugin listing check failed"
