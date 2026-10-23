@@ -3,9 +3,14 @@ import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types
 import { formatReference } from "./parser";
 import { generateLink } from "./linker";
 import { flattenInlineContent } from "./inline-dom";
+import { decorateStrongs, StrongsLayer } from "./strongs-dom";
 
 /**
  * Render a single verse result into an HTML element.
+ *
+ * With `strongs`, the verse text carries Strong's word markers (#69) and the
+ * rendered body is decorated with hoverable words once it is in place. Live
+ * Preview and Reading view both draw the body through here.
  */
 export async function renderVerse(
   container: HTMLElement,
@@ -17,7 +22,8 @@ export async function renderVerse(
   app: App,
   component: Component,
   paragraphBreaks = false,
-  verseNewLine = false
+  verseNewLine = false,
+  strongs?: StrongsLayer
 ): Promise<void> {
   const cls = `bible-verse bible-verse-${style}${paragraphBreaks ? " bible-verse--para" : ""}`;
   const wrapper = container.createDiv({ cls });
@@ -38,6 +44,8 @@ export async function renderVerse(
       await renderInline(wrapper, refStr, verse, url, showAttribution, app, component, verseNewLine);
       break;
   }
+
+  if (strongs) decorateStrongs(wrapper, strongs);
 }
 
 async function renderSidebar(

@@ -1,5 +1,10 @@
 import { BibleReference, DisplayStyle, EOC_VERSE } from "./types";
 import { BOOK_ALIASES } from "./constants";
+import {
+  STRONGS_MODIFIER,
+  parseTransliterateModifier,
+  formatTransliterateModifier,
+} from "./strongs";
 
 /**
  * Regex to match Bible references.
@@ -196,6 +201,13 @@ export interface InlineSpec {
   bake: boolean;
   /** For the native-callout style: bake the callout collapsed (`nco-`). */
   calloutCollapsed: boolean;
+  /** `strongs` token: show the Strong's layer on this verse (#69). */
+  strongs: boolean;
+  /**
+   * `tr:` token: word keys (see wordKey in strongs.ts) shown as their
+   * transliteration instead of the English word. Empty when none are.
+   */
+  transliterate: string[];
 }
 
 /** A translation code is word-chars only and must start with a letter. */
@@ -272,6 +284,8 @@ export function parseInlineSpec(content: string): InlineSpec | null {
       paragraphBreaks: null,
       bake: false,
       calloutCollapsed: false,
+      strongs: false,
+      transliterate: [],
     };
   }
 
@@ -286,6 +300,8 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   let paragraphBreaks: boolean | null = null;
   let bake = false;
   let calloutCollapsed = false;
+  let strongs = false;
+  let transliterate: string[] | null = null;
   let cut = parts.length;
 
   while (cut > 1) {
@@ -295,6 +311,20 @@ export function parseInlineSpec(content: string): InlineSpec | null {
     // `bake` — force a one-way bake into a ```bible code block.
     if (low === "bake") {
       bake = true;
+      cut--;
+      continue;
+    }
+
+    // Strong's layer (#69). Checked before translation codes, which a bare
+    // word like "strongs" would otherwise be taken for.
+    if (low === STRONGS_MODIFIER) {
+      strongs = true;
+      cut--;
+      continue;
+    }
+    const trKeys = parseTransliterateModifier(tok);
+    if (trKeys) {
+      if (transliterate === null) transliterate = trKeys;
       cut--;
       continue;
     }
@@ -365,7 +395,18 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   const ref = parseReference(refStr);
   if (!ref) return null;
 
-  return { ref, translations, styleOverride, verseNewLine, showVerseNumbers, paragraphBreaks, bake, calloutCollapsed };
+  return {
+    ref,
+    translations,
+    styleOverride,
+    verseNewLine,
+    showVerseNumbers,
+    paragraphBreaks,
+    bake,
+    calloutCollapsed,
+    strongs,
+    transliterate: transliterate ?? [],
+  };
 }
 
 /**
@@ -377,7 +418,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
  * found, so a doubled `{{…}}` token stays doubled.
  *
  * Modifiers are emitted in the documented order — translations, style, flags,
- * then `bake`. `parseInlineSpec` peels from the right and accepts these in any
+ * the Strong's layer, then `bake`. `parseInlineSpec` peels from the right and accepts these in any
  * order, but matching the documented form keeps round-tripped text looking like
  * hand-written text.
  */
@@ -398,6 +439,10 @@ export function formatInlineSpec(spec: InlineSpec): string {
   if (spec.verseNewLine !== null) parts.push(spec.verseNewLine ? "nl" : "no-nl");
   if (spec.showVerseNumbers !== null) parts.push(spec.showVerseNumbers ? "v" : "no-v");
   if (spec.paragraphBreaks !== null) parts.push(spec.paragraphBreaks ? "para" : "no-para");
+
+  if (spec.strongs) parts.push(STRONGS_MODIFIER);
+  const tr = formatTransliterateModifier(spec.transliterate);
+  if (tr) parts.push(tr);
 
   if (spec.bake) parts.push("bake");
 

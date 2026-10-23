@@ -7,7 +7,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
-import { setIcon, editorLivePreviewField } from "obsidian";
+import { Notice, setIcon, editorLivePreviewField } from "obsidian";
 import type BibleVersePlugin from "./main";
 import {
   parseInlineSpec,
@@ -29,6 +29,8 @@ import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
 import { resolveShowVerseNumbers } from "./format";
+import { formatInsertLine, strongsActive } from "./strongs";
+import { closeStrongsPopover, StrongsWriter } from "./strongs-dom";
 
 /**
  * Quiet period before a burst of verse-shift clicks is written to the document
@@ -124,6 +126,8 @@ class BibleVerseWidget extends WidgetType {
       token: string;
       /** Chapter length when a provider has reported one; undefined = unknown. */
       numberOfVerses?: number;
+      /** The parsed token, for the Strong's layer (#69). */
+      inline: InlineSpec;
     }
   ) {
     super();
@@ -187,6 +191,7 @@ class BibleVerseWidget extends WidgetType {
       }
     } else {
       const cached = this.spec.cachedVerses[0];
+      const withStrongs = strongsActive(this.spec.inline) && this.spec.plugin.strongsBlocker(this.spec.inline) === null;
       if (cached) {
         void renderVerse(
           container,
@@ -199,10 +204,14 @@ class BibleVerseWidget extends WidgetType {
           this.spec.plugin,
           this.spec.paragraphBreaks ?? this.spec.plugin.settings.paragraphBreaks,
           vnL
-        ).then(() => this.attachShiftControls(container, view));
+        ).then(() => {
+          this.attachShiftControls(container, view);
+          if (withStrongs) void this.renderWithStrongs(container, view, false);
+        });
       } else {
         this.renderPill(container);
-        void this.fetchAndUpdate(container, view);
+        if (withStrongs) void this.renderWithStrongs(container, view, true);
+        else void this.fetchAndUpdate(container, view);
       }
     }
 
@@ -270,6 +279,7 @@ class BibleVerseWidget extends WidgetType {
     this.renderToggleButton(controls, view, "showVerseNumbers", "list-ordered", "Verse numbers");
     this.renderToggleButton(controls, view, "verseNewLine", "wrap-text", "Line breaks");
     this.renderToggleButton(controls, view, "paragraphBreaks", "pilcrow", "Paragraph breaks");
+    if (this.spec.translations.length < 2) this.renderStrongsButton(controls, view);
 
     this.bindReveal(zone);
   }
@@ -412,6 +422,123 @@ class BibleVerseWidget extends WidgetType {
       this.holdRevealed();
       this.applyToggle(view, flag);
     });
+  }
+
+  /**
+   * The Strong's layer toggle (#69), the strip's twin of the "Toggle Strong's
+   * on this verse" command. Turning it on first checks that the chapter has a
+   * words file; turning it off also drops any transliterated words, returning
+   * the verse to the translation's own wording.
+   */
+  private renderStrongsButton(controls: HTMLElement, view: EditorView): void {
+    const btn = controls.createEl("button", {
+      cls: "bible-verse-strongs-btn",
+      attr: { type: "button" },
+    });
+    setIcon(btn, "languages");
+    this.paintStrongsButton(btn);
+
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.holdRevealed();
+      void this.applyStrongsToggle(view, btn);
+    });
+  }
+
+  private paintStrongsButton(btn: HTMLButtonElement): void {
+    const on = this.currentStrongs();
+    btn.toggleClass("is-on", on);
+    const label = `Strong's: ${on ? "on" : "off"}`;
+    btn.setAttr("aria-label", label);
+    btn.setAttr("title", label);
+    btn.setAttr("aria-pressed", String(on));
+  }
+
+  private async applyStrongsToggle(view: EditorView, btn: HTMLButtonElement): Promise<void> {
+    if (this.currentStrongs()) {
+      this.pendingPatch.strongs = false;
+      this.pendingPatch.transliterate = [];
+    } else {
+      const reason = await this.spec.plugin.strongsUnavailable({ ...this.spec.inline, ref: this.currentRef() });
+      if (reason) {
+        new Notice(reason);
+        return;
+      }
+      this.pendingPatch.strongs = true;
+    }
+    this.paintStrongsButton(btn);
+    this.scheduleCommit(view);
+  }
+
+  /** Whether the layer is on once pending edits land. */
+  private currentStrongs(): boolean {
+    return strongsActive({
+      strongs: this.pendingPatch.strongs ?? this.spec.inline.strongs,
+      transliterate: this.pendingPatch.transliterate ?? this.spec.inline.transliterate,
+    });
+  }
+
+  /**
+   * Redraw the verse with the Strong's layer, in place of the plain render.
+   * With no words file for the chapter the plain render stays; `fallback`
+   * fetches it when there was none yet.
+   */
+  private async renderWithStrongs(container: HTMLElement, view: EditorView, fallback: boolean): Promise<void> {
+    const { plugin, ref, verseNewLine, showVerseNumbers, paragraphBreaks } = this.spec;
+    const settings = {
+      verseNewLine: verseNewLine ?? plugin.settings.verseNewLine,
+      showVerseNumbers: resolveShowVerseNumbers(ref, showVerseNumbers, plugin.settings.showVerseNumbers),
+      paragraphBreaks: paragraphBreaks ?? plugin.settings.paragraphBreaks,
+    };
+    const style = this.spec.styleOverride ?? plugin.settings.displayStyle;
+
+    try {
+      const ok = await plugin.renderStrongsVerse(container, this.spec.inline, style, settings, this.strongsWriter(view));
+      if (!ok) {
+        if (fallback) await this.fetchAndUpdate(container, view);
+        return;
+      }
+      this.attachShiftControls(container, view);
+      if (container.isConnected) view.dispatch({ effects: verseFetchedEffect.of(undefined) });
+    } catch (e) {
+      console.error("Bible Verse Live Preview: Strong's render failed", e);
+      if (fallback) await this.fetchAndUpdate(container, view);
+    }
+  }
+
+  /**
+   * Live Preview persistence for the layer. A word swap joins the same pending
+   * patch as a shift or toggle, so a burst of clicks is one change and one
+   * undo step.
+   */
+  private strongsWriter(view: EditorView): StrongsWriter {
+    return {
+      setTransliterated: (keys) => {
+        this.pendingPatch.strongs = true;
+        this.pendingPatch.transliterate = keys;
+        this.scheduleCommit(view);
+      },
+      insertLineBelow: (word, sense) => this.insertLineBelow(view, formatInsertLine(word, sense)),
+    };
+  }
+
+  /** Add one line after the line holding this token. */
+  private insertLineBelow(view: EditorView, text: string): void {
+    if (!this.containerEl || !this.containerEl.isConnected) return;
+
+    const from = view.posAtDOM(this.containerEl);
+    const line = view.state.doc.lineAt(from);
+    const match = new RegExp(`^(?:${INLINE_TOKEN_SOURCE})`).exec(
+      view.state.doc.sliceString(from, line.to)
+    );
+    if (!match || match[0] !== this.spec.token) {
+      new Notice("Could not find this verse in the note to update it.");
+      return;
+    }
+
+    view.dispatch({ changes: { from: line.to, insert: `\n${text}` } });
   }
 
   /** Set a toggle's on/off look, pinned state, and description. */
@@ -628,6 +755,7 @@ class BibleVerseWidget extends WidgetType {
     }
     this.clearRevealTimer();
     this.pendingPatch = {};
+    if (this.containerEl) closeStrongsPopover(this.containerEl);
     this.containerEl = null;
   }
 
@@ -878,6 +1006,7 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               cachedVerses,
               preferredWebsite: plugin.settings.preferredWebsite,
               plugin,
+              inline: spec,
             });
 
             builder.add(

@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "H8172",
+    "language": "hebrew",
+    "senses": [
+      {
+        "id": "H8172",
+        "language": "hebrew",
+        "lemma": "שָׁעַן",
+        "transliteration": "sha.an",
+        "partOfSpeech": "V",
+        "gloss": "to lean",
+        "definition": "1) to lean on, trust in, support\n\n1a) (Niphal) to lean, lean upon, support oneself\n\n1a1) of trust in God (fig)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/H8172.json"
+}

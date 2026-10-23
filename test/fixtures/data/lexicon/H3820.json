@@ -1,0 +1,50 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "H3820",
+    "language": "hebrew",
+    "senses": [
+      {
+        "id": "H3820A",
+        "language": "hebrew",
+        "lemma": "לֵב",
+        "transliteration": "lev",
+        "partOfSpeech": "N-M",
+        "gloss": "heart",
+        "definition": "1) inner man, mind, will, heart, understanding\n\n1a) inner part, midst\n\n1a1) midst (of things)\n\n1a2) heart (of man)\n\n1a3) soul, heart (of man)\n\n1a4) mind, knowledge, thinking, reflection, memory\n\n1a5) inclination, resolution, determination (of will)\n\n1a6) conscience\n\n1a7) heart (of moral character)\n\n1a8) as seat of appetites\n\n1a9) as seat of emotions and passions 1a10) as seat of courage"
+      },
+      {
+        "id": "H3820B",
+        "language": "hebrew",
+        "lemma": "לֵב",
+        "transliteration": "lev",
+        "partOfSpeech": "N-M",
+        "gloss": "Leb",
+        "definition": "§ Leb- = \"heart of\"\n\n(probably a cryptic name for Babylon by Atbash)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/H3820.json"
+}

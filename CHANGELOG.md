@@ -4,6 +4,10 @@ All notable changes to Bible Verse are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Strong's numbers on King James verses** — put the cursor in a verse and run **Toggle Strong's on this verse**, or click the new Strong's button on the verse's hover controls. Hover an underlined word to see its Strong's number, transliteration, gloss and definition from the STEPBible lexicon. Click a word to show it as its Hebrew or Greek transliteration (for example `LORD` becomes `ye.ho.vah`). The verse is then labelled "with transliteration", and the choice is saved in the note. **Insert below** adds that word's entry as a line under the verse, with the STEPBible credit. Works on KJV in Live Preview and Reading view. ESV and link-only translations don't have the data, and you'll see a notice if you try them.
+
 ## [1.11.0] — 2026-10-22
 
 ### Added
