@@ -1,0 +1,86 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "H1870",
+    "language": "hebrew",
+    "senses": [
+      {
+        "id": "H1870G",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N-M",
+        "gloss": "way: conduct",
+        "definition": ": conduct/lifestyle\n\n1) way, road, distance, journey, manner\n\n1a) road, way, path\n\n1b) journey\n\n1c) direction\n\n1d) manner, habit, way\n\n1e) of course of life (fig.)\n\n1f) of moral character (fig.)"
+      },
+      {
+        "id": "H1870H",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N-M",
+        "gloss": "Way",
+        "definition": "This name means way, road"
+      },
+      {
+        "id": "H1870I",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N",
+        "gloss": "(King's) Highway",
+        "definition": "This name means way, road\n\nCombined with me.lekh (מֶ֫לֶךְ \"King's\" H4428I)"
+      },
+      {
+        "id": "H1870J",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N-M",
+        "gloss": "way: direction",
+        "definition": ": direction\n\n1) way, road, distance, journey, manner\n\n1a) road, way, path\n\n1b) journey\n\n1c) direction\n\n1d) manner, habit, way\n\n1e) of course of life (fig.)\n\n1f) of moral character (fig.)"
+      },
+      {
+        "id": "H1870K",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N-M",
+        "gloss": "way: road",
+        "definition": ": road/route\n\n1) way, road, distance, journey, manner\n\n1a) road, way, path\n\n1b) journey\n\n1c) direction\n\n1d) manner, habit, way\n\n1e) of course of life (fig.)\n\n1f) of moral character (fig.)"
+      },
+      {
+        "id": "H1870L",
+        "language": "hebrew",
+        "lemma": "דֶּ֫רֶךְ",
+        "transliteration": "de.rekh",
+        "partOfSpeech": "N-M",
+        "gloss": "way: journey",
+        "definition": ": journey\n\n1) way, road, distance, journey, manner\n\n1a) road, way, path\n\n1b) journey\n\n1c) direction\n\n1d) manner, habit, way\n\n1e) of course of life (fig.)\n\n1f) of moral character (fig.)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/H1870.json"
+}

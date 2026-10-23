@@ -625,6 +625,23 @@
   color: var(--text-accent);
 }
 
+/* A word shown as a lexicon meaning: set off in corner brackets so it reads as
+   a gloss on the text rather than the text itself. */
+.bible-verse-strongs-word.is-meaning {
+  color: var(--text-accent);
+  text-decoration-style: solid;
+}
+
+.bible-verse-strongs-word.is-meaning::before {
+  content: "\231C";
+  color: var(--text-faint);
+}
+
+.bible-verse-strongs-word.is-meaning::after {
+  content: "\231D";
+  color: var(--text-faint);
+}
+
 .bible-verse-strongs-word.is-transliterated {
   font-style: italic;
   color: var(--text-accent);
@@ -687,10 +704,68 @@
 
 .bible-verse-strongs-definition {
   margin-top: 0.25em;
-  max-height: 12em;
+  max-height: 14em;
   overflow-y: auto;
-  white-space: pre-line;
   color: var(--text-muted);
+}
+
+.bible-verse-strongs-hint {
+  margin-top: 0.35em;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
+.bible-verse-strongs-line {
+  margin: 0.15em 0;
+  padding-left: calc(var(--depth, 0) * 1em);
+}
+
+.bible-verse-strongs-heading {
+  font-style: italic;
+}
+
+/* Each numbered meaning is a row that shows it in the verse. Reset the theme's
+   button look so the list still reads as a definition. */
+.bible-verse-strongs-meaning {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  width: 100%;
+  height: auto;
+  margin: 0.1em 0;
+  padding: 0.15em 0.4em 0.15em calc(0.4em + var(--depth, 0) * 1em);
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.bible-verse-strongs-meaning:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.bible-verse-strongs-meaning.is-selected {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  color: var(--text-normal);
+}
+
+.bible-verse-strongs-meaning-label {
+  flex: none;
+  min-width: 2em;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  color: var(--text-faint);
+}
+
+.bible-verse-strongs-meaning.is-selected .bible-verse-strongs-meaning-label {
+  color: var(--interactive-accent);
 }
 
 .bible-verse-strongs-actions {

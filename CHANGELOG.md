@@ -7,6 +7,7 @@ All notable changes to Bible Verse are documented here.
 ### Added
 
 - **Strong's numbers on King James verses** — put the cursor in a verse and run **Toggle Strong's on this verse**, or click the new Strong's button on the verse's hover controls. Hover an underlined word to see its Strong's number, transliteration, gloss and definition from the STEPBible lexicon. Click a word to show it as its Hebrew or Greek transliteration (for example `LORD` becomes `ye.ho.vah`). The verse is then labelled "with transliteration", and the choice is saved in the note. **Insert below** adds that word's entry as a line under the verse, with the STEPBible credit. Works on KJV in Live Preview and Reading view. ESV and link-only translations don't have the data, and you'll see a notice if you try them.
+- **Show a word as one of its meanings** — the Strong's popover now lists the lexicon's numbered meanings (1, 1a, 1b…). Click one to show that meaning in the verse in place of the word, for example "In all thy ⌜journey⌝" for *ways* (H1870, 1b). Click it again, or the word itself, to go back to the King James word. The choice is saved in the note, the verse is labelled "with lexicon meanings", and **Insert below** then adds just that meaning instead of the whole definition.
 
 ## [1.11.0] — 2026-10-22
 

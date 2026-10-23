@@ -4,7 +4,8 @@
  *
  *   - KJV Proverbs 3 chapter JSON (carries thisChapterWordsLink)
  *   - KJV Proverbs 3 word alignment (.words.json)
- *   - STEPBible lexicon entries for the tagged words of Proverbs 3:5
+ *   - STEPBible lexicon entries for the tagged words of Proverbs 3:5, plus
+ *     H1870 ("ways", 3:6) and G0026 (Greek, for the Abbott-Smith numbering)
  *
  * The "no words file" case uses the existing BSB fixtures, whose chapter
  * payloads have no thisChapterWordsLink.
@@ -19,7 +20,7 @@ const BASE = "https://bible.helloao.org/api";
 const FILES = [
   { url: `${BASE}/eng_kjv/PRO/3.json`, out: "data/eng_kjv_PRO_3.json" },
   { url: `${BASE}/eng_kjv/PRO/3.words.json`, out: "data/eng_kjv_PRO_3.words.json" },
-  ...["H0982", "H3068", "H3820", "H8172", "H0998"].map((n) => ({
+  ...["H0982", "H3068", "H3820", "H8172", "H0998", "H1870", "G0026"].map((n) => ({
     url: `${BASE}/d/stepbible-lexicon/lexicon/${n}.json`,
     out: `data/lexicon/${n}.json`,
   })),

@@ -16,8 +16,17 @@ import {
   toggleKey,
   transliterationFor,
   wordsLinkFor,
+  definitionLines,
+  formatMeaningsModifier,
+  isAdapted,
+  meaningFor,
+  meaningsOf,
+  parseMeaningsModifier,
+  setWordDisplay,
+  wordDisplayOf,
   HelloAoWordsResponse,
   LexiconEntry,
+  WordDisplayState,
   STRONGS_CREDIT,
 } from "../src/strongs";
 import { assembleChapterText, computeRequestedVerses } from "../src/format";
@@ -269,5 +278,150 @@ describe("Reading-view edits — locating the token", () => {
     expect(insertLineAfter("{t}\nnext", 0, "X")).toBe("{t}\nX\nnext");
     expect(insertLineAfter("{t}", 0, "X")).toBe("{t}\nX");
     expect(insertLineAfter("{t}\r\nnext", 0, "X")).toBe("{t}\r\nX\r\nnext");
+  });
+});
+
+describe("meanings — numbered senses in a definition", () => {
+  it("reads the Hebrew numbering, as in H1870 for \"ways\" in Proverbs 3:6", () => {
+    const meanings = meaningsOf(chooseSense(lexicon("H1870"))!.definition);
+    expect(meanings.map((m) => [m.label, m.depth, m.text])).toEqual([
+      ["1", 1, "way, road, distance, journey, manner"],
+      ["1a", 2, "road, way, path"],
+      ["1b", 2, "journey"],
+      ["1c", 2, "direction"],
+      ["1d", 2, "manner, habit, way"],
+      ["1e", 2, "of course of life (fig.)"],
+      ["1f", 2, "of moral character (fig.)"],
+    ]);
+  });
+
+  it("keeps the unnumbered lead-in as plain text", () => {
+    const lines = definitionLines(chooseSense(lexicon("H1870"))!.definition);
+    expect(lines[0]).toEqual({ text: ": conduct/lifestyle", meaning: null });
+  });
+
+  it("offers verb stems as headings, not as meanings, and drops source tags", () => {
+    const lines = definitionLines(chooseSense(lexicon("H0982"))!.definition).filter((l) => l.meaning);
+    const qal = lines.find((l) => l.meaning!.label === "1a")!;
+    expect(qal.text).toBe("1a) (Qal)");
+    expect(qal.meaning!.selectable).toBe(false);
+    expect(meaningsOf(chooseSense(lexicon("H0982"))!.definition).map((m) => m.label)).toEqual([
+      "1", "1a1", "1a2", "1a3", "1a4", "1b1", "2",
+    ]);
+    expect(meaningFor(chooseSense(lexicon("H0982")), "2")!.text).toBe("to feel safe, be careless");
+    expect(meaningFor(chooseSense(lexicon("H0982")), "1a3")!.depth).toBe(3);
+  });
+
+  it("reads the Greek numbering and trims the verse citations", () => {
+    const meanings = meaningsOf(chooseSense(lexicon("G0026"))!.definition);
+    expect(meanings.slice(0, 5).map((m) => [m.label, m.text])).toEqual([
+      ["1", "Of men's love"],
+      ["1a", "to one another"],
+      ["1b", "to God"],
+      ["2", "Of divine love"],
+      ["2a", "God's love: to men"],
+    ]);
+  });
+
+  it("labels Greek meanings under a roman numeral with it", () => {
+    const def = "__I. Of speech.\n\n__1. a word: Mat.8:8\n\n__(a) a saying, Luk.1:29\n\n__II. Of reason.";
+    expect(meaningsOf(def).map((m) => [m.label, m.depth, m.text])).toEqual([
+      ["I", 1, "Of speech"],
+      ["I.1", 2, "a word"],
+      ["I.1a", 3, "a saying"],
+      ["II", 1, "Of reason"],
+    ]);
+  });
+
+  it("finds nothing in a definition with no numbering", () => {
+    expect(meaningsOf("goodness, kindness, faithfulness")).toEqual([]);
+    expect(meaningsOf(undefined)).toEqual([]);
+    expect(meaningFor(null, "1")).toBeNull();
+  });
+});
+
+describe("meanings — what a word shows", () => {
+  const empty: WordDisplayState = { transliterate: [], meanings: {} };
+
+  it("shows one thing per word, clearing the other choice", () => {
+    let state = setWordDisplay(empty, "6.0.10", { kind: "transliteration" });
+    expect(wordDisplayOf(state, "6.0.10")).toEqual({ kind: "transliteration" });
+
+    state = setWordDisplay(state, "6.0.10", { kind: "meaning", label: "1b" });
+    expect(state).toEqual({ transliterate: [], meanings: { "6.0.10": "1b" } });
+    expect(isAdapted(state)).toBe(true);
+
+    state = setWordDisplay(state, "6.0.10", { kind: "english" });
+    expect(state).toEqual(empty);
+    expect(isAdapted(state)).toBe(false);
+  });
+
+  it("prefers the meaning when a hand-edited token lists a word in both", () => {
+    const state = { transliterate: ["5.0.15"], meanings: { "5.0.15": "1" } };
+    expect(wordDisplayOf(state, "5.0.15")).toEqual({ kind: "meaning", label: "1" });
+  });
+
+  it("finds the Proverbs 3:6 \"ways\" word it applies to", () => {
+    const ref = parseReference("Proverbs 3:6")!;
+    const ways = buildStrongsPassage(PRO_3.chapter.content, PRO_3_WORDS, ref, PLAIN)!.words.find((w) => w.english === "ways")!;
+    expect(ways.number).toBe("H1870");
+    expect(meaningFor(chooseSense(lexicon(ways.number)), "1b")!.text).toBe("journey");
+  });
+});
+
+describe("meanings — the mn: token modifier", () => {
+  it("parses key=label pairs next to the other modifiers", () => {
+    const spec = parseInlineSpec("Proverbs 3:5-6, strongs, tr:5.0.15, mn:6.0.10=1b+5.0.35=1")!;
+    expect(spec.transliterate).toEqual(["5.0.15"]);
+    expect(spec.meanings).toEqual({ "5.0.35": "1", "6.0.10": "1b" });
+    expect(Object.keys(spec.meanings)).toEqual(["5.0.35", "6.0.10"]);
+  });
+
+  it("accepts Greek labels with a roman numeral", () => {
+    expect(parseMeaningsModifier("mn:1.0.4=I.2b")).toEqual({ "1.0.4": "I.2b" });
+  });
+
+  it("round-trips so a reload keeps the chosen meaning", () => {
+    const spec = parseInlineSpec("Proverbs 3:6, strongs, mn:6.0.10=1b")!;
+    expect(formatInlineSpec(spec)).toBe("Proverbs 3:6, strongs, mn:6.0.10=1b");
+    expect(parseInlineSpec(formatInlineSpec(spec))).toEqual(spec);
+  });
+
+  it("is written and cleared through rewriteToken", () => {
+    const on = rewriteToken("{Proverbs 3:6}", { strongs: true, meanings: { "6.0.10": "1b" } });
+    expect(on).toBe("{Proverbs 3:6, strongs, mn:6.0.10=1b}");
+    expect(rewriteToken(on!, { strongs: false, transliterate: [], meanings: {} })).toBe("{Proverbs 3:6}");
+  });
+
+  it("keeps the layer on from a meaning alone", () => {
+    expect(strongsActive(parseInlineSpec("Proverbs 3:6, mn:6.0.10=1b")!)).toBe(true);
+  });
+
+  it("leaves earlier tokens, including #71's tr:, unchanged", () => {
+    expect(parseInlineSpec("John 3:16, KJV, nl")!.meanings).toEqual({});
+    const tr = parseInlineSpec("Proverbs 3:5, strongs, tr:5.0.15")!;
+    expect(tr.meanings).toEqual({});
+    expect(formatInlineSpec(tr)).toBe("Proverbs 3:5, strongs, tr:5.0.15");
+  });
+
+  it("refuses a malformed list", () => {
+    expect(parseMeaningsModifier("mn:")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10=1b=2")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0=1b")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10=(Qal)")).toBeNull();
+    expect(formatMeaningsModifier({})).toBeNull();
+  });
+});
+
+describe("meanings — Insert below", () => {
+  it("writes only the chosen meaning when one is picked", () => {
+    const sense = chooseSense(lexicon("H1870"));
+    const word = { key: "6.0.10", verse: 6, english: "ways", number: "H1870" };
+    expect(formatInsertLine(word, sense, "1b")).toBe(
+      `**ways** — H1870 *de.rekh* "way: conduct": 1b) journey *(${STRONGS_CREDIT})*`
+    );
+    expect(formatInsertLine(word, sense)).toContain("1a) road, way, path");
+    expect(formatInsertLine(word, sense, "9z")).toContain("1a) road, way, path");
   });
 });
