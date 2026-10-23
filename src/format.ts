@@ -104,6 +104,20 @@ export function resolveShowVerseNumbers(
 }
 
 /**
+ * Whether verse `n` belongs in the assembled passage. Shared with the Strong's
+ * layer so it marks exactly the verses that end up rendered.
+ */
+export function includesVerse(
+  requestedVerses: Set<number> | null,
+  startVerse: number | null,
+  n: number
+): boolean {
+  return requestedVerses === null
+    ? (startVerse === null || n >= startVerse)
+    : requestedVerses.has(n);
+}
+
+/**
  * Assemble the display text for a chapter's content, given the requested verses
  * and formatting settings. Returns "" when no matching verses are found.
  */
@@ -127,11 +141,7 @@ export function assembleChapterText(
 
     if (obj.type === "verse") {
       const verseItem = item as { type: string; number: number; content: unknown[] };
-      const isIncluded = requestedVerses === null
-        ? (startVerse === null || verseItem.number >= startVerse)
-        : requestedVerses.has(verseItem.number);
-
-      if (isIncluded) {
+      if (includesVerse(requestedVerses, startVerse, verseItem.number)) {
         let text = extractVerseText(verseItem.content);
         if (text) {
           // KJV embeds ¶ at the start of verse text to mark paragraph boundaries.

@@ -4,6 +4,21 @@ All notable changes to Bible Verse are documented here.
 
 ## [Unreleased]
 
+### Added
+
+**Strong's numbers and the STEPBible lexicon, on King James verses.** Look into the Hebrew and Greek behind a verse without leaving your note.
+
+- **Turn it on** — put the cursor in a verse such as `{Proverbs 3:5}` and run **Toggle Strong's on this verse** from the command palette, or hover the reference and click the new Strong's button (the languages icon) next to the verse controls. Words that have a Strong's number get a dotted underline.
+- **Hover a word** to see its Strong's number, transliteration, Hebrew or Greek lemma, gloss and definition. *LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*, "LORD".
+- **Click a word** to show it in the verse as its transliteration. Click it again to bring back the King James word.
+- **Pick a meaning** — the definition's numbered meanings (1, 1a, 1b…) are clickable. Pick one and the verse shows it in place of the word: "In all thy ⌜journey⌝ acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence.
+- **Pick a single word from a meaning**, such as *ignore* from "to forget, ignore, wither", by turning on **Pick single words from lexicon meanings** in settings. It's off by default.
+- **Insert below** adds the word's full lexicon entry as a line under the verse, ready for study notes, with any meaning you picked in bold.
+
+Your choices are saved in the note and survive a reload. Whenever a verse shows anything other than the King James words, it's labelled "with transliteration" or "with lexicon meanings", and hovering a changed word shows what it replaced. Lexicon text is credited to the STEPBible lexicon (CC BY 4.0, STEPBible.org / Tyndale House) in the popover, on every inserted line, and in settings.
+
+Works in Live Preview and Reading view. ESV, the link-only translations and side-by-side comparisons don't have Strong's data, so you'll get a short notice and nothing changes.
+
 ## [1.11.0] — 2026-10-22
 
 ### Added

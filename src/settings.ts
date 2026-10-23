@@ -42,6 +42,10 @@ function translationOptions(): Record<string, string> {
 const WHATS_NEW_NAME = "Show what's new after updates";
 const WHATS_NEW_DESC = "After Bible Verse updates, show a short summary of what changed, once. The “Show what's new” command opens it any time.";
 
+const STRONGS_WORD_PICKS_NAME = "Pick single words from lexicon meanings";
+const STRONGS_WORD_PICKS_DESC =
+  "In the Strong's popover, each numbered meaning from the STEPBible lexicon can already be shown in the verse in place of the word. Turn this on to also pick one word or phrase from a meaning, for example “ignore” from “to forget, ignore, wither”. The verse then shows that word, marked as adapted from the lexicon, and the popover and Insert below still show the full entry. Off by default.";
+
 const SIDEBAR_PADDING_LIMITS = { min: 0, max: 2, step: 0.1 };
 
 const BAKE_NOTE =
@@ -51,7 +55,7 @@ const COMMERCIAL_NOTE =
   "Enter an ESV API key to unlock inline ESV text. ESV attribution is always shown, as required by Crossway's license. Other commercial translations (NIV, NKJV, NLT, AMP, CSB, NASB) render as links only.";
 
 const DATA_SOURCE_NOTE =
-  "Free translations are provided by the HelloAO Bible API. ESV text is fetched from the ESV API using your own key.";
+  "Free translations are provided by the HelloAO Bible API. ESV text is fetched from the ESV API using your own key. Strong's numbers, transliterations and definitions come from the STEPBible lexicon (by STEPBible.org / Tyndale House, licensed CC BY 4.0), served through the HelloAO API; the plugin credits it wherever lexicon text is shown or inserted, and marks meanings it shortens for the verse as adapted.";
 
 const LICENSING_NOTE =
   "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.";
@@ -68,6 +72,7 @@ const SYNTAX_ROWS: [string, string][] = [
   ["{Romans 8:28-30, v} / {…, no-v}", "Verse numbers on / off"],
   ["{Romans 8:28-30, nl} / {…, no-nl}", "New line per verse on / off"],
   ["{Romans 8, para} / {…, no-para}", "Reading sections on / off"],
+  ["{Proverbs 3:5, strongs}", "Strong's numbers and lexicon on a KJV verse"],
 ];
 
 /** The collapsible token-syntax table. */
@@ -94,6 +99,10 @@ function buildLicensingInfo(containerEl: HTMLElement): void {
   list.createEl("li").createEl("a", {
     text: "ESV API (free key)",
     href: "https://api.esv.org/",
+  });
+  list.createEl("li").createEl("a", {
+    text: "STEPBible lexicon (CC BY 4.0)",
+    href: "https://github.com/STEPBible/STEPBible-Data",
   });
   info.createEl("p", { text: LICENSING_NOTE, cls: "bible-verse-settings-note" });
 }
@@ -195,6 +204,12 @@ export class BibleVerseSettingTab extends PluginSettingTab {
         name: "IntelliSense helper mode",
         desc: "When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).",
         control: { type: "toggle", key: "helperMode" },
+      },
+      {
+        name: STRONGS_WORD_PICKS_NAME,
+        desc: STRONGS_WORD_PICKS_DESC,
+        aliases: ["Strong's", "strongs", "lexicon", "STEPBible", "meaning", "transliteration"],
+        control: { type: "toggle", key: "strongsWordPicks" },
       },
       {
         name: WHATS_NEW_NAME,
@@ -502,6 +517,18 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.helperMode)
           .onChange(async (value) => {
             this.plugin.settings.helperMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(STRONGS_WORD_PICKS_NAME)
+      .setDesc(STRONGS_WORD_PICKS_DESC)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.strongsWordPicks)
+          .onChange(async (value) => {
+            this.plugin.settings.strongsWordPicks = value;
             await this.plugin.saveSettings();
           })
       );

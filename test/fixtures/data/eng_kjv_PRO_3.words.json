@@ -1,0 +1,1651 @@
+{
+  "translationId": "eng_kjv",
+  "bookId": "PRO",
+  "chapterNumber": 3,
+  "thisChapterLink": "/api/eng_kjv/PRO/3.json",
+  "nextChapterLink": "/api/eng_kjv/PRO/4.json",
+  "previousChapterLink": "/api/eng_kjv/PRO/2.json",
+  "thisChapterWordsLink": "/api/eng_kjv/PRO/3.words.json",
+  "nextChapterWordsLink": "/api/eng_kjv/PRO/4.words.json",
+  "previousChapterWordsLink": "/api/eng_kjv/PRO/2.words.json",
+  "verses": {
+    "1": [
+      {
+        "contentIndex": 0,
+        "start": 3,
+        "end": 6,
+        "strongs": [
+          "H1121"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 8,
+        "end": 14,
+        "strongs": [
+          "H7911"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 22,
+        "end": 25,
+        "strongs": [
+          "H8451"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 41,
+        "end": 46,
+        "strongs": [
+          "H3820"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 47,
+        "end": 51,
+        "strongs": [
+          "H5341"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 55,
+        "end": 67,
+        "strongs": [
+          "H4687"
+        ]
+      }
+    ],
+    "2": [
+      {
+        "contentIndex": 0,
+        "start": 4,
+        "end": 10,
+        "strongs": [
+          "H0753"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 14,
+        "end": 18,
+        "strongs": [
+          "H3117"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 24,
+        "end": 28,
+        "strongs": [
+          "H8141"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 29,
+        "end": 33,
+        "strongs": [
+          "H2416"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 39,
+        "end": 44,
+        "strongs": [
+          "H7965"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 57,
+        "end": 60,
+        "strongs": [
+          "H3254"
+        ]
+      }
+    ],
+    "3": [
+      {
+        "contentIndex": 0,
+        "start": 8,
+        "end": 13,
+        "strongs": [
+          "H2617"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 18,
+        "end": 23,
+        "strongs": [
+          "H0571"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 24,
+        "end": 31,
+        "strongs": [
+          "H5800"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 38,
+        "end": 42,
+        "strongs": [
+          "H7194"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 58,
+        "end": 62,
+        "strongs": [
+          "H1621"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 64,
+        "end": 69,
+        "strongs": [
+          "H3789"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 84,
+        "end": 89,
+        "strongs": [
+          "H3871"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 99,
+        "end": 104,
+        "strongs": [
+          "H3820"
+        ]
+      }
+    ],
+    "4": [
+      {
+        "contentIndex": 0,
+        "start": 14,
+        "end": 18,
+        "strongs": [
+          "H4672"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 19,
+        "end": 25,
+        "strongs": [
+          "H2580"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 30,
+        "end": 34,
+        "strongs": [
+          "H2896"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 35,
+        "end": 48,
+        "strongs": [
+          "H7922"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 56,
+        "end": 61,
+        "strongs": [
+          "H5869"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 65,
+        "end": 68,
+        "strongs": [
+          "H0430"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 73,
+        "end": 76,
+        "strongs": [
+          "H0120"
+        ]
+      }
+    ],
+    "5": [
+      {
+        "contentIndex": 0,
+        "start": 2,
+        "end": 7,
+        "strongs": [
+          "H0982"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 15,
+        "end": 19,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 35,
+        "end": 40,
+        "strongs": [
+          "H3820"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 46,
+        "end": 50,
+        "strongs": [
+          "H8172"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 70,
+        "end": 83,
+        "strongs": [
+          "H0998"
+        ]
+      }
+    ],
+    "6": [
+      {
+        "contentIndex": 0,
+        "start": 11,
+        "end": 15,
+        "strongs": [
+          "H1870"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 16,
+        "end": 27,
+        "strongs": [
+          "H3045"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 46,
+        "end": 52,
+        "strongs": [
+          "H3474"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 57,
+        "end": 62,
+        "strongs": [
+          "H0734"
+        ]
+      }
+    ],
+    "7": [
+      {
+        "contentIndex": 0,
+        "start": 9,
+        "end": 13,
+        "strongs": [
+          "H2450"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 27,
+        "end": 31,
+        "strongs": [
+          "H5869"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 33,
+        "end": 37,
+        "strongs": [
+          "H3372"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 42,
+        "end": 46,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 52,
+        "end": 58,
+        "strongs": [
+          "H5493"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 64,
+        "end": 68,
+        "strongs": [
+          "H7451"
+        ]
+      }
+    ],
+    "8": [
+      {
+        "contentIndex": 0,
+        "start": 12,
+        "end": 18,
+        "strongs": [
+          "H7500"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 26,
+        "end": 31,
+        "strongs": [
+          "H8270"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 37,
+        "end": 43,
+        "strongs": [
+          "H8250"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 51,
+        "end": 56,
+        "strongs": [
+          "H6106"
+        ]
+      }
+    ],
+    "9": [
+      {
+        "contentIndex": 0,
+        "start": 0,
+        "end": 6,
+        "strongs": [
+          "H3513"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 11,
+        "end": 15,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 25,
+        "end": 34,
+        "strongs": [
+          "H1952"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 49,
+        "end": 60,
+        "strongs": [
+          "H7225"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 74,
+        "end": 82,
+        "strongs": [
+          "H8393"
+        ]
+      }
+    ],
+    "10": [
+      {
+        "contentIndex": 0,
+        "start": 13,
+        "end": 18,
+        "strongs": [
+          "H0618"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 22,
+        "end": 28,
+        "strongs": [
+          "H4390"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 34,
+        "end": 40,
+        "strongs": [
+          "H7647"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 50,
+        "end": 57,
+        "strongs": [
+          "H3342"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 70,
+        "end": 73,
+        "strongs": [
+          "H6555"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 83,
+        "end": 87,
+        "strongs": [
+          "H8492"
+        ]
+      }
+    ],
+    "11": [
+      {
+        "contentIndex": 0,
+        "start": 5,
+        "end": 8,
+        "strongs": [
+          "H1121"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 10,
+        "end": 17,
+        "strongs": [
+          "H3988"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 26,
+        "end": 36,
+        "strongs": [
+          "H4148"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 44,
+        "end": 48,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 61,
+        "end": 66,
+        "strongs": [
+          "H6973"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 74,
+        "end": 84,
+        "strongs": [
+          "H8433"
+        ]
+      }
+    ],
+    "12": [
+      {
+        "contentIndex": 0,
+        "start": 13,
+        "end": 17,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 18,
+        "end": 24,
+        "strongs": [
+          "H0157"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 28,
+        "end": 38,
+        "strongs": [
+          "H3198"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 50,
+        "end": 56,
+        "strongs": [
+          "H0001"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 61,
+        "end": 64,
+        "strongs": [
+          "H1121"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 76,
+        "end": 86,
+        "strongs": [
+          "H7521"
+        ]
+      }
+    ],
+    "13": [
+      {
+        "contentIndex": 0,
+        "start": 2,
+        "end": 7,
+        "strongs": [
+          "H0835"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 15,
+        "end": 18,
+        "strongs": [
+          "H0120"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 24,
+        "end": 31,
+        "strongs": [
+          "H4672"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 32,
+        "end": 38,
+        "strongs": [
+          "H2451"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 48,
+        "end": 51,
+        "strongs": [
+          "H0120"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 57,
+        "end": 64,
+        "strongs": [
+          "H6329"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 65,
+        "end": 78,
+        "strongs": [
+          "H8394"
+        ]
+      }
+    ],
+    "14": [
+      {
+        "contentIndex": 0,
+        "start": 8,
+        "end": 19,
+        "strongs": [
+          "H5504"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 29,
+        "end": 35,
+        "strongs": [
+          "H2896"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 45,
+        "end": 56,
+        "strongs": [
+          "H5505"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 60,
+        "end": 66,
+        "strongs": [
+          "H3701"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 76,
+        "end": 80,
+        "strongs": [
+          "H8393"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 99,
+        "end": 103,
+        "strongs": [
+          "H2742"
+        ]
+      }
+    ],
+    "15": [
+      {
+        "contentIndex": 0,
+        "start": 12,
+        "end": 20,
+        "strongs": [
+          "H3368"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 26,
+        "end": 32,
+        "strongs": [
+          "H6443"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 64,
+        "end": 70,
+        "strongs": [
+          "H2656"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 85,
+        "end": 93,
+        "strongs": [
+          "H7737"
+        ]
+      }
+    ],
+    "16": [
+      {
+        "contentIndex": 0,
+        "start": 0,
+        "end": 6,
+        "strongs": [
+          "H0753"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 10,
+        "end": 14,
+        "strongs": [
+          "H3117"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 31,
+        "end": 35,
+        "strongs": [
+          "H3225"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 53,
+        "end": 57,
+        "strongs": [
+          "H8040"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 58,
+        "end": 64,
+        "strongs": [
+          "H6239"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 69,
+        "end": 75,
+        "strongs": [
+          "H3519"
+        ]
+      }
+    ],
+    "17": [
+      {
+        "contentIndex": 0,
+        "start": 4,
+        "end": 8,
+        "strongs": [
+          "H1870"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 13,
+        "end": 17,
+        "strongs": [
+          "H1870"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 21,
+        "end": 33,
+        "strongs": [
+          "H5278"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 47,
+        "end": 52,
+        "strongs": [
+          "H5410"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 57,
+        "end": 62,
+        "strongs": [
+          "H7965"
+        ]
+      }
+    ],
+    "18": [
+      {
+        "contentIndex": 0,
+        "start": 9,
+        "end": 13,
+        "strongs": [
+          "H6086"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 17,
+        "end": 21,
+        "strongs": [
+          "H2416"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 39,
+        "end": 43,
+        "strongs": [
+          "H2388"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 58,
+        "end": 63,
+        "strongs": [
+          "H0833"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 82,
+        "end": 91,
+        "strongs": [
+          "H8551"
+        ]
+      }
+    ],
+    "19": [
+      {
+        "contentIndex": 0,
+        "start": 4,
+        "end": 8,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 12,
+        "end": 18,
+        "strongs": [
+          "H2451"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 24,
+        "end": 31,
+        "strongs": [
+          "H3245"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 36,
+        "end": 41,
+        "strongs": [
+          "H0776"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 46,
+        "end": 59,
+        "strongs": [
+          "H8394"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 68,
+        "end": 79,
+        "strongs": [
+          "H3559"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 84,
+        "end": 91,
+        "strongs": [
+          "H8064"
+        ]
+      }
+    ],
+    "20": [
+      {
+        "contentIndex": 0,
+        "start": 7,
+        "end": 16,
+        "strongs": [
+          "H1847"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 21,
+        "end": 27,
+        "strongs": [
+          "H8415"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 39,
+        "end": 41,
+        "strongs": [
+          "H1234"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 51,
+        "end": 57,
+        "strongs": [
+          "H7834"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 63,
+        "end": 67,
+        "strongs": [
+          "H7491"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 72,
+        "end": 75,
+        "strongs": [
+          "H2919"
+        ]
+      }
+    ],
+    "21": [
+      {
+        "contentIndex": 0,
+        "start": 5,
+        "end": 8,
+        "strongs": [
+          "H1121"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 23,
+        "end": 29,
+        "strongs": [
+          "H3868"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 41,
+        "end": 45,
+        "strongs": [
+          "H5869"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 47,
+        "end": 51,
+        "strongs": [
+          "H5341"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 58,
+        "end": 64,
+        "strongs": [
+          "H8454"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 69,
+        "end": 79,
+        "strongs": [
+          "H4209"
+        ]
+      }
+    ],
+    "22": [
+      {
+        "contentIndex": 0,
+        "start": 17,
+        "end": 21,
+        "strongs": [
+          "H2416"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 31,
+        "end": 35,
+        "strongs": [
+          "H5315"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 41,
+        "end": 46,
+        "strongs": [
+          "H2580"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 54,
+        "end": 58,
+        "strongs": [
+          "H1621"
+        ]
+      }
+    ],
+    "23": [
+      {
+        "contentIndex": 0,
+        "start": 16,
+        "end": 20,
+        "strongs": [
+          "H3212"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 28,
+        "end": 31,
+        "strongs": [
+          "H1870"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 32,
+        "end": 38,
+        "strongs": [
+          "H0983"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 48,
+        "end": 52,
+        "strongs": [
+          "H7272"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 63,
+        "end": 70,
+        "strongs": [
+          "H5062"
+        ]
+      }
+    ],
+    "24": [
+      {
+        "contentIndex": 0,
+        "start": 16,
+        "end": 20,
+        "strongs": [
+          "H7901"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 40,
+        "end": 46,
+        "strongs": [
+          "H6342"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 68,
+        "end": 72,
+        "strongs": [
+          "H7901"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 82,
+        "end": 87,
+        "strongs": [
+          "H8142"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 97,
+        "end": 102,
+        "strongs": [
+          "H6149"
+        ]
+      }
+    ],
+    "25": [
+      {
+        "contentIndex": 0,
+        "start": 7,
+        "end": 13,
+        "strongs": [
+          "H3372"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 17,
+        "end": 23,
+        "strongs": [
+          "H6597"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 24,
+        "end": 28,
+        "strongs": [
+          "H6343"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 45,
+        "end": 55,
+        "strongs": [
+          "H7722"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 63,
+        "end": 69,
+        "strongs": [
+          "H7563"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 79,
+        "end": 85,
+        "strongs": [
+          "H0935"
+        ]
+      }
+    ],
+    "26": [
+      {
+        "contentIndex": 0,
+        "start": 8,
+        "end": 12,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 26,
+        "end": 36,
+        "strongs": [
+          "H3689"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 48,
+        "end": 52,
+        "strongs": [
+          "H8104"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 57,
+        "end": 61,
+        "strongs": [
+          "H7272"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 73,
+        "end": 78,
+        "strongs": [
+          "H3921"
+        ]
+      }
+    ],
+    "27": [
+      {
+        "contentIndex": 0,
+        "start": 2,
+        "end": 10,
+        "strongs": [
+          "H4513"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 15,
+        "end": 19,
+        "strongs": [
+          "H2896"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 44,
+        "end": 47,
+        "strongs": [
+          "H1167"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 67,
+        "end": 72,
+        "strongs": [
+          "H0410"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 82,
+        "end": 86,
+        "strongs": [
+          "H3027"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 90,
+        "end": 92,
+        "strongs": [
+          "H6213"
+        ]
+      }
+    ],
+    "28": [
+      {
+        "contentIndex": 0,
+        "start": 0,
+        "end": 3,
+        "strongs": [
+          "H0559"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 17,
+        "end": 26,
+        "strongs": [
+          "H7453"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 28,
+        "end": 30,
+        "strongs": [
+          "H3212"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 41,
+        "end": 46,
+        "strongs": [
+          "H7725"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 55,
+        "end": 61,
+        "strongs": [
+          "H4279"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 69,
+        "end": 73,
+        "strongs": [
+          "H5414"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 85,
+        "end": 89,
+        "strongs": [
+          "H3426"
+        ]
+      }
+    ],
+    "29": [
+      {
+        "contentIndex": 0,
+        "start": 0,
+        "end": 6,
+        "strongs": [
+          "H2790"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 11,
+        "end": 15,
+        "strongs": [
+          "H7451"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 28,
+        "end": 37,
+        "strongs": [
+          "H7453"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 49,
+        "end": 57,
+        "strongs": [
+          "H3427"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 58,
+        "end": 66,
+        "strongs": [
+          "H0983"
+        ]
+      }
+    ],
+    "30": [
+      {
+        "contentIndex": 0,
+        "start": 2,
+        "end": 8,
+        "strongs": [
+          "H7378"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 20,
+        "end": 23,
+        "strongs": [
+          "H0120"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 32,
+        "end": 37,
+        "strongs": [
+          "H2600"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 50,
+        "end": 54,
+        "strongs": [
+          "H1580"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 63,
+        "end": 67,
+        "strongs": [
+          "H7451"
+        ]
+      }
+    ],
+    "31": [
+      {
+        "contentIndex": 0,
+        "start": 2,
+        "end": 6,
+        "strongs": [
+          "H7065"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 20,
+        "end": 29,
+        "strongs": [
+          "H0376"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 35,
+        "end": 41,
+        "strongs": [
+          "H0977"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 54,
+        "end": 58,
+        "strongs": [
+          "H1870"
+        ]
+      }
+    ],
+    "32": [
+      {
+        "contentIndex": 0,
+        "start": 8,
+        "end": 15,
+        "strongs": [
+          "H3868"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 19,
+        "end": 30,
+        "strongs": [
+          "H8441"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 38,
+        "end": 42,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 52,
+        "end": 58,
+        "strongs": [
+          "H5475"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 71,
+        "end": 80,
+        "strongs": [
+          "H3477"
+        ]
+      }
+    ],
+    "33": [
+      {
+        "contentIndex": 0,
+        "start": 6,
+        "end": 11,
+        "strongs": [
+          "H3994"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 19,
+        "end": 23,
+        "strongs": [
+          "H3068"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 34,
+        "end": 39,
+        "strongs": [
+          "H1004"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 47,
+        "end": 53,
+        "strongs": [
+          "H7563"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 62,
+        "end": 70,
+        "strongs": [
+          "H1288"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 75,
+        "end": 85,
+        "strongs": [
+          "H5116"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 93,
+        "end": 97,
+        "strongs": [
+          "H6662"
+        ]
+      }
+    ],
+    "34": [
+      {
+        "contentIndex": 0,
+        "start": 10,
+        "end": 18,
+        "strongs": [
+          "H3887"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 23,
+        "end": 31,
+        "strongs": [
+          "H3887"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 40,
+        "end": 46,
+        "strongs": [
+          "H5414"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 47,
+        "end": 52,
+        "strongs": [
+          "H2580"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 62,
+        "end": 67,
+        "strongs": [
+          "H6035"
+        ]
+      }
+    ],
+    "35": [
+      {
+        "contentIndex": 0,
+        "start": 4,
+        "end": 8,
+        "strongs": [
+          "H2450"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 15,
+        "end": 22,
+        "strongs": [
+          "H5157"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 23,
+        "end": 28,
+        "strongs": [
+          "H3519"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 34,
+        "end": 39,
+        "strongs": [
+          "H7036"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 53,
+        "end": 62,
+        "strongs": [
+          "H7311"
+        ]
+      },
+      {
+        "contentIndex": 0,
+        "start": 66,
+        "end": 71,
+        "strongs": [
+          "H3684"
+        ]
+      }
+    ]
+  }
+}

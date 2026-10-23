@@ -28,11 +28,24 @@ import { BibleReferenceSuggest } from "./suggest";
 import { buildViewPlugin } from "./view-plugin";
 import {
   shiftReference,
+  rewriteToken,
   rewriteTokenReference,
   findTokenAtCursor,
+  locateToken,
+  insertLineAfter,
   ShiftTarget,
   ShiftDelta,
 } from "./shift";
+import {
+  chooseSense,
+  formatInsertLine,
+  meaningChoice,
+  strongsActive,
+  transliterationFor,
+  wordDisplayOf,
+  WordDisplayState,
+} from "./strongs";
+import { closeStrongsPopover, StrongsLayer, StrongsWriter } from "./strongs-dom";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { fetchEsvPassage, getEffectiveMode } from "./providers";
 import { verseFetchedEffect } from "./effects";
@@ -253,6 +266,56 @@ export default class BibleVersePlugin extends Plugin {
       },
     });
 
+    // Strong's layer (#69). No default hotkey.
+    this.addCommand({
+      id: "toggle-strongs",
+      name: "Toggle Strong's on this verse",
+      editorCallback: async (editor) => {
+        const cursor = editor.getCursor();
+        const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
+        if (!found) {
+          new Notice("No Bible reference found at cursor.");
+          return;
+        }
+
+        const spec = parseInlineSpec(found.token.replace(/^\{+|\}+$/g, "").trim());
+        if (!spec) {
+          new Notice("Could not read the reference at the cursor.");
+          return;
+        }
+
+        const turningOn = !strongsActive(spec);
+        if (turningOn) {
+          const reason = await this.strongsUnavailable(spec);
+          if (reason) {
+            new Notice(reason);
+            return;
+          }
+        }
+
+        const replacement = rewriteToken(
+          found.token,
+          turningOn ? { strongs: true } : { strongs: false, transliterate: [], meanings: {} }
+        );
+        if (replacement === null) return;
+
+        // The check above may have waited on the network; only write if the
+        // token is still exactly where it was.
+        if (editor.getLine(cursor.line).slice(found.start, found.end) !== found.token) return;
+
+        editor.replaceRange(
+          replacement,
+          { line: cursor.line, ch: found.start },
+          { line: cursor.line, ch: found.end }
+        );
+        new Notice(
+          turningOn
+            ? `Strong's on for ${formatReference(spec.ref)}. Hover a word to see its entry.`
+            : `Strong's off for ${formatReference(spec.ref)}.`
+        );
+      },
+    });
+
     // Verse-shift commands (#49). The widget's Alt-click covers the start verse
     // on desktop only, so these are the sole route to it on touch devices — and
     // the only one that works in Source mode, where no widget renders.
@@ -322,6 +385,172 @@ export default class BibleVersePlugin extends Plugin {
       spec.paragraphBreaks ?? this.settings.paragraphBreaks
     );
     return cached?.numberOfVerses;
+  }
+
+  /** The translation a single-translation token renders in. */
+  private specTranslationId(spec: InlineSpec): string {
+    return spec.translations.length >= 1
+      ? this.resolveTranslationId(spec.translations[0])
+      : this.settings.defaultTranslation;
+  }
+
+  /**
+   * Why the Strong's layer can never apply to a token, or null if it might.
+   * Decided without the network: comparisons, ESV and the link-only
+   * translations are out. Whether a chapter actually has a words file is
+   * `strongsUnavailable`'s job.
+   */
+  strongsBlocker(spec: InlineSpec): string | null {
+    if (spec.translations.length >= 2) {
+      return "Strong's works on one translation at a time, not a comparison.";
+    }
+    const id = this.specTranslationId(spec);
+    const def = this.findTranslation(id);
+    if (def && (def.provider !== "helloao" || def.mode !== "text")) {
+      return `Strong's isn't available for ${def.abbreviation}.`;
+    }
+    return null;
+  }
+
+  /** `strongsBlocker`, plus whether the chapter has word alignment at all. */
+  async strongsUnavailable(spec: InlineSpec): Promise<string | null> {
+    const blocked = this.strongsBlocker(spec);
+    if (blocked) return blocked;
+
+    const id = this.specTranslationId(spec);
+    const abbr = this.getTranslationAbbr(id);
+    try {
+      if (await this.api.hasWords(spec.ref, id)) return null;
+    } catch (e) {
+      console.error("Bible Verse: could not check for Strong's data", e);
+      return "Could not check for Strong's data. Try again when you're online.";
+    }
+    return `No Strong's data for ${abbr} in ${spec.ref.book} ${spec.ref.chapter}.`;
+  }
+
+  /**
+   * Render a verse with the Strong's layer into `container`, replacing what is
+   * there. Resolves false, leaving `container` alone, when the chapter has no
+   * words file — the caller keeps its plain render.
+   */
+  async renderStrongsVerse(
+    container: HTMLElement,
+    spec: InlineSpec,
+    style: DisplayStyle,
+    settings: { showVerseNumbers: boolean; verseNewLine: boolean; paragraphBreaks: boolean },
+    writer: StrongsWriter
+  ): Promise<boolean> {
+    const id = this.specTranslationId(spec);
+    const abbr = this.getTranslationAbbr(id);
+
+    const passage = await this.api.getStrongsPassage(spec.ref, id, settings);
+    if (!passage) return false;
+
+    // The plain verse supplies everything but the text: label, licence, length.
+    const plain = await this.fetchFromProvider(spec.ref, id, abbr, settings);
+
+    // Look up the words already shown as a transliteration or a meaning before
+    // drawing, so they render that way instead of flashing the English first.
+    const state: WordDisplayState = { transliterate: spec.transliterate, meanings: spec.meanings };
+    const transliterations = new Map<string, string>();
+    const meaningTexts = new Map<string, string>();
+    await Promise.all(
+      passage.words.map(async (w) => {
+        const display = wordDisplayOf(state, w.key);
+        if (display.kind === "english") return;
+        try {
+          const entry = await this.api.getLexiconEntry(w.number);
+          if (display.kind === "transliteration") {
+            const t = transliterationFor(entry);
+            if (t) transliterations.set(w.key, t);
+          } else {
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice) meaningTexts.set(w.key, choice.verseText);
+          }
+        } catch (e) {
+          console.error("Bible Verse: lexicon lookup failed", e);
+        }
+      })
+    );
+
+    const layer: StrongsLayer = {
+      words: passage.words,
+      state,
+      transliterations,
+      meaningTexts,
+      wordPicks: () => this.settings.strongsWordPicks,
+      lookup: (n) => this.api.getLexiconEntry(n),
+      writer,
+    };
+
+    container.empty();
+    await renderVerse(
+      container,
+      spec.ref,
+      { ...plain, text: passage.text },
+      style,
+      this.settings.preferredWebsite,
+      this.settings.showAttribution,
+      this.app,
+      this,
+      settings.paragraphBreaks,
+      settings.verseNewLine,
+      layer
+    );
+    return true;
+  }
+
+  /**
+   * Persist the layer's edits from Reading view by rewriting the note. The
+   * token is found again in the source on every edit, within the section that
+   * rendered it, and the remembered token text follows each rewrite.
+   */
+  private readingViewStrongsWriter(
+    ctx: MarkdownPostProcessorContext,
+    el: HTMLElement,
+    token: string
+  ): StrongsWriter {
+    let current = token;
+    const file = (): TFile | null => {
+      const f = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      return f instanceof TFile ? f : null;
+    };
+    const section = () => {
+      const info = ctx.getSectionInfo(el);
+      return info ? { lineStart: info.lineStart, lineEnd: info.lineEnd } : null;
+    };
+    const notFound = () => new Notice("Could not find this verse in the note to update it.");
+
+    return {
+      setWords: (state) => {
+        const f = file();
+        const next = rewriteToken(current, { strongs: true, transliterate: state.transliterate, meanings: state.meanings });
+        if (!f || next === null || next === current) return;
+        const prev = current;
+        current = next;
+        void this.app.vault.process(f, (content) => {
+          const at = locateToken(content, prev, section());
+          if (at === null) {
+            notFound();
+            return content;
+          }
+          return content.slice(0, at) + next + content.slice(at + prev.length);
+        });
+      },
+      insertLineBelow: (word, sense, meaningLabel) => {
+        const f = file();
+        if (!f) return;
+        const line = formatInsertLine(word, sense, meaningLabel);
+        void this.app.vault.process(f, (content) => {
+          const at = locateToken(content, current, section());
+          if (at === null) {
+            notFound();
+            return content;
+          }
+          return insertLineAfter(content, at, line);
+        });
+      },
+    };
   }
 
   async loadSettings(): Promise<void> {
@@ -548,16 +777,31 @@ export default class BibleVersePlugin extends Plugin {
             const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
 
             const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
+            const withStrongs = strongsActive(spec) && this.strongsBlocker(spec) === null;
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
             } else {
               renderLink(span, ref, abbr, this.settings.preferredWebsite);
+            }
+
+            if (withStrongs) {
+              // Plain first, then upgraded in place; a chapter with no words
+              // file keeps (or fetches) the plain render.
+              const writer = this.readingViewStrongsWriter(ctx, el, match[0]);
+              void this.renderStrongsVerse(span, spec, style, { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb }, writer)
+                .then((ok) => {
+                  if (!ok && !cached) void this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
+                })
+                .catch((e) => console.error("Bible Verse: Strong's render failed", e));
+            } else if (!cached) {
               void this.fetchAndRenderWithTranslation(span, ref, translationId, abbr, style, vnL, sVN, pb);
             }
 
             frag.appendChild(span);
 
-            if (this.settings.persistVerseText && translations.length === 0) {
+            // A verse with the Strong's layer stays live: writing it into the
+            // note is left to the explicit "Insert below" action.
+            if (this.settings.persistVerseText && translations.length === 0 && !strongsActive(spec)) {
               void this.handleBake(ctx, match[0], spec);
             }
           }
@@ -861,6 +1105,7 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   onunload(): void {
+    closeStrongsPopover();
     activeDocument.body.style.removeProperty("--bible-verse-sidebar-top-padding");
   }
 

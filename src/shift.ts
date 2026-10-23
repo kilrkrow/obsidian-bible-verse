@@ -235,3 +235,46 @@ export function findTokenAtCursor(line: string, ch: number): TokenAtCursor | nul
 
   return null;
 }
+
+/**
+ * Offset of `token` in `content`, for edits made from Reading view, where
+ * there is no cursor to find the token by. Searches the given section's lines
+ * first; with no section, or no match in it, accepts the token only if it
+ * occurs exactly once in the note, since rewriting the wrong one would edit a
+ * verse the user did not touch. Escaped tokens (#28) are never matched.
+ */
+export function locateToken(
+  content: string,
+  token: string,
+  section: { lineStart: number; lineEnd: number } | null
+): number | null {
+  const hits: { offset: number; line: number }[] = [];
+  let lineNo = 0;
+  let lineAt = 0;
+  for (let at = content.indexOf(token); at !== -1; at = content.indexOf(token, at + 1)) {
+    while (true) {
+      const nl = content.indexOf("\n", lineAt);
+      if (nl === -1 || nl >= at) break;
+      lineAt = nl + 1;
+      lineNo++;
+    }
+    if (at > 0 && content[at - 1] === "\\") continue;
+    hits.push({ offset: at, line: lineNo });
+  }
+
+  if (section) {
+    const inSection = hits.find((h) => h.line >= section.lineStart && h.line <= section.lineEnd);
+    if (inSection) return inSection.offset;
+  }
+  return hits.length === 1 ? hits[0].offset : null;
+}
+
+/** `content` with `line` added as a new line after the line containing `offset`. */
+export function insertLineAfter(content: string, offset: number, line: string): string {
+  const nl = content.indexOf("\n", offset);
+  if (nl === -1) return `${content}\n${line}`;
+  // Keep a CRLF note's line endings consistent.
+  const eol = nl > 0 && content[nl - 1] === "\r" ? "\r\n" : "\n";
+  const at = eol === "\r\n" ? nl - 1 : nl;
+  return content.slice(0, at) + eol + line + content.slice(at);
+}

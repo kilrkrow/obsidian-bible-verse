@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "H7911",
+    "language": "hebrew",
+    "senses": [
+      {
+        "id": "H7911",
+        "language": "hebrew",
+        "lemma": "שָׁכַח",
+        "transliteration": "sha.khach",
+        "partOfSpeech": "V",
+        "gloss": "to forget",
+        "definition": "1) to forget, ignore, wither\n\n1a) (Qal)\n\n1a1) to forget\n\n1a2) to cease to care\n\n1b) (Niphal) to be forgotten\n\n1c) (Piel) to cause to forget\n\n1d) (Hiphil) to make or cause to forget\n\n1e) (Hithpael) to be forgotten\n\nAramaic equivalent: she.khach (שְׁכַח \"to find\" H7912)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/H7911.json"
+}

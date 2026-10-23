@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "G0026",
+    "language": "greek",
+    "senses": [
+      {
+        "id": "G0026",
+        "language": "greek",
+        "lemma": "ἀγάπη",
+        "transliteration": "agapē",
+        "partOfSpeech": "N-F",
+        "gloss": "love",
+        "definition": "ἀγάπη, -ης, ἡ\n\n[in LXX for אַהֲבָה, which is also rendered by ἀγάπησις and φιλία ;]\n\nlove, goodwill, esteem. Outside of bibl. and eccl. books, there is no clear instance (with Deiss., LAE, 18:4, 70:2, cf. the same writer in Constr. Quar., ii, 4; and with MM, VGT, see word, cf. Dr. Moulton in Exp. Times, xxvi, 3, 139). In NT, like ἀγαπάω, -ῶ,\n\n__1. Of men's love:\n\n__(a) to one another, Jhn.13:35;\n\n__(b) to God, 1Jn.2:5.\n\n__2. Of divine love;\n\n__(a) God's love: to men, Rom.5:8; to Christ, Jhn.17:26;\n\n__(b) Christ's love to men: Rom.8:35.\n\n__3. In pl., love feasts: Ju 12 (DB, iii, 157).\n\nSYN.: φιλία. ἀ., signifying properly (see: ἀγαπάω) love which chooses its object, is taken over from LXX, where its connotation is more general, into NT, and there used exclusively to express that spiritual bond of love between God and man and between man and man, in Christ, which is characteristic of Christianity. It is thusdistinct from φιλία, friendship (Jas.4:4 only), στοργή, natural affection (in NT only in compounds, see: ἄστοργος) and ἔρως, sexual love, which is not used in NT, its place being taken by ἐπιθυμία. (Cf. ἀγαπάω; and see Abbott, Essays, 70f.; DB, vol. i., 555; Cremer, 13, 593; MM, VGT, see word). (AS)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/G0026.json"
+}
