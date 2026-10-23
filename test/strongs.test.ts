@@ -383,7 +383,7 @@ describe("meanings — what a word shows", () => {
     expect(m.text).toBe("to trust, trust in");
     expect(m.verseText).toBe("trust, trust in");
     const word = { key: "5.0.2", verse: 5, english: "Trust", number: "H0982" };
-    expect(formatInsertLine(word, chooseSense(lexicon("H0982")), "1a1")).toContain(": 1a1) to trust, trust in *(");
+    expect(formatInsertLine(word, chooseSense(lexicon("H0982")), "1a1")).toContain(" **1a1) to trust, trust in** ");
   });
 });
 
@@ -433,13 +433,26 @@ describe("meanings — the mn: token modifier", () => {
 });
 
 describe("meanings — Insert below", () => {
-  it("writes only the chosen meaning when one is picked", () => {
-    const sense = chooseSense(lexicon("H1870"));
-    const word = { key: "6.0.10", verse: 6, english: "ways", number: "H1870" };
+  const sense = chooseSense(lexicon("H1870"));
+  const word = { key: "6.0.10", verse: 6, english: "ways", number: "H1870" };
+  const full =
+    ": conduct/lifestyle 1) way, road, distance, journey, manner 1a) road, way, path 1b) journey " +
+    "1c) direction 1d) manner, habit, way 1e) of course of life (fig.) 1f) of moral character (fig.)";
+
+  it("always writes the whole entry, since inserting is for study", () => {
+    expect(formatInsertLine(word, sense)).toBe(`**ways** — H1870 *de.rekh* "way: conduct": ${full} *(${STRONGS_CREDIT})*`);
+  });
+
+  it("bolds the meaning chosen in the verse within the whole entry", () => {
     expect(formatInsertLine(word, sense, "1b")).toBe(
-      `**ways** — H1870 *de.rekh* "way: conduct": 1b) journey *(${STRONGS_CREDIT})*`
+      `**ways** — H1870 *de.rekh* "way: conduct": ${full.replace("1b) journey", "**1b) journey**")} *(${STRONGS_CREDIT})*`
     );
-    expect(formatInsertLine(word, sense)).toContain("1a) road, way, path");
-    expect(formatInsertLine(word, sense, "9z")).toContain("1a) road, way, path");
+    expect(formatInsertLine(word, sense, "9z")).toBe(formatInsertLine(word, sense));
+  });
+
+  it("leaves no Greek \"__\" markers for markdown to read as emphasis", () => {
+    const line = formatInsertLine({ key: "1.0.0", verse: 1, english: "love", number: "G0026" }, chooseSense(lexicon("G0026")));
+    expect(line).not.toContain("__");
+    expect(line).toContain("1. Of men's love: (a) to one another, Jhn.13:35;");
   });
 });

@@ -405,7 +405,7 @@ class StrongsPopover {
     }
     if (sense) {
       const chosen = display.kind === "meaning" ? display.label : null;
-      this.actionButton(actions, chosen ? `Insert ${chosen} below` : "Insert below", () => {
+      this.actionButton(actions, "Insert below", () => {
         layer.writer.insertLineBelow(word, sense, chosen);
         this.close();
       });

@@ -265,9 +265,9 @@ export function oneLineDefinition(definition: string | undefined): string {
 
 /**
  * The markdown line "Insert below" adds after the token: the English word, its
- * number, transliteration, gloss and first-sense definition, with the credit.
- * With a meaning chosen for the word, that one meaning stands in for the whole
- * definition.
+ * number, transliteration, gloss and the whole first-sense definition, with the
+ * credit. Inserting is for study, so it always carries the full entry; a
+ * meaning chosen for the word in the verse is bolded within it.
  */
 export function formatInsertLine(
   word: StrongsWord,
@@ -280,8 +280,11 @@ export function formatInsertLine(
   const gloss = sense?.gloss?.trim();
   let line = parts.join(" ");
   if (gloss) line += ` "${gloss}"`;
-  const meaning = meaningLabel ? meaningFor(sense, meaningLabel) : null;
-  const definition = meaning ? `${meaning.label}) ${meaning.text}` : oneLineDefinition(sense?.definition);
+  // Built from the parsed lines rather than the raw text, so Greek entries'
+  // "__" indent markers are not left for markdown to read as emphasis.
+  const definition = definitionLines(sense?.definition)
+    .map((l) => (meaningLabel !== null && l.meaning?.selectable && l.meaning.label === meaningLabel ? `**${l.text}**` : l.text))
+    .join(" ");
   if (definition) line += `: ${definition}`;
   return `${line} *(${STRONGS_CREDIT})*`;
 }
