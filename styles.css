@@ -648,18 +648,26 @@
   text-decoration-style: solid;
 }
 
-/* Beside the reference once a word is transliterated, so the verse is not
-   presented as the translation's own wording. */
+/* Right after the reference once any word is changed, so the verse is not
+   presented as the translation's own wording: "John 3:16 (KJV) · adapted".
+   Kept quiet and inline; the dotted underline and help cursor say that the
+   explanation is in the tooltip. */
 .bible-verse-strongs-badge {
-  margin-left: 0.5em;
-  padding: 0 0.4em;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  font-size: 0.75em;
+  margin-left: 0.35em;
+  font-size: 0.8em;
   font-weight: normal;
   font-style: normal;
   color: var(--text-muted);
   white-space: nowrap;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--text-faint);
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+
+.bible-verse-strongs-badge::before {
+  content: "· ";
+  color: var(--text-faint);
 }
 
 .bible-verse-strongs-popover {

@@ -222,7 +222,7 @@ Click a changed word, or the highlighted meaning, to go back to the King James w
 
 You don't need to type these: the clicks write them. `tr:` lists words shown as transliterations and `mn:` lists words shown as meanings. Each word is identified by its verse and its position in the source text. Turning Strong's off removes all three modifiers and gives you the plain verse back.
 
-**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, it's labelled "with transliteration" or "with lexicon meanings" next to the reference, and hovering a changed word says what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
+**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, it's tagged **adapted** right after the reference ("John 3:16 (KJV) · adapted"). Hover the tag to see what kind of change was made, with the STEPBible credit, or hover a changed word to see what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
 
 **Where it works.** King James verses in Live Preview and Reading view. ESV, the link-only translations (NIV, NKJV, NLT, AMP, CSB, NASB) and side-by-side comparisons don't have Strong's data; trying them shows a short notice and leaves the token alone. ` ```bible ` code blocks and baked text don't show the layer.
 

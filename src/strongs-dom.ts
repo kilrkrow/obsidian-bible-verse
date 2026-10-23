@@ -166,8 +166,9 @@ function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): v
 
 /**
  * Mark the verse once any word shows something other than the English, so it
- * is no longer presented as untouched translation wording. Placed beside the
- * reference label, and saying what changed.
+ * is no longer presented as untouched translation wording. A short "adapted"
+ * tag right after the reference label; what changed, and the lexicon credit,
+ * are in its tooltip. (A longer tag here read like a stray tooltip itself.)
  */
 function paintAdapted(root: HTMLElement, layer: StrongsLayer): void {
   const wrapper = root.closest<HTMLElement>(".bible-verse") ?? root;
@@ -179,18 +180,18 @@ function paintAdapted(root: HTMLElement, layer: StrongsLayer): void {
   if (!adapted) return;
 
   const parts: string[] = [];
-  if (kinds.has("transliteration")) parts.push("transliteration");
+  if (kinds.has("transliteration")) parts.push("transliterations");
   if (kinds.has("meaning")) parts.push("lexicon meanings");
+  const explanation =
+    `Adapted: some words are shown as ${parts.join(" and ")} instead of the translation's own wording. ` +
+    `Lexicon text adapted from the ${STRONGS_CREDIT}.`;
 
   const label = root.querySelector<HTMLElement>(".bible-verse-ref");
   const badge = root.ownerDocument.createElement("span");
   badge.className = BADGE_CLASS;
-  badge.textContent = `with ${parts.join(" and ")}`;
-  badge.setAttr(
-    "title",
-    "Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not " +
-      `the translation's own wording. Lexicon text adapted from the ${STRONGS_CREDIT}.`
-  );
+  badge.textContent = "adapted";
+  badge.setAttr("title", explanation);
+  badge.setAttr("aria-label", explanation);
   if (label && label.parentElement) label.insertAdjacentElement("afterend", badge);
   else wrapper.appendChild(badge);
 }
