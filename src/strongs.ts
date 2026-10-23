@@ -604,3 +604,82 @@ export function strongsActive(spec: {
 }): boolean {
   return spec.strongs || isAdapted({ transliterate: spec.transliterate, meanings: spec.meanings ?? {} });
 }
+
+// ── Baking ──────────────────────────────────────────────────────────────────
+// A bake writes the verse into the note as ordinary markdown, so it must carry
+// what the screen shows: substituted words and the credit for them. In baked
+// text a transliteration is italic and a meaning sits in ⌜ ⌝, the same marks
+// the live verse uses, and a line under the verse says what was adapted.
+
+/**
+ * The passage as plain markdown, with each tagged word as the verse shows it:
+ * the English, *a transliteration*, or ⌜a meaning⌝. A word whose substitute
+ * text is missing keeps its English.
+ */
+export function adaptedText(
+  passage: StrongsPassage,
+  state: WordDisplayState,
+  transliterations: Map<string, string>,
+  meaningTexts: Map<string, string>
+): string {
+  return splitMarkedText(passage.text)
+    .map((seg) => {
+      if (typeof seg === "string") return seg;
+      const word = passage.words[seg.index];
+      if (!word) return seg.text;
+      const display = wordDisplayOf(state, word.key);
+      if (display.kind === "transliteration") {
+        const t = transliterations.get(word.key);
+        return t ? `*${t}*` : word.english;
+      }
+      if (display.kind === "meaning") {
+        const m = meaningTexts.get(word.key);
+        return m ? `⌜${m}⌝` : word.english;
+      }
+      return word.english;
+    })
+    .join("");
+}
+
+/**
+ * The line baked under an adapted verse: which marks mean what, that it is not
+ * the translation's wording, and the lexicon credit. Null when nothing changed.
+ */
+export function adaptationNote(
+  translation: string,
+  kinds: { transliteration: boolean; meaning: boolean }
+): string | null {
+  const parts: string[] = [];
+  if (kinds.meaning) parts.push("words in ⌜ ⌝ are lexicon meanings");
+  if (kinds.transliteration) parts.push("words in italics are transliterations");
+  if (parts.length === 0) return null;
+  return `Adapted from the ${translation} text: ${parts.join(" and ")} (${STRONGS_CREDIT}).`;
+}
+
+/**
+ * The `strongs:` line in a baked block's header, which records the word
+ * choices so "Refresh baked verses" can apply them again. Space-separated
+ * `tr:` and `mn:` modifiers; null when no word is changed.
+ */
+export function formatStrongsHeader(state: WordDisplayState): string | null {
+  const parts = [formatTransliterateModifier(state.transliterate), formatMeaningsModifier(state.meanings)]
+    .filter((p): p is string => p !== null);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/** Read a `strongs:` header value back, or null when it records no choices. */
+export function parseStrongsHeader(value: string): WordDisplayState | null {
+  let transliterate: string[] = [];
+  let meanings: Record<string, string> = {};
+  for (const part of value.trim().split(/\s+/)) {
+    const tr = parseTransliterateModifier(part);
+    if (tr) {
+      transliterate = tr;
+      continue;
+    }
+    const mn = parseMeaningsModifier(part);
+    if (mn) meanings = mn;
+  }
+  const state = { transliterate, meanings };
+  return isAdapted(state) ? state : null;
+}

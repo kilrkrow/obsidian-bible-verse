@@ -999,6 +999,55 @@ function strongsActive(spec) {
   var _a;
   return spec.strongs || isAdapted({ transliterate: spec.transliterate, meanings: (_a = spec.meanings) != null ? _a : {} });
 }
+function adaptedText(passage, state, transliterations, meaningTexts) {
+  return splitMarkedText(passage.text).map((seg) => {
+    if (typeof seg === "string")
+      return seg;
+    const word = passage.words[seg.index];
+    if (!word)
+      return seg.text;
+    const display = wordDisplayOf(state, word.key);
+    if (display.kind === "transliteration") {
+      const t = transliterations.get(word.key);
+      return t ? `*${t}*` : word.english;
+    }
+    if (display.kind === "meaning") {
+      const m = meaningTexts.get(word.key);
+      return m ? `\u231C${m}\u231D` : word.english;
+    }
+    return word.english;
+  }).join("");
+}
+function adaptationNote(translation, kinds) {
+  const parts = [];
+  if (kinds.meaning)
+    parts.push("words in \u231C \u231D are lexicon meanings");
+  if (kinds.transliteration)
+    parts.push("words in italics are transliterations");
+  if (parts.length === 0)
+    return null;
+  return `Adapted from the ${translation} text: ${parts.join(" and ")} (${STRONGS_CREDIT}).`;
+}
+function formatStrongsHeader(state) {
+  const parts = [formatTransliterateModifier(state.transliterate), formatMeaningsModifier(state.meanings)].filter((p) => p !== null);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+function parseStrongsHeader(value) {
+  let transliterate = [];
+  let meanings = {};
+  for (const part of value.trim().split(/\s+/)) {
+    const tr = parseTransliterateModifier(part);
+    if (tr) {
+      transliterate = tr;
+      continue;
+    }
+    const mn = parseMeaningsModifier(part);
+    if (mn)
+      meanings = mn;
+  }
+  const state = { transliterate, meanings };
+  return isAdapted(state) ? state : null;
+}
 
 // src/parser.ts
 var REF_REGEX = /^(\d?\s?[A-Za-z]+(?:\s+(?:of\s+)?[A-Za-z]+)*)\s+(\d+)(?::(\d+)(?:-(\d+):(\d+)|-(eoc|\d+|-))?((?:,\s*\d+)*))?$/i;
@@ -1538,10 +1587,17 @@ numbers: ${opts.showVerseNumbers}`;
   if (opts == null ? void 0 : opts.style)
     header += `
 style: ${opts.style}`;
+  if (opts == null ? void 0 : opts.strongs)
+    header += `
+strongs: ${opts.strongs}`;
   return `\`\`\`bible
 ${header}
 ${CODEBLOCK_BAKE_SEPARATOR}${verse.text}
 \`\`\``;
+}
+function wordsOf(spec) {
+  const state = { transliterate: spec.transliterate, meanings: spec.meanings };
+  return isAdapted(state) ? state : null;
 }
 var Baker = class {
   constructor(app) {
@@ -1569,7 +1625,8 @@ var Baker = class {
             translations: spec.translations,
             verseNewLine: spec.verseNewLine,
             showVerseNumbers: spec.showVerseNumbers,
-            styleOverride: spec.styleOverride
+            styleOverride: spec.styleOverride,
+            words: wordsOf(spec)
           });
         }
       }
@@ -1583,6 +1640,7 @@ var Baker = class {
       if (lines.length > 0) {
         const ref = parseReference(lines[0].trim());
         const config = {};
+        let words = null;
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           const colonIdx = line.indexOf(":");
@@ -1590,6 +1648,8 @@ var Baker = class {
             const key = line.substring(0, colonIdx).trim().toLowerCase();
             const value = line.substring(colonIdx + 1).trim().toLowerCase();
             config[key] = value;
+            if (key === "strongs")
+              words = parseStrongsHeader(line.substring(colonIdx + 1));
           }
         }
         results.push({
@@ -1600,7 +1660,8 @@ var Baker = class {
           body,
           translations: config.translation ? [config.translation] : config.compare ? config.compare.split(",").map((s) => s.trim()) : [],
           verseNewLine: config.newline !== void 0 ? config.newline === "true" : null,
-          showVerseNumbers: config.numbers !== void 0 || config["verse-numbers"] !== void 0 ? ((_a = config.numbers) != null ? _a : config["verse-numbers"]) === "true" : null
+          showVerseNumbers: config.numbers !== void 0 || config["verse-numbers"] !== void 0 ? ((_a = config.numbers) != null ? _a : config["verse-numbers"]) === "true" : null,
+          words
         });
       }
     }
@@ -1641,12 +1702,13 @@ var Baker = class {
     return refRaw.includes(CODEBLOCK_BAKE_SEPARATOR);
   }
   async bakeFile(content, bakeInline, fetchVerse, defaults) {
+    var _a;
     const refs = this.extractReferences(content, bakeInline);
     if (refs.length === 0)
       return content;
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride } = refs[i];
+      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride, words } = refs[i];
       if (!ref)
         continue;
       const trans = translations && translations.length === 1 ? translations[0] : void 0;
@@ -1655,7 +1717,8 @@ var Baker = class {
         trans,
         void 0,
         verseNewLine != null ? verseNewLine : void 0,
-        showVerseNumbers != null ? showVerseNumbers : void 0
+        showVerseNumbers != null ? showVerseNumbers : void 0,
+        words != null ? words : void 0
       );
       if (!verse)
         continue;
@@ -1663,7 +1726,8 @@ var Baker = class {
         const block = formatCodeBlockBake(verse, {
           verseNewLine: verseNewLine != null ? verseNewLine : defaults == null ? void 0 : defaults.verseNewLine,
           showVerseNumbers: defaults ? resolveShowVerseNumbers(ref, showVerseNumbers, defaults.showVerseNumbers) : showVerseNumbers != null ? showVerseNumbers : void 0,
-          style: styleOverride && styleOverride !== "native-callout" ? styleOverride : void 0
+          style: styleOverride && styleOverride !== "native-callout" ? styleOverride : void 0,
+          strongs: words ? (_a = formatStrongsHeader(words)) != null ? _a : void 0 : void 0
         });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);
       } else {
@@ -4157,7 +4221,7 @@ function decideWhatsNew(state) {
 var import_obsidian11 = require("obsidian");
 
 // CHANGELOG.md
-var CHANGELOG_default = '# Changelog\n\nAll notable changes to Bible Verse are documented here.\n\n## [1.12.0] \u2014 2026-10-23\n\n### Added\n\n**Strong\'s numbers and the STEPBible lexicon, on King James verses.** Look into the Hebrew and Greek behind a verse without leaving your note.\n\n- **Turn it on** \u2014 put the cursor in a verse such as `{Proverbs 3:5}` and run **Toggle Strong\'s on this verse** from the command palette, or hover the reference and click the new Strong\'s button (the languages icon) next to the verse controls. Words that have a Strong\'s number get a dotted underline.\n- **Hover a word** to see its Strong\'s number, transliteration, Hebrew or Greek lemma, gloss and definition. *LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*, "LORD".\n- **Click a word** to show it in the verse as its transliteration. Click it again to bring back the King James word.\n- **Pick a meaning** \u2014 the definition\'s numbered meanings (1, 1a, 1b\u2026) are clickable. Pick one and the verse shows it in place of the word: "In all thy \u231Cjourney\u231D acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence.\n- **Pick a single word from a meaning**, such as *ignore* from "to forget, ignore, wither", by turning on **Pick single words from lexicon meanings** in settings. It\'s off by default.\n- **Insert below** adds the word\'s full lexicon entry as a line under the verse, ready for study notes, with any meaning you picked in bold.\n\nYour choices are saved in the note and survive a reload. Whenever a verse shows anything other than the King James words, it\'s labelled "with transliteration" or "with lexicon meanings", and hovering a changed word shows what it replaced. Lexicon text is credited to the STEPBible lexicon (CC BY 4.0, STEPBible.org / Tyndale House) in the popover, on every inserted line, and in settings.\n\nWorks in Live Preview and Reading view. ESV, the link-only translations and side-by-side comparisons don\'t have Strong\'s data, so you\'ll get a short notice and nothing changes.\n\n## [1.11.0] \u2014 2026-10-22\n\n### Added\n\n- **What\'s new after an update** \u2014 the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what\'s new after updates" in settings. The "Show what\'s new" command opens it any time.\n- **A map of supported translations** \u2014 the README now has a chart of which translations Bible Verse can show, and a Request a translation button that opens a GitHub issue form.\n\n### Fixed\n\n- **Verse controls in pop-out windows** \u2014 hovering a verse in a note opened in a separate Obsidian window now reliably reveals the verse controls, including right after you edit the reference. Previously the reveal check ran on the main window and could miss.\n- Removed leftover support for multi-chapter spans (such as `John 3:16-4:20`), which Bible Verse already refuses, so a reference the plugin writes out can always be read back in. No change in behavior is expected.\n\n## [1.10.0] \u2014 2026-10-08\n\n### Changed\n\n- **A lone verse hides its verse number by default** \u2014 a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.\n- **Reading-view comparisons obey `v` / `no-v`** \u2014 inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.\n\n## [1.8.1] \u2014 2026-08-12\n\n### Added\n\n- **Settings are searchable** \u2014 on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian\'s settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.\n\n### Changed\n\n- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can\'t drift apart.\n- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian\'s `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian\'s plugin review scan; there is no change in behavior.\n\n### Known issues\n\n- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately \u2014 the row updates the next time the settings tab is drawn. Obsidian\'s API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.\n\n## [1.8.0] \u2014 2026-08-05\n\n### Added\n\n- **Doubled braces are accepted** \u2014 `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{\u2026}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.\n\n### Changed\n\n- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.\n- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{\u2026` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.\n\n## [1.6.5] \u2014 2026-07-04\n\n### Added\n\n- **Bake to a native, collapsible callout** \u2014 the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](\u2026)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.\n- **`bake` token** \u2014 `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.\n\nBaking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.\n\n## [1.6.4] \u2014 2026-07-03\n\n### Added\n\n- **ESV (English Standard Version) inline text** \u2014 display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.\n- **In-plugin feedback** \u2014 a "Send feedback" button in settings and a "Report a bug on GitHub" command.\n- **GitHub issue templates** \u2014 structured bug-report and feature-request forms.\n\n### Fixed\n\n- **`nl` now takes effect in the inline display style** \u2014 "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).\n- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.\n- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.\n\n## [1.6.3] \u2014 2026-06-08\n\n### Fixed\n\n- **Verse double-spacing in Live Preview** \u2014 Verses in `nl` mode were rendering with a blank line between each verse in Live Preview (edit mode) while appearing correctly in reading mode. Root cause: CodeMirror 6\'s editor inherits `white-space: pre-wrap` into rendered content, causing the whitespace text nodes that Obsidian\'s markdown renderer emits after each `<br>` to render as real line breaks. Fixed by explicitly setting `white-space: normal` on the verse body container.\n- **Inline style line breaks** \u2014 `{ref, inline}` displayed verses on separate lines instead of as continuous quoted text, in both reading mode and Live Preview. Root cause: `<br>` elements from the markdown renderer were left in place after paragraph unwrapping. Fixed by replacing `<br>` with a space in the inline rendering path.\n\n## [1.6.2] \u2014 2026-05-20\n\n### Added\n\n- Reading sections (`para` mode) \u2014 display a full chapter with paragraph groupings preserved, matching the structure of the original text\n- IntelliSense helper mode \u2014 after accepting a verse suggestion, a follow-up menu offers common modifiers (callout, sidebar, verse numbers, etc.)\n- Inline syntax examples and collapsible quick-reference in the settings tab\n\n### Fixed\n\n- KJV pilcrow (`\xB6`) character stripped before verse-number prepend to prevent broken line breaks\n- Paragraph spacing normalised across inline and block display styles\n- Verse number list markers escaped so `1.` is not misread as a markdown ordered list\n\n## [1.6.0] \u2014 2026-04-25\n\n### Added\n\n- Initial public release prepared for Obsidian community plugin submission\n- Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags\n- Display styles: callout, sidebar, blockquote, inline\n- Side-by-side translation comparison (`{ref, KJV | NIV}`)\n- Baked verse text via `Bake` and `Refresh` commands\n- Verse cache with optional persistence\n- Quick Insert command palette modal\n- Settings tab with per-option syntax examples\n';
+var CHANGELOG_default = '# Changelog\n\nAll notable changes to Bible Verse are documented here.\n\n## [Unreleased]\n\n### Fixed\n\n- **Baking a Strong\'s verse keeps what\'s on screen** \u2014 adding `bake` to a verse with transliterations or lexicon meanings, baking it as a native callout, or using the bake commands used to write the plain King James text and lose every choice you\'d made. The baked text now reads the way the screen does: transliterations in italics, meanings in \u231C \u231D, with a line underneath saying what was adapted and crediting the STEPBible lexicon. Your choices are recorded in the baked block too, so **Refresh baked verses** keeps them.\n- **Release notes for 1.12.0** \u2014 they didn\'t appear after updating to 1.12.0. In short: 1.12.0 added Strong\'s numbers and the STEPBible lexicon on King James verses. Put the cursor in a verse, run **Toggle Strong\'s on this verse**, and hover a word for its entry; click it, or pick one of its meanings, to show that in the verse instead. The README has the full guide.\n\n## [1.12.0] \u2014 2026-10-23\n\n### Added\n\n**Strong\'s numbers and the STEPBible lexicon, on King James verses.** Look into the Hebrew and Greek behind a verse without leaving your note.\n\n- **Turn it on** \u2014 put the cursor in a verse such as `{Proverbs 3:5}` and run **Toggle Strong\'s on this verse** from the command palette, or hover the reference and click the new Strong\'s button (the languages icon) next to the verse controls. Words that have a Strong\'s number get a dotted underline.\n- **Hover a word** to see its Strong\'s number, transliteration, Hebrew or Greek lemma, gloss and definition. *LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*, "LORD".\n- **Click a word** to show it in the verse as its transliteration. Click it again to bring back the King James word.\n- **Pick a meaning** \u2014 the definition\'s numbered meanings (1, 1a, 1b\u2026) are clickable. Pick one and the verse shows it in place of the word: "In all thy \u231Cjourney\u231D acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence.\n- **Pick a single word from a meaning**, such as *ignore* from "to forget, ignore, wither", by turning on **Pick single words from lexicon meanings** in settings. It\'s off by default.\n- **Insert below** adds the word\'s full lexicon entry as a line under the verse, ready for study notes, with any meaning you picked in bold.\n\nYour choices are saved in the note and survive a reload. Whenever a verse shows anything other than the King James words, it\'s labelled "with transliteration" or "with lexicon meanings", and hovering a changed word shows what it replaced. Lexicon text is credited to the STEPBible lexicon (CC BY 4.0, STEPBible.org / Tyndale House) in the popover, on every inserted line, and in settings.\n\nWorks in Live Preview and Reading view. ESV, the link-only translations and side-by-side comparisons don\'t have Strong\'s data, so you\'ll get a short notice and nothing changes.\n\n## [1.11.0] \u2014 2026-10-22\n\n### Added\n\n- **What\'s new after an update** \u2014 the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what\'s new after updates" in settings. The "Show what\'s new" command opens it any time.\n- **A map of supported translations** \u2014 the README now has a chart of which translations Bible Verse can show, and a Request a translation button that opens a GitHub issue form.\n\n### Fixed\n\n- **Verse controls in pop-out windows** \u2014 hovering a verse in a note opened in a separate Obsidian window now reliably reveals the verse controls, including right after you edit the reference. Previously the reveal check ran on the main window and could miss.\n- Removed leftover support for multi-chapter spans (such as `John 3:16-4:20`), which Bible Verse already refuses, so a reference the plugin writes out can always be read back in. No change in behavior is expected.\n\n## [1.10.0] \u2014 2026-10-08\n\n### Changed\n\n- **A lone verse hides its verse number by default** \u2014 a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.\n- **Reading-view comparisons obey `v` / `no-v`** \u2014 inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.\n\n## [1.8.1] \u2014 2026-08-12\n\n### Added\n\n- **Settings are searchable** \u2014 on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian\'s settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.\n\n### Changed\n\n- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can\'t drift apart.\n- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian\'s `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian\'s plugin review scan; there is no change in behavior.\n\n### Known issues\n\n- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately \u2014 the row updates the next time the settings tab is drawn. Obsidian\'s API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.\n\n## [1.8.0] \u2014 2026-08-05\n\n### Added\n\n- **Doubled braces are accepted** \u2014 `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{\u2026}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.\n\n### Changed\n\n- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.\n- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{\u2026` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.\n\n## [1.6.5] \u2014 2026-07-04\n\n### Added\n\n- **Bake to a native, collapsible callout** \u2014 the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](\u2026)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.\n- **`bake` token** \u2014 `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.\n\nBaking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.\n\n## [1.6.4] \u2014 2026-07-03\n\n### Added\n\n- **ESV (English Standard Version) inline text** \u2014 display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.\n- **In-plugin feedback** \u2014 a "Send feedback" button in settings and a "Report a bug on GitHub" command.\n- **GitHub issue templates** \u2014 structured bug-report and feature-request forms.\n\n### Fixed\n\n- **`nl` now takes effect in the inline display style** \u2014 "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).\n- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.\n- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.\n\n## [1.6.3] \u2014 2026-06-08\n\n### Fixed\n\n- **Verse double-spacing in Live Preview** \u2014 Verses in `nl` mode were rendering with a blank line between each verse in Live Preview (edit mode) while appearing correctly in reading mode. Root cause: CodeMirror 6\'s editor inherits `white-space: pre-wrap` into rendered content, causing the whitespace text nodes that Obsidian\'s markdown renderer emits after each `<br>` to render as real line breaks. Fixed by explicitly setting `white-space: normal` on the verse body container.\n- **Inline style line breaks** \u2014 `{ref, inline}` displayed verses on separate lines instead of as continuous quoted text, in both reading mode and Live Preview. Root cause: `<br>` elements from the markdown renderer were left in place after paragraph unwrapping. Fixed by replacing `<br>` with a space in the inline rendering path.\n\n## [1.6.2] \u2014 2026-05-20\n\n### Added\n\n- Reading sections (`para` mode) \u2014 display a full chapter with paragraph groupings preserved, matching the structure of the original text\n- IntelliSense helper mode \u2014 after accepting a verse suggestion, a follow-up menu offers common modifiers (callout, sidebar, verse numbers, etc.)\n- Inline syntax examples and collapsible quick-reference in the settings tab\n\n### Fixed\n\n- KJV pilcrow (`\xB6`) character stripped before verse-number prepend to prevent broken line breaks\n- Paragraph spacing normalised across inline and block display styles\n- Verse number list markers escaped so `1.` is not misread as a markdown ordered list\n\n## [1.6.0] \u2014 2026-04-25\n\n### Added\n\n- Initial public release prepared for Obsidian community plugin submission\n- Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags\n- Display styles: callout, sidebar, blockquote, inline\n- Side-by-side translation comparison (`{ref, KJV | NIV}`)\n- Baked verse text via `Bake` and `Refresh` commands\n- Verse cache with optional persistence\n- Quick Insert command palette modal\n- Settings tab with per-option syntax examples\n';
 
 // src/whats-new-modal.ts
 var CHANGELOG_URL = "https://github.com/kilrkrow/obsidian-bible-verse/blob/main/CHANGELOG.md";
@@ -4227,7 +4291,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, void 0, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         if (newContent !== content) {
@@ -4247,7 +4311,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, void 0, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         editor.setValue(newContent);
@@ -4261,7 +4325,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, void 0, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new import_obsidian12.Notice(`Refreshed baked verses in ${count} files.`);
@@ -4274,7 +4338,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, void 0, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new import_obsidian12.Notice(`Baked verses in ${count} files.`);
@@ -4527,29 +4591,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
       return false;
     const plain = await this.fetchFromProvider(spec.ref, id, abbr, settings);
     const state = { transliterate: spec.transliterate, meanings: spec.meanings };
-    const transliterations = /* @__PURE__ */ new Map();
-    const meaningTexts = /* @__PURE__ */ new Map();
-    await Promise.all(
-      passage.words.map(async (w) => {
-        const display = wordDisplayOf(state, w.key);
-        if (display.kind === "english")
-          return;
-        try {
-          const entry = await this.api.getLexiconEntry(w.number);
-          if (display.kind === "transliteration") {
-            const t = transliterationFor(entry);
-            if (t)
-              transliterations.set(w.key, t);
-          } else {
-            const choice = meaningChoice(chooseSense(entry), display.label);
-            if (choice)
-              meaningTexts.set(w.key, choice.verseText);
-          }
-        } catch (e) {
-          console.error("Bible Verse: lexicon lookup failed", e);
-        }
-      })
-    );
+    const { transliterations, meaningTexts } = await this.resolveWordTexts(passage.words, state);
     const layer = {
       words: passage.words,
       state,
@@ -4574,6 +4616,62 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
       layer
     );
     return true;
+  }
+  /**
+   * The text each changed word shows: its transliteration, or the verse form of
+   * its chosen meaning. Words whose lexicon entry cannot be read are left out,
+   * and so keep their English.
+   */
+  async resolveWordTexts(words, state) {
+    const transliterations = /* @__PURE__ */ new Map();
+    const meaningTexts = /* @__PURE__ */ new Map();
+    await Promise.all(
+      words.map(async (w) => {
+        const display = wordDisplayOf(state, w.key);
+        if (display.kind === "english")
+          return;
+        try {
+          const entry = await this.api.getLexiconEntry(w.number);
+          if (display.kind === "transliteration") {
+            const t = transliterationFor(entry);
+            if (t)
+              transliterations.set(w.key, t);
+          } else {
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice)
+              meaningTexts.set(w.key, choice.verseText);
+          }
+        } catch (e) {
+          console.error("Bible Verse: lexicon lookup failed", e);
+        }
+      })
+    );
+    return { transliterations, meaningTexts };
+  }
+  /**
+   * The verse as the Strong's layer shows it with these word choices, as plain
+   * markdown for baking: transliterations in italics, meanings in ⌜ ⌝, and a
+   * line underneath saying what was adapted, with the lexicon credit. Null when
+   * the translation or chapter has no Strong's data, so the caller bakes the
+   * plain verse.
+   */
+  async adaptedVerse(ref, translationId, translationAbbr, settings, state) {
+    const def = this.findTranslation(translationId);
+    if (def && (def.provider !== "helloao" || def.mode !== "text"))
+      return null;
+    const passage = await this.api.getStrongsPassage(ref, translationId, settings);
+    if (!passage)
+      return null;
+    const plain = await this.fetchFromProvider(ref, translationId, translationAbbr, settings);
+    const { transliterations, meaningTexts } = await this.resolveWordTexts(passage.words, state);
+    const text = adaptedText(passage, state, transliterations, meaningTexts);
+    const note = adaptationNote(plain.translation, {
+      transliteration: transliterations.size > 0,
+      meaning: meaningTexts.size > 0
+    });
+    return { ...plain, text: note ? `${text}
+
+${note}` : text };
   }
   /**
    * Persist the layer's edits from Reading view by rewriting the note. The
@@ -4692,7 +4790,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
   /**
    * Fetch a verse using the current settings, routing to the correct provider.
    */
-  async fetchVerse(ref, translationId, translationAbbr, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride) {
+  async fetchVerse(ref, translationId, translationAbbr, verseNewLineOverride, showVerseNumbersOverride, paragraphBreaksOverride, words) {
     try {
       const id = translationId != null ? translationId : this.settings.defaultTranslation;
       const abbr = translationAbbr != null ? translationAbbr : this.getTranslationAbbr(id);
@@ -4700,6 +4798,11 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
       const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride != null ? paragraphBreaksOverride : this.settings.paragraphBreaks;
       const passageSettings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
+      if (words && isAdapted(words)) {
+        const adapted = await this.adaptedVerse(ref, id, abbr, passageSettings, words);
+        if (adapted)
+          return adapted;
+      }
       return await this.fetchFromProvider(ref, id, abbr, passageSettings);
     } catch (e) {
       console.error("Bible Verse: fetchVerse failed", e);
@@ -4889,7 +4992,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     }
   }
   async handleBake(ctx, refMarker, spec, format = "codeblock") {
-    var _a;
+    var _a, _b;
     const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof import_obsidian12.TFile))
       return;
@@ -4900,7 +5003,8 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : void 0;
     const transAbbr = transId ? this.getTranslationAbbr(transId) : void 0;
     const pb = (_a = spec.paragraphBreaks) != null ? _a : this.settings.paragraphBreaks;
-    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine != null ? verseNewLine : void 0, showVerseNumbers != null ? showVerseNumbers : void 0, pb);
+    const words = { transliterate: spec.transliterate, meanings: spec.meanings };
+    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine != null ? verseNewLine : void 0, showVerseNumbers != null ? showVerseNumbers : void 0, pb, words);
     if (!verse)
       return;
     const opts = format === "callout" ? {
@@ -4914,7 +5018,8 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
       format: "codeblock",
       verseNewLine: verseNewLine != null ? verseNewLine : this.settings.verseNewLine,
       showVerseNumbers: resolveShowVerseNumbers(ref, showVerseNumbers, this.settings.showVerseNumbers),
-      style: spec.styleOverride && spec.styleOverride !== "native-callout" ? spec.styleOverride : void 0
+      style: spec.styleOverride && spec.styleOverride !== "native-callout" ? spec.styleOverride : void 0,
+      strongs: (_b = formatStrongsHeader(words)) != null ? _b : void 0
     };
     await this.app.vault.process(file, (content) => {
       return this.baker.bakeVerse(content, refMarker, verse, "inline", opts);
@@ -4969,7 +5074,8 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     const translationAbbr = config["translation"] ? this.getTranslationAbbr(this.resolveTranslationId(config["translation"])) : this.getTranslationAbbr();
     const styleOverride = this.resolveStyleKey(config["style"]);
     try {
-      let verse;
+      let verse = null;
+      const words = config["strongs"] ? parseStrongsHeader(config["strongs"]) : null;
       if (cachedText) {
         verse = {
           reference: formatReference(ref),
@@ -4980,11 +5086,10 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
           fetchedAt: Date.now()
         };
       } else {
-        verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
-          showVerseNumbers: sVN,
-          verseNewLine: vnL,
-          paragraphBreaks: pb
-        });
+        const settings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
+        if (words)
+          verse = await this.adaptedVerse(ref, translationId, translationAbbr, settings, words);
+        verse != null ? verse : verse = await this.fetchFromProvider(ref, translationId, translationAbbr, settings);
       }
       await renderVerse(
         el,

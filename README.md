@@ -226,6 +226,21 @@ You don't need to type these: the clicks write them. `tr:` lists words shown as 
 
 **Where it works.** King James verses in Live Preview and Reading view. ESV, the link-only translations (NIV, NKJV, NLT, AMP, CSB, NASB) and side-by-side comparisons don't have Strong's data; trying them shows a short notice and leaves the token alone. ` ```bible ` code blocks and baked text don't show the layer.
 
+**Baking a Strong's verse.** Adding `bake` (or baking with a command or as a native callout) writes the verse as it reads on screen: transliterations in *italics*, meanings in ⌜ ⌝, and a line underneath saying what was adapted, with the STEPBible credit. A code-block bake also records your choices in a `strongs:` line in its header, so **Refresh baked verses** rebuilds the same wording rather than reverting to plain King James:
+
+````
+```bible
+Proverbs 3:5
+translation: KJV
+strongs: tr:5.0.15
+
+---
+Trust in the *ye.ho.vah* with all thine heart; and lean not unto thine own understanding.
+
+Adapted from the KJV text: words in italics are transliterations (STEPBible lexicon, CC BY 4.0, STEPBible.org / Tyndale House).
+```
+````
+
 ## Available Translations
 
 ### Translation support map

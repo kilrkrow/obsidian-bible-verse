@@ -2,6 +2,13 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Baking a Strong's verse keeps what's on screen** — adding `bake` to a verse with transliterations or lexicon meanings, baking it as a native callout, or using the bake commands used to write the plain King James text and lose every choice you'd made. The baked text now reads the way the screen does: transliterations in italics, meanings in ⌜ ⌝, with a line underneath saying what was adapted and crediting the STEPBible lexicon. Your choices are recorded in the baked block too, so **Refresh baked verses** keeps them.
+- **Release notes for 1.12.0** — they didn't appear after updating to 1.12.0. In short: 1.12.0 added Strong's numbers and the STEPBible lexicon on King James verses. Put the cursor in a verse, run **Toggle Strong's on this verse**, and hover a word for its entry; click it, or pick one of its meanings, to show that in the verse instead. The README has the full guide.
+
 ## [1.12.0] — 2026-10-23
 
 ### Added
