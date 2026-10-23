@@ -222,9 +222,23 @@ Click a changed word, or the highlighted meaning, to go back to the King James w
 
 You don't need to type these: the clicks write them. `tr:` lists words shown as transliterations and `mn:` lists words shown as meanings. Each word is identified by its verse and its position in the source text. Turning Strong's off removes all three modifiers and gives you the plain verse back.
 
-**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, it's labelled "with transliteration" or "with lexicon meanings" next to the reference, and hovering a changed word says what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
+**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, its reference names the translation as **KJV-Strong's**: "Proverbs 3:5 (KJV-Strong's)". Undo every change and it reads "(KJV)" again. Hover the reference for the STEPBible credit, or hover a changed word to see what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
 
 **Where it works.** King James verses in Live Preview and Reading view. ESV, the link-only translations (NIV, NKJV, NLT, AMP, CSB, NASB) and side-by-side comparisons don't have Strong's data; trying them shows a short notice and leaves the token alone. ` ```bible ` code blocks and baked text don't show the layer.
+
+**Baking a Strong's verse.** Adding `bake` (or baking with a command or as a native callout) writes the verse as it reads on screen: transliterations in *italics*, meanings in ⌜ ⌝, labelled **KJV-Strong's**, with the STEPBible credit as its attribution line. A code-block bake also records your choices in a `strongs:` line in its header (with the credit beside it, for anyone reading the note without the plugin), so **Refresh baked verses** rebuilds the same wording rather than reverting to plain King James:
+
+````
+```bible
+Proverbs 3:5
+translation: KJV
+strongs: tr:5.0.15
+lexicon: STEPBible lexicon, CC BY 4.0, STEPBible.org / Tyndale House
+
+---
+Trust in the *ye.ho.vah* with all thine heart; and lean not unto thine own understanding.
+```
+````
 
 ## Available Translations
 

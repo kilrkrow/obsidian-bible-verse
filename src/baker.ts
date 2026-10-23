@@ -2,6 +2,20 @@ import { App } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
 import { resolveShowVerseNumbers } from "./format";
+import { formatStrongsHeader, isAdapted, parseStrongsHeader, STRONGS_CREDIT, WordDisplayState } from "./strongs";
+
+/**
+ * Fetch the text to bake. `words` carries a Strong's verse's word choices
+ * (#69) so the bake writes what the screen shows; undefined for any other.
+ */
+export type BakeFetch = (
+  ref: BibleReference,
+  transId?: string,
+  transAbbr?: string,
+  nl?: boolean,
+  vn?: boolean,
+  words?: WordDisplayState
+) => Promise<CachedVerse | null>;
 
 /** Regex to find bible code blocks */
 const CODEBLOCK_REGEX = /```bible\s*\n([\s\S]*?)\n```/g;
@@ -21,7 +35,7 @@ export function formatCalloutBake(
   url: string
 ): string {
   const fold = collapsed ? "-" : "+";
-  const title = `[${verse.reference} (${verse.translation})](${url})`;
+  const title = `[${verse.reference} (${verse.label ?? verse.translation})](${url})`;
   const lines = verse.text.split("\n").map((l) => (l.length > 0 ? `> ${l}` : ">"));
   if (verse.requireAttribution && verse.copyright) {
     lines.push(">");
@@ -39,6 +53,8 @@ export interface InlineBakeOptions {
   verseNewLine?: boolean;
   showVerseNumbers?: boolean;
   style?: string;
+  /** Strong's word choices for the header (formatStrongsHeader), if any. */
+  strongs?: string;
 }
 
 /**
@@ -53,6 +69,10 @@ export function formatCodeBlockBake(verse: CachedVerse, opts?: InlineBakeOptions
   if (opts?.verseNewLine !== undefined) header += `\nnewline: ${opts.verseNewLine}`;
   if (opts?.showVerseNumbers !== undefined) header += `\nnumbers: ${opts.showVerseNumbers}`;
   if (opts?.style) header += `\nstyle: ${opts.style}`;
+  // Recorded so a refresh re-applies the transliterations and meanings rather
+  // than replacing them with the plain translation. The credit line is for
+  // anyone reading the note without the plugin; the plugin ignores it.
+  if (opts?.strongs) header += `\nstrongs: ${opts.strongs}\nlexicon: ${STRONGS_CREDIT}`;
   return `\`\`\`bible\n${header}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
 }
 
@@ -67,6 +87,14 @@ export interface ExtractedReference {
   verseNewLine?: boolean | null;
   showVerseNumbers?: boolean | null;
   styleOverride?: string | null;
+  /** Strong's word choices to bake with, from the token or the block header. */
+  words?: WordDisplayState | null;
+}
+
+/** A token's Strong's word choices, or null when it changes no word. */
+function wordsOf(spec: { transliterate: string[]; meanings: Record<string, string> }): WordDisplayState | null {
+  const state = { transliterate: spec.transliterate, meanings: spec.meanings };
+  return isAdapted(state) ? state : null;
 }
 
 export class Baker {
@@ -99,7 +127,8 @@ export class Baker {
             translations: spec.translations,
             verseNewLine: spec.verseNewLine,
             showVerseNumbers: spec.showVerseNumbers,
-            styleOverride: spec.styleOverride
+            styleOverride: spec.styleOverride,
+            words: wordsOf(spec),
           });
         }
       }
@@ -117,6 +146,7 @@ export class Baker {
         
         // Parse config from block body
         const config: Record<string, string | undefined> = {};
+        let words: WordDisplayState | null = null;
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           const colonIdx = line.indexOf(":");
@@ -124,6 +154,8 @@ export class Baker {
             const key = line.substring(0, colonIdx).trim().toLowerCase();
             const value = line.substring(colonIdx + 1).trim().toLowerCase();
             config[key] = value;
+            // Meaning labels are case-sensitive ("I.2b"), so read this one as written.
+            if (key === "strongs") words = parseStrongsHeader(line.substring(colonIdx + 1));
           }
         }
 
@@ -137,7 +169,8 @@ export class Baker {
           verseNewLine: config.newline !== undefined ? config.newline === "true" : null,
           showVerseNumbers: (config.numbers !== undefined || config["verse-numbers"] !== undefined) 
             ? (config.numbers ?? config["verse-numbers"]) === "true" 
-            : null
+            : null,
+          words,
         });
       }
     }
@@ -188,13 +221,7 @@ export class Baker {
   async bakeFile(
     content: string,
     bakeInline: boolean,
-    fetchVerse: (
-      ref: BibleReference,
-      transId?: string,
-      transAbbr?: string,
-      nl?: boolean,
-      vn?: boolean
-    ) => Promise<CachedVerse | null>,
+    fetchVerse: BakeFetch,
     defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
   ): Promise<string> {
     const refs = this.extractReferences(content, bakeInline);
@@ -202,7 +229,7 @@ export class Baker {
 
     let result = content;
     for (let i = refs.length - 1; i >= 0; i--) {
-      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride } = refs[i];
+      const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride, words } = refs[i];
       if (!ref) continue;
 
       // We only bake single translation blocks for now
@@ -213,7 +240,8 @@ export class Baker {
         trans,
         undefined,
         verseNewLine ?? undefined,
-        showVerseNumbers ?? undefined
+        showVerseNumbers ?? undefined,
+        words ?? undefined
       );
       if (!verse) continue;
 
@@ -226,6 +254,7 @@ export class Baker {
             ? resolveShowVerseNumbers(ref, showVerseNumbers, defaults.showVerseNumbers)
             : showVerseNumbers ?? undefined,
           style: styleOverride && styleOverride !== "native-callout" ? styleOverride : undefined,
+          strongs: words ? formatStrongsHeader(words) ?? undefined : undefined,
         });
         result = result.slice(0, offset) + block + result.slice(offset + raw.length);
       } else {
@@ -246,13 +275,7 @@ export class Baker {
   async processVault(
     action: "bake" | "strip",
     bakeInline: boolean,
-    fetchVerse?: (
-      ref: BibleReference,
-      transId?: string,
-      transAbbr?: string,
-      nl?: boolean,
-      vn?: boolean
-    ) => Promise<CachedVerse | null>,
+    fetchVerse?: BakeFetch,
     defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
   ): Promise<number> {
     const files = this.app.vault.getMarkdownFiles();

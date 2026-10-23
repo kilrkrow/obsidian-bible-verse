@@ -75,6 +75,13 @@ export interface CachedVerse {
   /** When true, the copyright line must be shown regardless of the "Show attribution" toggle. */
   requireAttribution?: boolean;
   /**
+   * The translation as the reference label names it, when that differs from
+   * `translation` — "KJV-Strong's" for a verse with Strong's words changed.
+   * `translation` stays the real abbreviation, for links, caching and the
+   * baked block header.
+   */
+  label?: string;
+  /**
    * Verses in the source chapter, when the provider reports it. Undefined means
    * "unknown" — entries cached before this field existed, and providers that
    * never fetch a chapter (ESV, link-only translations). Callers must treat

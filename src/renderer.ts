@@ -63,7 +63,7 @@ async function renderSidebar(
   const footer = el.createDiv({ cls: "bible-verse-footer" });
   const link = footer.createEl("a", {
     cls: "bible-verse-ref",
-    text: `${ref} (${verse.translation})`,
+    text: `${ref} (${verse.label ?? verse.translation})`,
     href: url,
   });
   link.setAttr("target", "_blank");
@@ -88,7 +88,7 @@ async function renderCallout(
   setIcon(iconSpan, "book-open");
   const link = header.createEl("a", {
     cls: "bible-verse-ref",
-    text: `${ref} (${verse.translation})`,
+    text: `${ref} (${verse.label ?? verse.translation})`,
     href: url,
   });
   link.setAttr("target", "_blank");
@@ -118,7 +118,7 @@ async function renderBlockquote(
   footer.createSpan({ text: "\u2014 " });
   const link = footer.createEl("a", {
     cls: "bible-verse-ref",
-    text: `${ref} (${verse.translation})`,
+    text: `${ref} (${verse.label ?? verse.translation})`,
     href: url,
   });
   link.setAttr("target", "_blank");
@@ -146,7 +146,7 @@ async function renderInline(
 
   const link = el.createEl("a", {
     cls: "bible-verse-ref",
-    text: `(${ref}, ${verse.translation})`,
+    text: `(${ref}, ${verse.label ?? verse.translation})`,
     href: url,
   });
   link.setAttr("target", "_blank");

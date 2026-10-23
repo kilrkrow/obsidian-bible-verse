@@ -648,20 +648,6 @@
   text-decoration-style: solid;
 }
 
-/* Beside the reference once a word is transliterated, so the verse is not
-   presented as the translation's own wording. */
-.bible-verse-strongs-badge {
-  margin-left: 0.5em;
-  padding: 0 0.4em;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  font-size: 0.75em;
-  font-weight: normal;
-  font-style: normal;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
 .bible-verse-strongs-popover {
   position: fixed;
   z-index: var(--layer-popover);

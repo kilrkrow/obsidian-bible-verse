@@ -37,12 +37,19 @@ import {
   ShiftDelta,
 } from "./shift";
 import {
+  adaptedText,
   chooseSense,
   formatInsertLine,
+  formatStrongsHeader,
+  isAdapted,
   meaningChoice,
+  parseStrongsHeader,
   strongsActive,
+  strongsTranslationLabel,
+  STRONGS_CREDIT,
   transliterationFor,
   wordDisplayOf,
+  StrongsWord,
   WordDisplayState,
 } from "./strongs";
 import { closeStrongsPopover, StrongsLayer, StrongsWriter } from "./strongs-dom";
@@ -53,6 +60,19 @@ import { resolveShowVerseNumbers } from "./format";
 import { bugReportUrl } from "./feedback";
 import { decideWhatsNew } from "./whats-new";
 import { releaseNotesSince, WhatsNewModal } from "./whats-new-modal";
+
+/**
+ * Label and credit for a verse whose wording the Strong's layer changed: the
+ * reference reads "KJV-Strong's", and the lexicon credit is a required
+ * attribution line (shown regardless of "Show attribution", as ESV's is).
+ */
+function strongsAttribution(verse: CachedVerse): Pick<CachedVerse, "label" | "copyright" | "requireAttribution"> {
+  return {
+    label: strongsTranslationLabel(verse.translation),
+    copyright: verse.copyright ? `${verse.copyright} · ${STRONGS_CREDIT}` : STRONGS_CREDIT,
+    requireAttribution: true,
+  };
+}
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
@@ -100,7 +120,7 @@ export default class BibleVersePlugin extends Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         if (newContent !== content) {
@@ -122,7 +142,7 @@ export default class BibleVersePlugin extends Plugin {
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         editor.setValue(newContent);
@@ -137,7 +157,7 @@ export default class BibleVersePlugin extends Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new Notice(`Refreshed baked verses in ${count} files.`);
@@ -151,7 +171,7 @@ export default class BibleVersePlugin extends Plugin {
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
-          (ref, id, abbr, nl, vn) => this.fetchVerse(ref, id, abbr, nl, vn),
+          (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
           { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
         );
         new Notice(`Baked verses in ${count} files.`);
@@ -452,26 +472,7 @@ export default class BibleVersePlugin extends Plugin {
     // Look up the words already shown as a transliteration or a meaning before
     // drawing, so they render that way instead of flashing the English first.
     const state: WordDisplayState = { transliterate: spec.transliterate, meanings: spec.meanings };
-    const transliterations = new Map<string, string>();
-    const meaningTexts = new Map<string, string>();
-    await Promise.all(
-      passage.words.map(async (w) => {
-        const display = wordDisplayOf(state, w.key);
-        if (display.kind === "english") return;
-        try {
-          const entry = await this.api.getLexiconEntry(w.number);
-          if (display.kind === "transliteration") {
-            const t = transliterationFor(entry);
-            if (t) transliterations.set(w.key, t);
-          } else {
-            const choice = meaningChoice(chooseSense(entry), display.label);
-            if (choice) meaningTexts.set(w.key, choice.verseText);
-          }
-        } catch (e) {
-          console.error("Bible Verse: lexicon lookup failed", e);
-        }
-      })
-    );
+    const { transliterations, meaningTexts } = await this.resolveWordTexts(passage.words, state);
 
     const layer: StrongsLayer = {
       words: passage.words,
@@ -479,6 +480,7 @@ export default class BibleVersePlugin extends Plugin {
       transliterations,
       meaningTexts,
       wordPicks: () => this.settings.strongsWordPicks,
+      translation: plain.translation,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer,
     };
@@ -498,6 +500,69 @@ export default class BibleVersePlugin extends Plugin {
       layer
     );
     return true;
+  }
+
+  /**
+   * The text each changed word shows: its transliteration, or the verse form of
+   * its chosen meaning. Words whose lexicon entry cannot be read are left out,
+   * and so keep their English.
+   */
+  private async resolveWordTexts(
+    words: StrongsWord[],
+    state: WordDisplayState
+  ): Promise<{ transliterations: Map<string, string>; meaningTexts: Map<string, string> }> {
+    const transliterations = new Map<string, string>();
+    const meaningTexts = new Map<string, string>();
+    await Promise.all(
+      words.map(async (w) => {
+        const display = wordDisplayOf(state, w.key);
+        if (display.kind === "english") return;
+        try {
+          const entry = await this.api.getLexiconEntry(w.number);
+          if (display.kind === "transliteration") {
+            const t = transliterationFor(entry);
+            if (t) transliterations.set(w.key, t);
+          } else {
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice) meaningTexts.set(w.key, choice.verseText);
+          }
+        } catch (e) {
+          console.error("Bible Verse: lexicon lookup failed", e);
+        }
+      })
+    );
+    return { transliterations, meaningTexts };
+  }
+
+  /**
+   * The verse as the Strong's layer shows it with these word choices, as plain
+   * markdown for baking: transliterations in italics, meanings in ⌜ ⌝, labelled
+   * "KJV-Strong's", with the lexicon credit as its required attribution line.
+   * Null when the translation or chapter has no Strong's data, so the caller
+   * bakes the plain verse.
+   */
+  private async adaptedVerse(
+    ref: BibleReference,
+    translationId: string,
+    translationAbbr: string,
+    settings: { showVerseNumbers: boolean; verseNewLine: boolean; paragraphBreaks: boolean },
+    state: WordDisplayState
+  ): Promise<CachedVerse | null> {
+    const def = this.findTranslation(translationId);
+    if (def && (def.provider !== "helloao" || def.mode !== "text")) return null;
+
+    const passage = await this.api.getStrongsPassage(ref, translationId, settings);
+    if (!passage) return null;
+    const plain = await this.fetchFromProvider(ref, translationId, translationAbbr, settings);
+
+    const { transliterations, meaningTexts } = await this.resolveWordTexts(passage.words, state);
+    const changed = transliterations.size > 0 || meaningTexts.size > 0;
+    if (!changed) return plain;
+    return {
+      ...plain,
+      text: adaptedText(passage, state, transliterations, meaningTexts),
+      ...strongsAttribution(plain),
+    };
   }
 
   /**
@@ -633,7 +698,8 @@ export default class BibleVersePlugin extends Plugin {
     translationAbbr?: string,
     verseNewLineOverride?: boolean,
     showVerseNumbersOverride?: boolean,
-    paragraphBreaksOverride?: boolean
+    paragraphBreaksOverride?: boolean,
+    words?: WordDisplayState
   ): Promise<CachedVerse | null> {
     try {
       const id = translationId ?? this.settings.defaultTranslation;
@@ -642,6 +708,13 @@ export default class BibleVersePlugin extends Plugin {
       const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
       const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
       const passageSettings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
+
+      // A Strong's verse with words changed bakes as it reads on screen, not
+      // as the plain translation.
+      if (words && isAdapted(words)) {
+        const adapted = await this.adaptedVerse(ref, id, abbr, passageSettings, words);
+        if (adapted) return adapted;
+      }
 
       return await this.fetchFromProvider(ref, id, abbr, passageSettings);
     } catch (e) {
@@ -917,7 +990,8 @@ export default class BibleVersePlugin extends Plugin {
     const transAbbr = transId ? this.getTranslationAbbr(transId) : undefined;
 
     const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
-    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined, pb);
+    const words: WordDisplayState = { transliterate: spec.transliterate, meanings: spec.meanings };
+    const verse = await this.fetchVerse(ref, transId, transAbbr, verseNewLine ?? undefined, showVerseNumbers ?? undefined, pb, words);
     if (!verse) return;
 
     const opts = format === "callout"
@@ -936,6 +1010,7 @@ export default class BibleVersePlugin extends Plugin {
           style: spec.styleOverride && spec.styleOverride !== "native-callout"
             ? spec.styleOverride
             : undefined,
+          strongs: formatStrongsHeader(words) ?? undefined,
         };
 
     await this.app.vault.process(file, (content) => {
@@ -1013,7 +1088,8 @@ export default class BibleVersePlugin extends Plugin {
     const styleOverride = this.resolveStyleKey(config["style"]);
 
     try {
-      let verse: CachedVerse;
+      let verse: CachedVerse | null = null;
+      const words = config["strongs"] ? parseStrongsHeader(config["strongs"]) : null;
       if (cachedText) {
         verse = {
           reference: formatReference(ref),
@@ -1023,12 +1099,14 @@ export default class BibleVersePlugin extends Plugin {
           copyright: "",
           fetchedAt: Date.now(),
         };
+        // Baked with Strong's word choices: label and credit it as adapted.
+        if (words) verse = { ...verse, ...strongsAttribution(verse) };
       } else {
-        verse = await this.fetchFromProvider(ref, translationId, translationAbbr, {
-          showVerseNumbers: sVN,
-          verseNewLine: vnL,
-          paragraphBreaks: pb,
-        });
+        const settings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
+        // A baked Strong's verse whose text was stripped: rebuild it with the
+        // word choices its header recorded, as a refresh would.
+        if (words) verse = await this.adaptedVerse(ref, translationId, translationAbbr, settings, words);
+        verse ??= await this.fetchFromProvider(ref, translationId, translationAbbr, settings);
       }
 
       await renderVerse(

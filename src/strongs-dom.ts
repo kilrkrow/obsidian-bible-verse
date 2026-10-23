@@ -18,6 +18,7 @@ import {
   WordDisplayState,
   STRONGS_CREDIT,
   STRONGS_LICENSE_URL,
+  strongsTranslationLabel,
 } from "./strongs";
 
 /**
@@ -50,6 +51,8 @@ export interface StrongsLayer {
   meaningTexts: Map<string, string>;
   /** Whether single words can be picked from a meaning (a setting, read live). */
   wordPicks(): boolean;
+  /** The translation's abbreviation, as the reference label shows it ("KJV"). */
+  translation: string;
   lookup(number: string): Promise<LexiconEntry | null>;
   writer: StrongsWriter;
 }
@@ -57,7 +60,7 @@ export interface StrongsLayer {
 const WORD_CLASS = "bible-verse-strongs-word";
 const TRANSLITERATED_CLASS = "is-transliterated";
 const MEANING_CLASS = "is-meaning";
-const BADGE_CLASS = "bible-verse-strongs-badge";
+
 
 /**
  * Swap the word markers under `root` for word spans. Call once the verse body
@@ -165,34 +168,38 @@ function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): v
 }
 
 /**
- * Mark the verse once any word shows something other than the English, so it
- * is no longer presented as untouched translation wording. Placed beside the
- * reference label, and saying what changed.
+ * Once any word shows something other than the English, the verse is no
+ * longer the translation's own wording, so the reference says so where readers
+ * look for the translation: "Proverbs 3:5 (KJV-Strong's)". Hovering it gives
+ * the lexicon credit. Undo every change and it reads "(KJV)" again.
  */
 function paintAdapted(root: HTMLElement, layer: StrongsLayer): void {
   const wrapper = root.closest<HTMLElement>(".bible-verse") ?? root;
-  const kinds = new Set(layer.words.map((w) => shownText(w, layer)?.kind).filter((k) => k !== undefined));
-  const adapted = kinds.size > 0;
+  const adapted = layer.words.some((w) => shownText(w, layer) !== undefined);
   wrapper.toggleClass("bible-verse--adapted", adapted);
 
-  root.querySelectorAll(`.${BADGE_CLASS}`).forEach((el) => el.remove());
-  if (!adapted) return;
+  const label = wrapper.querySelector<HTMLElement>(".bible-verse-ref");
+  if (!label) return;
 
-  const parts: string[] = [];
-  if (kinds.has("transliteration")) parts.push("transliteration");
-  if (kinds.has("meaning")) parts.push("lexicon meanings");
+  // Labels end in the translation: "Proverbs 3:5 (KJV)" or, inline,
+  // "(Proverbs 3:5, KJV)". Swap just that, so a reference the verse-shift
+  // controls have rewritten is kept.
+  const plain = layer.translation;
+  const marked = strongsTranslationLabel(plain);
+  const text = label.textContent ?? "";
+  const from = adapted ? `${plain})` : `${marked})`;
+  const to = adapted ? `${marked})` : `${plain})`;
+  if (text.endsWith(from)) label.textContent = text.slice(0, -from.length) + to;
 
-  const label = root.querySelector<HTMLElement>(".bible-verse-ref");
-  const badge = root.ownerDocument.createElement("span");
-  badge.className = BADGE_CLASS;
-  badge.textContent = `with ${parts.join(" and ")}`;
-  badge.setAttr(
-    "title",
-    "Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not " +
-      `the translation's own wording. Lexicon text adapted from the ${STRONGS_CREDIT}.`
-  );
-  if (label && label.parentElement) label.insertAdjacentElement("afterend", badge);
-  else wrapper.appendChild(badge);
+  if (adapted) {
+    label.setAttr(
+      "title",
+      `Some words are shown as transliterations or lexicon meanings, not the ${plain} wording. ` +
+        `Lexicon text from the ${STRONGS_CREDIT}.`
+    );
+  } else {
+    label.removeAttribute("title");
+  }
 }
 
 /**
