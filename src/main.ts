@@ -465,7 +465,7 @@ export default class BibleVersePlugin extends Plugin {
             if (t) transliterations.set(w.key, t);
           } else {
             const m = meaningFor(chooseSense(entry), display.label);
-            if (m) meaningTexts.set(w.key, m.text);
+            if (m) meaningTexts.set(w.key, m.verseText);
           }
         } catch (e) {
           console.error("Bible Verse: lexicon lookup failed", e);

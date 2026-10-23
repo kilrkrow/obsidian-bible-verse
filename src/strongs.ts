@@ -302,8 +302,14 @@ export interface Meaning {
   label: string;
   /** Nesting level: 1 for "1)", 2 for "1a)", and so on. */
   depth: number;
-  /** The text shown in the verse when this meaning is chosen. */
+  /** The meaning as the lexicon words it, minus tags and citations. */
   text: string;
+  /**
+   * What the verse shows in place of the word: `text` without a leading
+   * infinitive "to" ("to cease to care" → "cease to care"), so it reads in
+   * the sentence. Shown as an adaptation; see paintWord in strongs-dom.ts.
+   */
+  verseText: string;
   /**
    * False for headings with nothing to show in a verse, such as a bare verb
    * stem ("1a) (Qal)"), which only groups the meanings below it.
@@ -337,6 +343,15 @@ export function cleanMeaningText(text: string): string {
     .trim();
 }
 
+/**
+ * A meaning as it reads in place of a word: the lexicon gives verbs as
+ * infinitives, so the leading "to" goes. Only the first one, and only when
+ * something is left.
+ */
+export function meaningVerseText(text: string): string {
+  return text.replace(/^to\s+(?=\S)/i, "");
+}
+
 /** Split a definition into lines, recognising its numbered meanings. */
 export function definitionLines(definition: string | undefined): DefinitionLine[] {
   const lines: DefinitionLine[] = [];
@@ -352,7 +367,10 @@ export function definitionLines(definition: string | undefined): DefinitionLine[
       const label = hebrew[1];
       const text = cleanMeaningText(hebrew[2]);
       const depth = label.match(/\d+|[a-z]/g)?.length ?? 1;
-      lines.push({ text: line, meaning: { label, depth, text, selectable: text.length > 0 } });
+      lines.push({
+        text: line,
+        meaning: { label, depth, text, verseText: meaningVerseText(text), selectable: text.length > 0 },
+      });
       continue;
     }
 
@@ -377,7 +395,7 @@ export function definitionLines(definition: string | undefined): DefinitionLine[
       const text = cleanMeaningText(greek[4]);
       lines.push({
         text: line.replace(/^__\s*/, ""),
-        meaning: { label, depth, text, selectable: text.length > 0 },
+        meaning: { label, depth, text, verseText: meaningVerseText(text), selectable: text.length > 0 },
       });
       continue;
     }

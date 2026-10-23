@@ -129,16 +129,30 @@ function shownText(word: StrongsWord, layer: StrongsLayer): { text: string; kind
   return undefined;
 }
 
-/** Show the English word, its transliteration or a meaning, per the layer's state. */
+/**
+ * Show the English word, its transliteration or a meaning, per the layer's
+ * state. A substituted word says what it replaced and where the text comes
+ * from — the lexicon is CC BY 4.0, which asks for credit and for changes to be
+ * marked, and a meaning is shown adapted (see meaningVerseText).
+ */
 function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): void {
   const shown = shownText(word, layer);
   span.textContent = shown?.text ?? word.english;
   span.toggleClass(TRANSLITERATED_CLASS, shown?.kind === "transliteration");
   span.toggleClass(MEANING_CLASS, shown?.kind === "meaning");
-  span.setAttr(
-    "aria-label",
-    shown ? `${word.english} (${word.number}), shown as ${shown.text}` : `${word.english} (${word.number})`
-  );
+
+  if (!shown) {
+    span.setAttr("aria-label", `${word.english} (${word.number})`);
+    span.removeAttribute("title");
+    return;
+  }
+  const display = wordDisplayOf(layer.state, word.key);
+  const what = display.kind === "meaning"
+    ? `meaning ${display.label}, adapted from the ${STRONGS_CREDIT}`
+    : `transliteration, from the ${STRONGS_CREDIT}`;
+  const note = `"${word.english}" (${word.number}) shown as its ${what}`;
+  span.setAttr("aria-label", note);
+  span.setAttr("title", note);
 }
 
 /**
@@ -165,7 +179,8 @@ function paintAdapted(root: HTMLElement, layer: StrongsLayer): void {
   badge.textContent = `with ${parts.join(" and ")}`;
   badge.setAttr(
     "title",
-    "Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not the translation's own wording."
+    "Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not " +
+      `the translation's own wording. Lexicon text adapted from the ${STRONGS_CREDIT}.`
   );
   if (label && label.parentElement) label.insertAdjacentElement("afterend", badge);
   else wrapper.appendChild(badge);
@@ -198,7 +213,7 @@ async function applyDisplay(
   if (display.kind === "meaning") {
     let text: string | null = null;
     try {
-      text = meaningFor(chooseSense(await layer.lookup(word.number)), display.label)?.text ?? null;
+      text = meaningFor(chooseSense(await layer.lookup(word.number)), display.label)?.verseText ?? null;
     } catch (e) {
       console.error("Bible Verse: lexicon lookup failed", e);
     }
@@ -447,7 +462,7 @@ class StrongsPopover {
       row.toggleClass("is-selected", selected);
       row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
       row.createSpan({ cls: "bible-verse-strongs-meaning-text", text: m.text });
-      row.setAttr("title", selected ? `Show "${word.english}" again` : `Show "${m.text}" in the verse`);
+      row.setAttr("title", selected ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`);
       row.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();

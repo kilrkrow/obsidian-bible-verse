@@ -20,6 +20,7 @@ import {
   formatMeaningsModifier,
   isAdapted,
   meaningFor,
+  meaningVerseText,
   meaningsOf,
   parseMeaningsModifier,
   setWordDisplay,
@@ -366,6 +367,23 @@ describe("meanings — what a word shows", () => {
     const ways = buildStrongsPassage(PRO_3.chapter.content, PRO_3_WORDS, ref, PLAIN)!.words.find((w) => w.english === "ways")!;
     expect(ways.number).toBe("H1870");
     expect(meaningFor(chooseSense(lexicon(ways.number)), "1b")!.text).toBe("journey");
+  });
+
+  it("drops the leading infinitive \"to\" from what the verse shows, and only that", () => {
+    expect(meaningVerseText("to cease to care")).toBe("cease to care");
+    expect(meaningVerseText("to guard, watch, watch over, keep")).toBe("guard, watch, watch over, keep");
+    expect(meaningVerseText("To trust")).toBe("trust");
+    expect(meaningVerseText("toward the sea")).toBe("toward the sea");
+    expect(meaningVerseText("to")).toBe("to");
+    expect(meaningVerseText("journey")).toBe("journey");
+  });
+
+  it("keeps the lexicon's own wording for the popover and Insert below", () => {
+    const m = meaningFor(chooseSense(lexicon("H0982")), "1a1")!;
+    expect(m.text).toBe("to trust, trust in");
+    expect(m.verseText).toBe("trust, trust in");
+    const word = { key: "5.0.2", verse: 5, english: "Trust", number: "H0982" };
+    expect(formatInsertLine(word, chooseSense(lexicon("H0982")), "1a1")).toContain(": 1a1) to trust, trust in *(");
   });
 });
 
