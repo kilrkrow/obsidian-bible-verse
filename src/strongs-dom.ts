@@ -471,19 +471,17 @@ class StrongsPopover {
     for (const line of lines) {
       const m = line.meaning;
       if (!m || !m.selectable) {
-        box.createDiv({
+        const plain = box.createDiv({
           cls: m ? "bible-verse-strongs-line bible-verse-strongs-heading" : "bible-verse-strongs-line",
           text: line.text,
-          attr: m ? { style: `--depth: ${m.depth - 1}` } : {},
         });
+        if (m) plain.setCssProps({ "--depth": String(m.depth - 1) });
         continue;
       }
 
       const lineShown = chosen?.line === m.label && chosen.alternative === null;
-      const row = box.createDiv({
-        cls: "bible-verse-strongs-meaning",
-        attr: { style: `--depth: ${m.depth - 1}` },
-      });
+      const row = box.createDiv({ cls: "bible-verse-strongs-meaning" });
+      row.setCssProps({ "--depth": String(m.depth - 1) });
       row.toggleClass("is-selected", lineShown);
       row.toggleClass("has-selected-word", chosen?.line === m.label && chosen.alternative !== null);
       makePressable(row, lineShown, lineShown ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`, () =>
@@ -535,8 +533,7 @@ class StrongsPopover {
       ? r.top - height - 4
       : below;
 
-    el.style.setProperty("left", `${left}px`);
-    el.style.setProperty("top", `${top}px`);
+    el.setCssProps({ left: `${left}px`, top: `${top}px` });
   }
 }
 
