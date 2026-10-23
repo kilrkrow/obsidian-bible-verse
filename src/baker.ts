@@ -2,7 +2,7 @@ import { App } from "obsidian";
 import { BibleReference, CachedVerse } from "./types";
 import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
 import { resolveShowVerseNumbers } from "./format";
-import { formatStrongsHeader, isAdapted, parseStrongsHeader, WordDisplayState } from "./strongs";
+import { formatStrongsHeader, isAdapted, parseStrongsHeader, STRONGS_CREDIT, WordDisplayState } from "./strongs";
 
 /**
  * Fetch the text to bake. `words` carries a Strong's verse's word choices
@@ -35,7 +35,7 @@ export function formatCalloutBake(
   url: string
 ): string {
   const fold = collapsed ? "-" : "+";
-  const title = `[${verse.reference} (${verse.translation})](${url})`;
+  const title = `[${verse.reference} (${verse.label ?? verse.translation})](${url})`;
   const lines = verse.text.split("\n").map((l) => (l.length > 0 ? `> ${l}` : ">"));
   if (verse.requireAttribution && verse.copyright) {
     lines.push(">");
@@ -70,8 +70,9 @@ export function formatCodeBlockBake(verse: CachedVerse, opts?: InlineBakeOptions
   if (opts?.showVerseNumbers !== undefined) header += `\nnumbers: ${opts.showVerseNumbers}`;
   if (opts?.style) header += `\nstyle: ${opts.style}`;
   // Recorded so a refresh re-applies the transliterations and meanings rather
-  // than replacing them with the plain translation.
-  if (opts?.strongs) header += `\nstrongs: ${opts.strongs}`;
+  // than replacing them with the plain translation. The credit line is for
+  // anyone reading the note without the plugin; the plugin ignores it.
+  if (opts?.strongs) header += `\nstrongs: ${opts.strongs}\nlexicon: ${STRONGS_CREDIT}`;
   return `\`\`\`bible\n${header}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
 }
 

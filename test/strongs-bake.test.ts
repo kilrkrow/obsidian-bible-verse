@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Baker, formatCalloutBake, formatCodeBlockBake } from "../src/baker";
 import {
-  adaptationNote,
   adaptedText,
   buildStrongsPassage,
   formatStrongsHeader,
   parseStrongsHeader,
+  strongsTranslationLabel,
   HelloAoWordsResponse,
   STRONGS_CREDIT,
   WordDisplayState,
@@ -75,18 +75,9 @@ describe("adaptedText — the verse as the screen shows it", () => {
   });
 });
 
-describe("adaptationNote — the credit baked under the verse", () => {
-  it("says what each mark means and credits the lexicon", () => {
-    expect(adaptationNote("KJV", { transliteration: true, meaning: true })).toBe(
-      `Adapted from the KJV text: words in ⌜ ⌝ are lexicon meanings and words in italics are transliterations (${STRONGS_CREDIT}).`
-    );
-    expect(adaptationNote("KJV", { transliteration: true, meaning: false })).toBe(
-      `Adapted from the KJV text: words in italics are transliterations (${STRONGS_CREDIT}).`
-    );
-  });
-
-  it("is absent when nothing changed", () => {
-    expect(adaptationNote("KJV", { transliteration: false, meaning: false })).toBeNull();
+describe("the KJV-Strong's label", () => {
+  it("names the translation as adapted", () => {
+    expect(strongsTranslationLabel("KJV")).toBe("KJV-Strong's");
   });
 });
 
@@ -107,19 +98,34 @@ describe("strongs: header — choices that survive a refresh", () => {
     expect(parseStrongsHeader("on")).toBeNull();
   });
 
-  it("is written into a baked code block", () => {
+  it("is written into a baked code block, with the lexicon credit for readers without the plugin", () => {
     expect(formatCodeBlockBake(verse(), { strongs: "tr:5.0.15" })).toBe(
-      "```bible\nProverbs 3:5\ntranslation: KJV\nstrongs: tr:5.0.15\n\n---\n" + verse().text + "\n```"
+      "```bible\nProverbs 3:5\ntranslation: KJV\nstrongs: tr:5.0.15\nlexicon: " + STRONGS_CREDIT +
+        "\n\n---\n" + verse().text + "\n```"
     );
     expect(formatCodeBlockBake(verse())).not.toContain("strongs:");
+    expect(formatCodeBlockBake(verse())).not.toContain("lexicon:");
   });
 
-  it("is carried by a native-callout bake through the text itself", () => {
-    const text = "Trust in the *ye.ho.vah*\n\nAdapted from the KJV text: words in italics are transliterations.";
-    const callout = formatCalloutBake(verse({ text }), "quote", false, "https://example.org");
-    expect(callout).toBe(
-      "> [!quote]+ [Proverbs 3:5 (KJV)](https://example.org)\n> Trust in the *ye.ho.vah*\n>\n> Adapted from the KJV text: words in italics are transliterations."
+  it("keeps the real translation in the header, so a refresh fetches from it", () => {
+    const block = formatCodeBlockBake(verse({ label: "KJV-Strong's" }), { strongs: "tr:5.0.15" });
+    expect(block).toContain("\ntranslation: KJV\n");
+  });
+
+  it("labels a native-callout bake KJV-Strong's and credits the lexicon", () => {
+    const adapted = verse({
+      text: "Trust in the *ye.ho.vah*",
+      label: "KJV-Strong's",
+      copyright: STRONGS_CREDIT,
+      requireAttribution: true,
+    });
+    expect(formatCalloutBake(adapted, "quote", false, "https://example.org")).toBe(
+      "> [!quote]+ [Proverbs 3:5 (KJV-Strong's)](https://example.org)\n> Trust in the *ye.ho.vah*\n>\n> " + STRONGS_CREDIT
     );
+  });
+
+  it("leaves an ordinary callout bake labelled with its translation", () => {
+    expect(formatCalloutBake(verse(), "quote", false, "u").startsWith("> [!quote]+ [Proverbs 3:5 (KJV)](u)")).toBe(true);
   });
 });
 

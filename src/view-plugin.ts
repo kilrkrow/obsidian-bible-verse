@@ -265,11 +265,6 @@ class BibleVerseWidget extends WidgetType {
     if (label && label.parentElement) {
       label.parentElement.insertBefore(zone, label);
       zone.appendChild(label);
-      // The Strong's "adapted" tag belongs against the label. Left outside the
-      // zone it would sit beyond the hidden controls, which keep their width,
-      // and float away from the reference it describes.
-      const badge = container.querySelector(".bible-verse-strongs-badge");
-      if (badge) zone.appendChild(badge);
     } else {
       // No recognisable label (an error render, say) — fall back to the end of
       // the block so the controls still exist.

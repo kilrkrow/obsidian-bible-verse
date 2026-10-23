@@ -37,7 +37,6 @@ import {
   ShiftDelta,
 } from "./shift";
 import {
-  adaptationNote,
   adaptedText,
   chooseSense,
   formatInsertLine,
@@ -46,6 +45,8 @@ import {
   meaningChoice,
   parseStrongsHeader,
   strongsActive,
+  strongsTranslationLabel,
+  STRONGS_CREDIT,
   transliterationFor,
   wordDisplayOf,
   StrongsWord,
@@ -59,6 +60,19 @@ import { resolveShowVerseNumbers } from "./format";
 import { bugReportUrl } from "./feedback";
 import { decideWhatsNew } from "./whats-new";
 import { releaseNotesSince, WhatsNewModal } from "./whats-new-modal";
+
+/**
+ * Label and credit for a verse whose wording the Strong's layer changed: the
+ * reference reads "KJV-Strong's", and the lexicon credit is a required
+ * attribution line (shown regardless of "Show attribution", as ESV's is).
+ */
+function strongsAttribution(verse: CachedVerse): Pick<CachedVerse, "label" | "copyright" | "requireAttribution"> {
+  return {
+    label: strongsTranslationLabel(verse.translation),
+    copyright: verse.copyright ? `${verse.copyright} · ${STRONGS_CREDIT}` : STRONGS_CREDIT,
+    requireAttribution: true,
+  };
+}
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
@@ -466,6 +480,7 @@ export default class BibleVersePlugin extends Plugin {
       transliterations,
       meaningTexts,
       wordPicks: () => this.settings.strongsWordPicks,
+      translation: plain.translation,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer,
     };
@@ -521,10 +536,10 @@ export default class BibleVersePlugin extends Plugin {
 
   /**
    * The verse as the Strong's layer shows it with these word choices, as plain
-   * markdown for baking: transliterations in italics, meanings in ⌜ ⌝, and a
-   * line underneath saying what was adapted, with the lexicon credit. Null when
-   * the translation or chapter has no Strong's data, so the caller bakes the
-   * plain verse.
+   * markdown for baking: transliterations in italics, meanings in ⌜ ⌝, labelled
+   * "KJV-Strong's", with the lexicon credit as its required attribution line.
+   * Null when the translation or chapter has no Strong's data, so the caller
+   * bakes the plain verse.
    */
   private async adaptedVerse(
     ref: BibleReference,
@@ -541,12 +556,13 @@ export default class BibleVersePlugin extends Plugin {
     const plain = await this.fetchFromProvider(ref, translationId, translationAbbr, settings);
 
     const { transliterations, meaningTexts } = await this.resolveWordTexts(passage.words, state);
-    const text = adaptedText(passage, state, transliterations, meaningTexts);
-    const note = adaptationNote(plain.translation, {
-      transliteration: transliterations.size > 0,
-      meaning: meaningTexts.size > 0,
-    });
-    return { ...plain, text: note ? `${text}\n\n${note}` : text };
+    const changed = transliterations.size > 0 || meaningTexts.size > 0;
+    if (!changed) return plain;
+    return {
+      ...plain,
+      text: adaptedText(passage, state, transliterations, meaningTexts),
+      ...strongsAttribution(plain),
+    };
   }
 
   /**
@@ -1083,6 +1099,8 @@ export default class BibleVersePlugin extends Plugin {
           copyright: "",
           fetchedAt: Date.now(),
         };
+        // Baked with Strong's word choices: label and credit it as adapted.
+        if (words) verse = { ...verse, ...strongsAttribution(verse) };
       } else {
         const settings = { showVerseNumbers: sVN, verseNewLine: vnL, paragraphBreaks: pb };
         // A baked Strong's verse whose text was stripped: rebuild it with the

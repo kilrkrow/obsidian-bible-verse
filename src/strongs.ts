@@ -607,9 +607,9 @@ export function strongsActive(spec: {
 
 // ── Baking ──────────────────────────────────────────────────────────────────
 // A bake writes the verse into the note as ordinary markdown, so it must carry
-// what the screen shows: substituted words and the credit for them. In baked
-// text a transliteration is italic and a meaning sits in ⌜ ⌝, the same marks
-// the live verse uses, and a line under the verse says what was adapted.
+// what the screen shows: substituted words, a "KJV-Strong's" label, and the
+// lexicon credit. In baked text a transliteration is italic and a meaning sits
+// in ⌜ ⌝, the same marks the live verse uses.
 
 /**
  * The passage as plain markdown, with each tagged word as the verse shows it:
@@ -642,18 +642,12 @@ export function adaptedText(
 }
 
 /**
- * The line baked under an adapted verse: which marks mean what, that it is not
- * the translation's wording, and the lexicon credit. Null when nothing changed.
+ * How the reference names the translation once any word is changed:
+ * "KJV-Strong's". The verse is then no longer the translation's own wording,
+ * and the label says so in the place readers look for the translation.
  */
-export function adaptationNote(
-  translation: string,
-  kinds: { transliteration: boolean; meaning: boolean }
-): string | null {
-  const parts: string[] = [];
-  if (kinds.meaning) parts.push("words in ⌜ ⌝ are lexicon meanings");
-  if (kinds.transliteration) parts.push("words in italics are transliterations");
-  if (parts.length === 0) return null;
-  return `Adapted from the ${translation} text: ${parts.join(" and ")} (${STRONGS_CREDIT}).`;
+export function strongsTranslationLabel(translation: string): string {
+  return `${translation}-Strong's`;
 }
 
 /**
