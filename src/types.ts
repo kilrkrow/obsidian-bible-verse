@@ -41,6 +41,8 @@ export interface BibleVerseSettings {
   showWhatsNew: boolean;
   /** Plugin version the user last saw release notes for; "" until first recorded. */
   lastSeenVersion: string;
+  /** Strong's popover: also offer single words from a lexicon meaning. */
+  strongsWordPicks: boolean;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   nativeCalloutType: "quote",
   showWhatsNew: true,
   lastSeenVersion: "",
+  strongsWordPicks: false,
 };
 
 /** Cached verse entry */

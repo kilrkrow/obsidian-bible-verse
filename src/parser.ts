@@ -4,6 +4,8 @@ import {
   STRONGS_MODIFIER,
   parseTransliterateModifier,
   formatTransliterateModifier,
+  parseMeaningsModifier,
+  formatMeaningsModifier,
 } from "./strongs";
 
 /**
@@ -208,6 +210,11 @@ export interface InlineSpec {
    * transliteration instead of the English word. Empty when none are.
    */
   transliterate: string[];
+  /**
+   * `mn:` token: word key → meaning label (see definitionLines in strongs.ts)
+   * for words shown as one of their lexicon meanings. Empty when none are.
+   */
+  meanings: Record<string, string>;
 }
 
 /** A translation code is word-chars only and must start with a letter. */
@@ -286,6 +293,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
       calloutCollapsed: false,
       strongs: false,
       transliterate: [],
+      meanings: {},
     };
   }
 
@@ -302,6 +310,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
   let calloutCollapsed = false;
   let strongs = false;
   let transliterate: string[] | null = null;
+  let meanings: Record<string, string> | null = null;
   let cut = parts.length;
 
   while (cut > 1) {
@@ -325,6 +334,12 @@ export function parseInlineSpec(content: string): InlineSpec | null {
     const trKeys = parseTransliterateModifier(tok);
     if (trKeys) {
       if (transliterate === null) transliterate = trKeys;
+      cut--;
+      continue;
+    }
+    const mnPairs = parseMeaningsModifier(tok);
+    if (mnPairs) {
+      if (meanings === null) meanings = mnPairs;
       cut--;
       continue;
     }
@@ -406,6 +421,7 @@ export function parseInlineSpec(content: string): InlineSpec | null {
     calloutCollapsed,
     strongs,
     transliterate: transliterate ?? [],
+    meanings: meanings ?? {},
   };
 }
 
@@ -443,6 +459,8 @@ export function formatInlineSpec(spec: InlineSpec): string {
   if (spec.strongs) parts.push(STRONGS_MODIFIER);
   const tr = formatTransliterateModifier(spec.transliterate);
   if (tr) parts.push(tr);
+  const mn = formatMeaningsModifier(spec.meanings);
+  if (mn) parts.push(mn);
 
   if (spec.bake) parts.push("bake");
 

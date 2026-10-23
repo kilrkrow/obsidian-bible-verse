@@ -1,13 +1,21 @@
 import { Notice } from "obsidian";
 import {
   chooseSense,
+  choiceLabel,
+  definitionLines,
+  meaningChoice,
+  parseChoiceLabel,
   splitMarkedText,
   hasMarkers,
+  meaningVerseText,
+  setWordDisplay,
   transliterationFor,
-  toggleKey,
+  wordDisplayOf,
   LexiconEntry,
   LexiconSense,
   StrongsWord,
+  WordDisplay,
+  WordDisplayState,
   STRONGS_CREDIT,
   STRONGS_LICENSE_URL,
 } from "./strongs";
@@ -24,26 +32,31 @@ import {
 
 /** How a view persists the layer's edits. */
 export interface StrongsWriter {
-  /** Store the full set of word keys shown as transliterations. */
-  setTransliterated(keys: string[]): void;
-  /** Add one markdown line after the token. */
-  insertLineBelow(word: StrongsWord, sense: LexiconSense | null): void;
+  /** Store what every word shows: the full transliteration and meaning sets. */
+  setWords(state: WordDisplayState): void;
+  /** Add one markdown line after the token; `meaningLabel` narrows it to one meaning. */
+  insertLineBelow(word: StrongsWord, sense: LexiconSense | null, meaningLabel: string | null): void;
 }
 
 /** Everything the renderer needs to draw a verse with the layer on. */
 export interface StrongsLayer {
   /** Tagged words, indexed by the markers in the verse text. */
   words: StrongsWord[];
-  /** Keys currently shown as transliterations. */
-  transliterated: Set<string>;
-  /** Transliterations already looked up for those keys. */
+  /** What each word shows instead of the English, if anything. */
+  state: WordDisplayState;
+  /** Transliterations already looked up, by word key. */
   transliterations: Map<string, string>;
+  /** Text of each word's chosen meaning, by word key. */
+  meaningTexts: Map<string, string>;
+  /** Whether single words can be picked from a meaning (a setting, read live). */
+  wordPicks(): boolean;
   lookup(number: string): Promise<LexiconEntry | null>;
   writer: StrongsWriter;
 }
 
 const WORD_CLASS = "bible-verse-strongs-word";
 const TRANSLITERATED_CLASS = "is-transliterated";
+const MEANING_CLASS = "is-meaning";
 const BADGE_CLASS = "bible-verse-strongs-badge";
 
 /**
@@ -61,6 +74,7 @@ export function decorateStrongs(root: HTMLElement, layer: StrongsLayer): void {
   if (nodes.length === 0) return;
 
   root.addClass("bible-verse--strongs");
+  const created = new Map<string, { span: HTMLElement; word: StrongsWord }>();
 
   for (const textNode of nodes) {
     const frag = doc.createDocumentFragment();
@@ -74,12 +88,15 @@ export function decorateStrongs(root: HTMLElement, layer: StrongsLayer): void {
         frag.appendChild(doc.createTextNode(seg.text));
         continue;
       }
-      frag.appendChild(createWordSpan(doc, word, layer));
+      const span = createWordSpan(doc, word, layer);
+      if (!created.has(word.key)) created.set(word.key, { span, word });
+      frag.appendChild(span);
     }
     textNode.parentNode?.replaceChild(frag, textNode);
   }
 
   paintAdapted(root, layer);
+  popover.adopt(created, layer);
 }
 
 function createWordSpan(doc: Document, word: StrongsWord, layer: StrongsLayer): HTMLElement {
@@ -95,56 +112,105 @@ function createWordSpan(doc: Document, word: StrongsWord, layer: StrongsLayer): 
   span.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    void toggleWord(span, word, layer);
+    // A click flips English and transliteration; from a meaning it goes back
+    // to the English. Meanings are picked in the popover.
+    const current = wordDisplayOf(layer.state, word.key);
+    void applyDisplay(span, word, layer, current.kind === "english" ? { kind: "transliteration" } : { kind: "english" });
   });
   return span;
 }
 
-/** Show the English word or its transliteration, per the layer's state. */
-function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): void {
-  const shown = layer.transliterated.has(word.key) ? layer.transliterations.get(word.key) : undefined;
-  span.textContent = shown ?? word.english;
-  span.toggleClass(TRANSLITERATED_CLASS, shown !== undefined);
-  span.setAttr(
-    "aria-label",
-    shown !== undefined ? `${word.english} (${word.number}), shown as ${shown}` : `${word.english} (${word.number})`
-  );
+/** The text a word shows, or undefined for the English. */
+function shownText(word: StrongsWord, layer: StrongsLayer): { text: string; kind: WordDisplay["kind"] } | undefined {
+  const display = wordDisplayOf(layer.state, word.key);
+  if (display.kind === "meaning") {
+    const text = layer.meaningTexts.get(word.key);
+    return text !== undefined ? { text, kind: "meaning" } : undefined;
+  }
+  if (display.kind === "transliteration") {
+    const text = layer.transliterations.get(word.key);
+    return text !== undefined ? { text, kind: "transliteration" } : undefined;
+  }
+  return undefined;
 }
 
 /**
- * Mark the verse once any word is transliterated, so it is no longer presented
- * as untouched translation wording. Placed beside the reference label.
+ * Show the English word, its transliteration or a meaning, per the layer's
+ * state. A substituted word says what it replaced and where the text comes
+ * from — the lexicon is CC BY 4.0, which asks for credit and for changes to be
+ * marked, and a meaning is shown adapted (see meaningVerseText).
+ */
+function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): void {
+  const shown = shownText(word, layer);
+  span.textContent = shown?.text ?? word.english;
+  span.toggleClass(TRANSLITERATED_CLASS, shown?.kind === "transliteration");
+  span.toggleClass(MEANING_CLASS, shown?.kind === "meaning");
+
+  if (!shown) {
+    span.setAttr("aria-label", `${word.english} (${word.number})`);
+    span.removeAttribute("title");
+    return;
+  }
+  const display = wordDisplayOf(layer.state, word.key);
+  let what = `transliteration, from the ${STRONGS_CREDIT}`;
+  if (display.kind === "meaning") {
+    const { line, alternative } = parseChoiceLabel(display.label);
+    what = alternative === null
+      ? `meaning ${line}, adapted from the ${STRONGS_CREDIT}`
+      : `meaning ${line} (one word of it), adapted from the ${STRONGS_CREDIT}`;
+  }
+  const note = `"${word.english}" (${word.number}) shown as its ${what}`;
+  span.setAttr("aria-label", note);
+  span.setAttr("title", note);
+}
+
+/**
+ * Mark the verse once any word shows something other than the English, so it
+ * is no longer presented as untouched translation wording. Placed beside the
+ * reference label, and saying what changed.
  */
 function paintAdapted(root: HTMLElement, layer: StrongsLayer): void {
   const wrapper = root.closest<HTMLElement>(".bible-verse") ?? root;
-  const adapted = [...layer.transliterated].some((k) => layer.transliterations.has(k));
+  const kinds = new Set(layer.words.map((w) => shownText(w, layer)?.kind).filter((k) => k !== undefined));
+  const adapted = kinds.size > 0;
   wrapper.toggleClass("bible-verse--adapted", adapted);
 
   root.querySelectorAll(`.${BADGE_CLASS}`).forEach((el) => el.remove());
   if (!adapted) return;
 
+  const parts: string[] = [];
+  if (kinds.has("transliteration")) parts.push("transliteration");
+  if (kinds.has("meaning")) parts.push("lexicon meanings");
+
   const label = root.querySelector<HTMLElement>(".bible-verse-ref");
   const badge = root.ownerDocument.createElement("span");
   badge.className = BADGE_CLASS;
-  badge.textContent = "with transliteration";
+  badge.textContent = `with ${parts.join(" and ")}`;
   badge.setAttr(
     "title",
-    "Some words are shown as their Hebrew or Greek transliteration, so this is not the translation's own wording."
+    "Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not " +
+      `the translation's own wording. Lexicon text adapted from the ${STRONGS_CREDIT}.`
   );
   if (label && label.parentElement) label.insertAdjacentElement("afterend", badge);
   else wrapper.appendChild(badge);
 }
 
-/** Flip one word between English and transliteration, and persist it. */
-async function toggleWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): Promise<void> {
-  if (!layer.transliterated.has(word.key)) {
-    let translit = layer.transliterations.get(word.key) ?? null;
-    if (translit === null) {
-      try {
-        translit = transliterationFor(await layer.lookup(word.number));
-      } catch (e) {
-        console.error("Bible Verse: lexicon lookup failed", e);
-      }
+/**
+ * Set what one word shows, looking up the text it needs first, then repaint
+ * and persist. Leaves everything as it was if the text cannot be found.
+ */
+async function applyDisplay(
+  span: HTMLElement,
+  word: StrongsWord,
+  layer: StrongsLayer,
+  display: WordDisplay
+): Promise<void> {
+  if (display.kind === "transliteration" && !layer.transliterations.has(word.key)) {
+    let translit: string | null = null;
+    try {
+      translit = transliterationFor(await layer.lookup(word.number));
+    } catch (e) {
+      console.error("Bible Verse: lexicon lookup failed", e);
     }
     if (translit === null) {
       new Notice(`No transliteration for ${word.number}.`);
@@ -153,15 +219,33 @@ async function toggleWord(span: HTMLElement, word: StrongsWord, layer: StrongsLa
     layer.transliterations.set(word.key, translit);
   }
 
-  const keys = toggleKey([...layer.transliterated], word.key);
-  layer.transliterated = new Set(keys);
-  paintWord(span, word, layer);
+  if (display.kind === "meaning") {
+    let text: string | null = null;
+    try {
+      text = meaningChoice(chooseSense(await layer.lookup(word.number)), display.label)?.verseText ?? null;
+    } catch (e) {
+      console.error("Bible Verse: lexicon lookup failed", e);
+    }
+    if (text === null) {
+      new Notice(`No meaning ${display.label} for ${word.number}.`);
+      return;
+    }
+    layer.meaningTexts.set(word.key, text);
+  }
 
+  layer.state = setWordDisplay(layer.state, word.key, display);
+
+  // The same word can be drawn more than once, e.g. a rebuilt widget still
+  // settling; repaint every span for it under this verse.
   const root = span.closest<HTMLElement>(".bible-verse");
+  const spans = root
+    ? Array.from(root.querySelectorAll<HTMLElement>(`.${WORD_CLASS}`)).filter((s) => s.dataset.key === word.key)
+    : [span];
+  spans.forEach((s) => paintWord(s, word, layer));
   if (root) paintAdapted(root, layer);
   popover.refresh();
 
-  layer.writer.setTransliterated(keys);
+  layer.writer.setWords(layer.state);
 }
 
 // ── Popover ─────────────────────────────────────────────────────────────────
@@ -208,6 +292,25 @@ class StrongsPopover {
     }
   }
 
+  /**
+   * Follow a redraw. Saving a choice rewrites the token in Live Preview, which
+   * rebuilds the verse and replaces the word the popover belongs to; move it
+   * to the new span for the same word so the next pick still works.
+   */
+  adopt(spans: Map<string, { span: HTMLElement; word: StrongsWord }>, layer: StrongsLayer): void {
+    if (!this.el || !this.word || !this.anchor || this.anchor.isConnected) return;
+    const next = spans.get(this.word.key);
+    if (!next || next.word.number !== this.word.number) return;
+    this.anchor = next.span;
+    this.word = next.word;
+    this.layer = layer;
+    this.refresh();
+  }
+
+  closeIfOrphaned(): void {
+    if (this.anchor && !this.anchor.isConnected) this.close();
+  }
+
   isAnchoredIn(el: HTMLElement): boolean {
     return this.anchor !== null && el.contains(this.anchor);
   }
@@ -247,14 +350,19 @@ class StrongsPopover {
       this.el.addEventListener("mouseleave", () => this.scheduleHide());
       this.el.addEventListener("mousedown", (e) => e.preventDefault());
     }
+    const refreshing = this.word?.key === word.key && this.el.childElementCount > 0;
     this.anchor = anchor;
     this.word = word;
     this.layer = layer;
 
     const el = this.el;
-    el.empty();
-    el.createDiv({ cls: "bible-verse-strongs-loading", text: word.number });
-    this.place(anchor);
+    // Keep the meaning list where it was scrolled to across a redraw.
+    const scrollTop = refreshing ? el.querySelector(".bible-verse-strongs-definition")?.scrollTop ?? 0 : 0;
+    if (!refreshing) {
+      el.empty();
+      el.createDiv({ cls: "bible-verse-strongs-loading", text: word.number });
+      this.place(anchor);
+    }
 
     let entry: LexiconEntry | null = null;
     let failed = false;
@@ -268,6 +376,7 @@ class StrongsPopover {
     if (this.el !== el || this.word !== word) return;
 
     const sense = chooseSense(entry);
+    const display = wordDisplayOf(layer.state, word.key);
     el.empty();
 
     const head = el.createDiv({ cls: "bible-verse-strongs-head" });
@@ -283,7 +392,7 @@ class StrongsPopover {
       el.createDiv({ cls: "bible-verse-strongs-gloss", text: sense.gloss });
     }
     if (sense?.definition) {
-      el.createDiv({ cls: "bible-verse-strongs-definition", text: sense.definition });
+      this.renderDefinition(el, anchor, word, layer, sense.definition, display);
     }
     if (!sense) {
       el.createDiv({
@@ -293,24 +402,20 @@ class StrongsPopover {
     }
 
     const actions = el.createDiv({ cls: "bible-verse-strongs-actions" });
-    const shown = layer.transliterated.has(word.key);
-    if (sense?.transliteration || shown) {
-      const swap = actions.createEl("button", {
-        text: shown ? `Show "${word.english}"` : `Show as ${sense?.transliteration ?? ""}`,
-        attr: { type: "button" },
+    if (display.kind !== "english") {
+      this.actionButton(actions, `Show "${word.english}"`, () => {
+        if (anchor.isConnected) void applyDisplay(anchor, word, layer, { kind: "english" });
       });
-      swap.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (anchor.isConnected) void toggleWord(anchor, word, layer);
+    }
+    if (sense?.transliteration && display.kind !== "transliteration") {
+      this.actionButton(actions, `Show as ${sense.transliteration}`, () => {
+        if (anchor.isConnected) void applyDisplay(anchor, word, layer, { kind: "transliteration" });
       });
     }
     if (sense) {
-      const insert = actions.createEl("button", { text: "Insert below", attr: { type: "button" } });
-      insert.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        layer.writer.insertLineBelow(word, sense);
+      const chosen = display.kind === "meaning" ? display.label : null;
+      this.actionButton(actions, "Insert below", () => {
+        layer.writer.insertLineBelow(word, sense, chosen);
         this.close();
       });
     }
@@ -320,7 +425,98 @@ class StrongsPopover {
     link.setAttr("target", "_blank");
     link.setAttr("rel", "noopener");
 
+    const definitionEl = el.querySelector(".bible-verse-strongs-definition");
+    if (definitionEl) definitionEl.scrollTop = scrollTop;
     this.place(anchor);
+  }
+
+  /**
+   * The definition, with each numbered meaning as a row that shows it in the
+   * verse. With word picks on, each comma-separated alternative in a row is a
+   * pick of its own. Clicking whatever is already shown puts the English back.
+   *
+   * Rows are divs with a button role, not buttons: themes style <button>
+   * heavily, and a definition should still read as text.
+   */
+  private renderDefinition(
+    el: HTMLElement,
+    anchor: HTMLElement,
+    word: StrongsWord,
+    layer: StrongsLayer,
+    definition: string,
+    display: WordDisplay
+  ): void {
+    const box = el.createDiv({ cls: "bible-verse-strongs-definition" });
+    const lines = definitionLines(definition);
+
+    const wordPicks = layer.wordPicks();
+    const chosen = display.kind === "meaning" ? parseChoiceLabel(display.label) : null;
+    const pick = (label: string, isShown: boolean) => {
+      if (!anchor.isConnected) return;
+      void applyDisplay(anchor, word, layer, isShown ? { kind: "english" } : { kind: "meaning", label });
+    };
+
+    if (lines.some((l) => l.meaning?.selectable)) {
+      el.insertBefore(
+        createDiv({
+          cls: "bible-verse-strongs-hint",
+          text: wordPicks
+            ? "Pick a meaning, or one word of it, to show it in the verse."
+            : "Pick a meaning to show it in the verse.",
+        }),
+        box
+      );
+    }
+
+    for (const line of lines) {
+      const m = line.meaning;
+      if (!m || !m.selectable) {
+        box.createDiv({
+          cls: m ? "bible-verse-strongs-line bible-verse-strongs-heading" : "bible-verse-strongs-line",
+          text: line.text,
+          attr: m ? { style: `--depth: ${m.depth - 1}` } : {},
+        });
+        continue;
+      }
+
+      const lineShown = chosen?.line === m.label && chosen.alternative === null;
+      const row = box.createDiv({
+        cls: "bible-verse-strongs-meaning",
+        attr: { style: `--depth: ${m.depth - 1}` },
+      });
+      row.toggleClass("is-selected", lineShown);
+      row.toggleClass("has-selected-word", chosen?.line === m.label && chosen.alternative !== null);
+      makePressable(row, lineShown, lineShown ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`, () =>
+        pick(m.label, lineShown)
+      );
+
+      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
+      const textEl = row.createSpan({ cls: "bible-verse-strongs-meaning-text" });
+
+      if (!wordPicks || m.alternatives.length < 2) {
+        textEl.setText(m.text);
+        continue;
+      }
+      m.alternatives.forEach((alt, i) => {
+        if (i > 0) textEl.appendText(", ");
+        const n = i + 1;
+        const altShown = chosen?.line === m.label && chosen.alternative === n;
+        const altEl = textEl.createSpan({ cls: "bible-verse-strongs-alt", text: alt });
+        altEl.toggleClass("is-selected", altShown);
+        makePressable(altEl, altShown, altShown ? `Show "${word.english}" again` : `Show "${meaningVerseText(alt)}" in the verse`, () =>
+          pick(choiceLabel(m.label, n), altShown)
+        );
+      });
+    }
+  }
+
+  private actionButton(parent: HTMLElement, text: string, onClick: () => void): void {
+    const btn = parent.createEl("button", { text, attr: { type: "button" } });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClick();
+    });
   }
 
   /** Below the word, kept inside the window; above it when there is no room. */
@@ -344,13 +540,44 @@ class StrongsPopover {
   }
 }
 
+/**
+ * Make an element act as a toggle button: clickable, focusable, Enter/Space,
+ * and pressed state for assistive tech. Clicks stop here, so a word inside a
+ * meaning row does not also pick the whole row.
+ */
+function makePressable(el: HTMLElement, pressed: boolean, title: string, onPress: () => void): void {
+  el.setAttr("role", "button");
+  el.setAttr("tabindex", "0");
+  el.setAttr("aria-pressed", String(pressed));
+  el.setAttr("title", title);
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
+}
+
 const popover = new StrongsPopover();
 
-/**
- * Close the Strong's popover: always, or with `within` only when the word it
- * belongs to is inside that element (a widget being torn down).
- */
-export function closeStrongsPopover(within?: HTMLElement): void {
-  if (within && !popover.isAnchoredIn(within)) return;
+/** Close the Strong's popover (plugin unload). */
+export function closeStrongsPopover(): void {
   popover.close();
+}
+
+/** How long a popover whose verse was torn down waits for the redraw. */
+const ORPHAN_GRACE_MS = 1000;
+
+/**
+ * A widget is being torn down. If the popover belongs to a word inside it,
+ * give the rebuilt verse a moment to adopt it, and close it if none does.
+ */
+export function releaseStrongsPopover(within: HTMLElement): void {
+  if (!popover.isAnchoredIn(within)) return;
+  window.setTimeout(() => popover.closeIfOrphaned(), ORPHAN_GRACE_MS);
 }

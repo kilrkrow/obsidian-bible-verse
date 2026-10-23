@@ -46,7 +46,8 @@ var DEFAULT_SETTINGS = {
   esvApiKey: "",
   nativeCalloutType: "quote",
   showWhatsNew: true,
-  lastSeenVersion: ""
+  lastSeenVersion: "",
+  strongsWordPicks: false
 };
 
 // src/constants.ts
@@ -808,10 +809,7 @@ function transliterationFor(entry) {
   const t = (_b = (_a = chooseSense(entry)) == null ? void 0 : _a.transliteration) == null ? void 0 : _b.trim();
   return t ? t : null;
 }
-function oneLineDefinition(definition) {
-  return (definition != null ? definition : "").replace(/\s*\n+\s*/g, " ").trim();
-}
-function formatInsertLine(word, sense) {
+function formatInsertLine(word, sense, meaningLabel = null) {
   var _a, _b;
   const parts = [`**${word.english}**`, "\u2014", word.number];
   const translit = (_a = sense == null ? void 0 : sense.transliteration) == null ? void 0 : _a.trim();
@@ -821,10 +819,135 @@ function formatInsertLine(word, sense) {
   let line = parts.join(" ");
   if (gloss)
     line += ` "${gloss}"`;
-  const definition = oneLineDefinition(sense == null ? void 0 : sense.definition);
+  const chosenLine = meaningLabel !== null ? parseChoiceLabel(meaningLabel).line : null;
+  const definition = definitionLines(sense == null ? void 0 : sense.definition).map((l) => {
+    var _a2;
+    return chosenLine !== null && ((_a2 = l.meaning) == null ? void 0 : _a2.selectable) && l.meaning.label === chosenLine ? `**${l.text}**` : l.text;
+  }).join(" ");
   if (definition)
     line += `: ${definition}`;
   return `${line} *(${STRONGS_CREDIT})*`;
+}
+var HEBREW_MEANING_RE = /^(\d+(?:[a-z]\d*)*)\)\s*(.*)$/;
+var GREEK_MEANING_RE = /^__\s*(?:([IVX]+)\.|(\d+)\.|\(([a-z])\))\s*(.*)$/;
+var CITATION_RE = /\s*[,;:]?\s*\b[1-3]?[A-Z][a-z]{1,3}\.\s?\d+:\d+.*$/;
+function cleanMeaningText(text) {
+  return text.replace(/^(?:\([^)]*\)\s*)+/, "").replace(CITATION_RE, "").replace(/[\s,;:.]+$/, "").trim();
+}
+function meaningVerseText(text) {
+  return text.replace(/^to\s+(?=\S)/i, "");
+}
+function splitAlternatives(text) {
+  const out = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[")
+      depth++;
+    if ((ch === ")" || ch === "]") && depth > 0)
+      depth--;
+    if (ch === "," && depth === 0) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out.map((a) => a.trim()).filter((a) => a.length > 0);
+}
+function meaningFields(text) {
+  return { text, verseText: meaningVerseText(text), alternatives: splitAlternatives(text), selectable: text.length > 0 };
+}
+function definitionLines(definition) {
+  var _a, _b;
+  const lines = [];
+  let roman = null;
+  let digit = null;
+  for (const raw of (definition != null ? definition : "").split(/\n+/)) {
+    const line = raw.trim();
+    if (!line)
+      continue;
+    const hebrew = line.match(HEBREW_MEANING_RE);
+    if (hebrew) {
+      const label = hebrew[1];
+      const text = cleanMeaningText(hebrew[2]);
+      const depth = (_b = (_a = label.match(/\d+|[a-z]/g)) == null ? void 0 : _a.length) != null ? _b : 1;
+      lines.push({
+        text: line,
+        meaning: { label, depth, ...meaningFields(text) }
+      });
+      continue;
+    }
+    const greek = line.match(GREEK_MEANING_RE);
+    if (greek) {
+      let label;
+      let depth;
+      if (greek[1]) {
+        roman = greek[1];
+        digit = null;
+        label = roman;
+        depth = 1;
+      } else if (greek[2]) {
+        digit = greek[2];
+        label = roman ? `${roman}.${digit}` : digit;
+        depth = roman ? 2 : 1;
+      } else {
+        const prefix = (roman ? `${roman}.` : "") + (digit != null ? digit : "");
+        label = prefix + greek[3];
+        depth = (roman ? 1 : 0) + (digit ? 1 : 0) + 1;
+      }
+      const text = cleanMeaningText(greek[4]);
+      lines.push({
+        text: line.replace(/^__\s*/, ""),
+        meaning: { label, depth, ...meaningFields(text) }
+      });
+      continue;
+    }
+    lines.push({ text: line.replace(/^__\s*/, ""), meaning: null });
+  }
+  return lines;
+}
+function meaningsOf(definition) {
+  return definitionLines(definition).map((l) => l.meaning).filter((m) => m !== null && m.selectable);
+}
+function parseChoiceLabel(label) {
+  const m = label.match(/^(.+)~(\d+)$/);
+  return m ? { line: m[1], alternative: parseInt(m[2], 10) } : { line: label, alternative: null };
+}
+function choiceLabel(line, alternative) {
+  return alternative === null ? line : `${line}~${alternative}`;
+}
+function meaningChoice(sense, label) {
+  const { line, alternative } = parseChoiceLabel(label);
+  const meaning = meaningsOf(sense == null ? void 0 : sense.definition).find((m) => m.label === line);
+  if (!meaning)
+    return null;
+  if (alternative === null)
+    return { meaning, alternative: null, verseText: meaning.verseText };
+  const text = meaning.alternatives[alternative - 1];
+  return text === void 0 ? null : { meaning, alternative, verseText: meaningVerseText(text) };
+}
+function wordDisplayOf(state, key) {
+  const label = state.meanings[key];
+  if (label !== void 0)
+    return { kind: "meaning", label };
+  if (state.transliterate.includes(key))
+    return { kind: "transliteration" };
+  return { kind: "english" };
+}
+function setWordDisplay(state, key, display) {
+  const transliterate = state.transliterate.filter((k) => k !== key);
+  const meanings = { ...state.meanings };
+  delete meanings[key];
+  if (display.kind === "transliteration")
+    transliterate.push(key);
+  if (display.kind === "meaning")
+    meanings[key] = display.label;
+  return { transliterate: sortKeys(transliterate), meanings: sortMeanings(meanings) };
+}
+function isAdapted(state) {
+  return state.transliterate.length > 0 || Object.keys(state.meanings).length > 0;
 }
 var STRONGS_MODIFIER = "strongs";
 var TR_PREFIX = "tr:";
@@ -839,8 +962,31 @@ function parseTransliterateModifier(token) {
 function formatTransliterateModifier(keys) {
   return keys.length > 0 ? TR_PREFIX + sortKeys(keys).join("+") : null;
 }
-function toggleKey(keys, key) {
-  return keys.includes(key) ? keys.filter((k) => k !== key) : sortKeys([...keys, key]);
+var MN_PREFIX = "mn:";
+var MEANING_LABEL_RE = /^[0-9A-Za-z.]+(?:~\d+)?$/;
+function parseMeaningsModifier(token) {
+  if (!token.toLowerCase().startsWith(MN_PREFIX))
+    return null;
+  const meanings = {};
+  for (const entry of token.slice(MN_PREFIX.length).split("+")) {
+    const [key, label, ...rest] = entry.trim().split("=");
+    if (rest.length > 0 || !key || !label)
+      return null;
+    if (!WORD_KEY_RE.test(key) || !MEANING_LABEL_RE.test(label))
+      return null;
+    meanings[key] = label;
+  }
+  return sortMeanings(meanings);
+}
+function formatMeaningsModifier(meanings) {
+  const keys = sortKeys(Object.keys(meanings));
+  return keys.length > 0 ? MN_PREFIX + keys.map((k) => `${k}=${meanings[k]}`).join("+") : null;
+}
+function sortMeanings(meanings) {
+  const out = {};
+  for (const k of sortKeys(Object.keys(meanings)))
+    out[k] = meanings[k];
+  return out;
 }
 function sortKeys(keys) {
   const num = (k) => k.split(".").map((n) => parseInt(n, 10));
@@ -850,7 +996,8 @@ function sortKeys(keys) {
   });
 }
 function strongsActive(spec) {
-  return spec.strongs || spec.transliterate.length > 0;
+  var _a;
+  return spec.strongs || isAdapted({ transliterate: spec.transliterate, meanings: (_a = spec.meanings) != null ? _a : {} });
 }
 
 // src/parser.ts
@@ -973,7 +1120,8 @@ function parseInlineSpec(content) {
       bake: false,
       calloutCollapsed: false,
       strongs: false,
-      transliterate: []
+      transliterate: [],
+      meanings: {}
     };
   }
   const parts = trimmed.split(",").map((p) => p.trim());
@@ -988,6 +1136,7 @@ function parseInlineSpec(content) {
   let calloutCollapsed = false;
   let strongs = false;
   let transliterate = null;
+  let meanings = null;
   let cut = parts.length;
   while (cut > 1) {
     const tok = parts[cut - 1];
@@ -1006,6 +1155,13 @@ function parseInlineSpec(content) {
     if (trKeys) {
       if (transliterate === null)
         transliterate = trKeys;
+      cut--;
+      continue;
+    }
+    const mnPairs = parseMeaningsModifier(tok);
+    if (mnPairs) {
+      if (meanings === null)
+        meanings = mnPairs;
       cut--;
       continue;
     }
@@ -1086,7 +1242,8 @@ function parseInlineSpec(content) {
     bake,
     calloutCollapsed,
     strongs,
-    transliterate: transliterate != null ? transliterate : []
+    transliterate: transliterate != null ? transliterate : [],
+    meanings: meanings != null ? meanings : {}
   };
 }
 function formatInlineSpec(spec) {
@@ -1109,6 +1266,9 @@ function formatInlineSpec(spec) {
   const tr = formatTransliterateModifier(spec.transliterate);
   if (tr)
     parts.push(tr);
+  const mn = formatMeaningsModifier(spec.meanings);
+  if (mn)
+    parts.push(mn);
   if (spec.bake)
     parts.push("bake");
   return parts.join(", ");
@@ -1621,10 +1781,12 @@ function translationOptions() {
 }
 var WHATS_NEW_NAME = "Show what's new after updates";
 var WHATS_NEW_DESC = "After Bible Verse updates, show a short summary of what changed, once. The \u201CShow what's new\u201D command opens it any time.";
+var STRONGS_WORD_PICKS_NAME = "Pick single words from lexicon meanings";
+var STRONGS_WORD_PICKS_DESC = "In the Strong's popover, each numbered meaning from the STEPBible lexicon can already be shown in the verse in place of the word. Turn this on to also pick one word or phrase from a meaning, for example \u201Cignore\u201D from \u201Cto forget, ignore, wither\u201D. The verse then shows that word, marked as adapted from the lexicon, and the popover and Insert below still show the full entry. Off by default.";
 var SIDEBAR_PADDING_LIMITS = { min: 0, max: 2, step: 0.1 };
 var BAKE_NOTE = "\u201CBake\u201D means writing a verse\u2019s text permanently into your note as ordinary Markdown, so it reads without the plugin. The {\u2026, bake} token bakes to a code block; the \u201CNative callout\u201D style (or {\u2026, native-callout} / {\u2026, nco}) bakes to a real, collapsible Obsidian callout. Baking is one-way \u2014 the plugin stops tracking it afterward. Note: choosing \u201CNative callout\u201D as your default here will auto-bake every scripture reference you add.";
 var COMMERCIAL_NOTE = "Enter an ESV API key to unlock inline ESV text. ESV attribution is always shown, as required by Crossway's license. Other commercial translations (NIV, NKJV, NLT, AMP, CSB, NASB) render as links only.";
-var DATA_SOURCE_NOTE = "Free translations are provided by the HelloAO Bible API. ESV text is fetched from the ESV API using your own key.";
+var DATA_SOURCE_NOTE = "Free translations are provided by the HelloAO Bible API. ESV text is fetched from the ESV API using your own key. Strong's numbers, transliterations and definitions come from the STEPBible lexicon (by STEPBible.org / Tyndale House, licensed CC BY 4.0), served through the HelloAO API; the plugin credits it wherever lexicon text is shown or inserted, and marks meanings it shortens for the verse as adapted.";
 var LICENSING_NOTE = "Note: Some translations may require attribution if you publish your notes. Check individual license terms if sharing content publicly.";
 var SYNTAX_ROWS = [
   ["{Romans 8:28}", "Single verse"],
@@ -1637,7 +1799,8 @@ var SYNTAX_ROWS = [
   ["{Romans 8:28, callout}", "Style: callout / sidebar / blockquote / inline"],
   ["{Romans 8:28-30, v} / {\u2026, no-v}", "Verse numbers on / off"],
   ["{Romans 8:28-30, nl} / {\u2026, no-nl}", "New line per verse on / off"],
-  ["{Romans 8, para} / {\u2026, no-para}", "Reading sections on / off"]
+  ["{Romans 8, para} / {\u2026, no-para}", "Reading sections on / off"],
+  ["{Proverbs 3:5, strongs}", "Strong's numbers and lexicon on a KJV verse"]
 ];
 function buildSyntaxReference(containerEl) {
   const details = containerEl.createEl("details", { cls: "bible-verse-settings-ref" });
@@ -1660,6 +1823,10 @@ function buildLicensingInfo(containerEl) {
   list.createEl("li").createEl("a", {
     text: "ESV API (free key)",
     href: "https://api.esv.org/"
+  });
+  list.createEl("li").createEl("a", {
+    text: "STEPBible lexicon (CC BY 4.0)",
+    href: "https://github.com/STEPBible/STEPBible-Data"
   });
   info.createEl("p", { text: LICENSING_NOTE, cls: "bible-verse-settings-note" });
 }
@@ -1754,6 +1921,12 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
         name: "IntelliSense helper mode",
         desc: "When a reference is complete, show a menu of all available modifiers (style, formatting, reading sections).",
         control: { type: "toggle", key: "helperMode" }
+      },
+      {
+        name: STRONGS_WORD_PICKS_NAME,
+        desc: STRONGS_WORD_PICKS_DESC,
+        aliases: ["Strong's", "strongs", "lexicon", "STEPBible", "meaning", "transliteration"],
+        control: { type: "toggle", key: "strongsWordPicks" }
       },
       {
         name: WHATS_NEW_NAME,
@@ -1965,6 +2138,12 @@ var BibleVerseSettingTab = class extends import_obsidian4.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian4.Setting(containerEl).setName(STRONGS_WORD_PICKS_NAME).setDesc(STRONGS_WORD_PICKS_DESC).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.strongsWordPicks).onChange(async (value) => {
+        this.plugin.settings.strongsWordPicks = value;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian4.Setting(containerEl).setName(WHATS_NEW_NAME).setDesc(WHATS_NEW_DESC).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.showWhatsNew).onChange(async (value) => {
         this.plugin.settings.showWhatsNew = value;
@@ -2091,6 +2270,7 @@ function flattenInlineContent(container, verseNewLine) {
 var import_obsidian5 = require("obsidian");
 var WORD_CLASS = "bible-verse-strongs-word";
 var TRANSLITERATED_CLASS = "is-transliterated";
+var MEANING_CLASS = "is-meaning";
 var BADGE_CLASS = "bible-verse-strongs-badge";
 function decorateStrongs(root, layer) {
   var _a;
@@ -2105,6 +2285,7 @@ function decorateStrongs(root, layer) {
   if (nodes.length === 0)
     return;
   root.addClass("bible-verse--strongs");
+  const created = /* @__PURE__ */ new Map();
   for (const textNode of nodes) {
     const frag = doc.createDocumentFragment();
     for (const seg of splitMarkedText(textNode.data)) {
@@ -2117,11 +2298,15 @@ function decorateStrongs(root, layer) {
         frag.appendChild(doc.createTextNode(seg.text));
         continue;
       }
-      frag.appendChild(createWordSpan(doc, word, layer));
+      const span = createWordSpan(doc, word, layer);
+      if (!created.has(word.key))
+        created.set(word.key, { span, word });
+      frag.appendChild(span);
     }
     (_a = textNode.parentNode) == null ? void 0 : _a.replaceChild(frag, textNode);
   }
   paintAdapted(root, layer);
+  popover.adopt(created, layer);
 }
 function createWordSpan(doc, word, layer) {
   const span = doc.createElement("span");
@@ -2134,50 +2319,82 @@ function createWordSpan(doc, word, layer) {
   span.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    void toggleWord(span, word, layer);
+    const current = wordDisplayOf(layer.state, word.key);
+    void applyDisplay(span, word, layer, current.kind === "english" ? { kind: "transliteration" } : { kind: "english" });
   });
   return span;
 }
+function shownText(word, layer) {
+  const display = wordDisplayOf(layer.state, word.key);
+  if (display.kind === "meaning") {
+    const text = layer.meaningTexts.get(word.key);
+    return text !== void 0 ? { text, kind: "meaning" } : void 0;
+  }
+  if (display.kind === "transliteration") {
+    const text = layer.transliterations.get(word.key);
+    return text !== void 0 ? { text, kind: "transliteration" } : void 0;
+  }
+  return void 0;
+}
 function paintWord(span, word, layer) {
-  const shown = layer.transliterated.has(word.key) ? layer.transliterations.get(word.key) : void 0;
-  span.textContent = shown != null ? shown : word.english;
-  span.toggleClass(TRANSLITERATED_CLASS, shown !== void 0);
-  span.setAttr(
-    "aria-label",
-    shown !== void 0 ? `${word.english} (${word.number}), shown as ${shown}` : `${word.english} (${word.number})`
-  );
+  var _a;
+  const shown = shownText(word, layer);
+  span.textContent = (_a = shown == null ? void 0 : shown.text) != null ? _a : word.english;
+  span.toggleClass(TRANSLITERATED_CLASS, (shown == null ? void 0 : shown.kind) === "transliteration");
+  span.toggleClass(MEANING_CLASS, (shown == null ? void 0 : shown.kind) === "meaning");
+  if (!shown) {
+    span.setAttr("aria-label", `${word.english} (${word.number})`);
+    span.removeAttribute("title");
+    return;
+  }
+  const display = wordDisplayOf(layer.state, word.key);
+  let what = `transliteration, from the ${STRONGS_CREDIT}`;
+  if (display.kind === "meaning") {
+    const { line, alternative } = parseChoiceLabel(display.label);
+    what = alternative === null ? `meaning ${line}, adapted from the ${STRONGS_CREDIT}` : `meaning ${line} (one word of it), adapted from the ${STRONGS_CREDIT}`;
+  }
+  const note = `"${word.english}" (${word.number}) shown as its ${what}`;
+  span.setAttr("aria-label", note);
+  span.setAttr("title", note);
 }
 function paintAdapted(root, layer) {
   var _a;
   const wrapper = (_a = root.closest(".bible-verse")) != null ? _a : root;
-  const adapted = [...layer.transliterated].some((k) => layer.transliterations.has(k));
+  const kinds = new Set(layer.words.map((w) => {
+    var _a2;
+    return (_a2 = shownText(w, layer)) == null ? void 0 : _a2.kind;
+  }).filter((k) => k !== void 0));
+  const adapted = kinds.size > 0;
   wrapper.toggleClass("bible-verse--adapted", adapted);
   root.querySelectorAll(`.${BADGE_CLASS}`).forEach((el) => el.remove());
   if (!adapted)
     return;
+  const parts = [];
+  if (kinds.has("transliteration"))
+    parts.push("transliteration");
+  if (kinds.has("meaning"))
+    parts.push("lexicon meanings");
   const label = root.querySelector(".bible-verse-ref");
   const badge = root.ownerDocument.createElement("span");
   badge.className = BADGE_CLASS;
-  badge.textContent = "with transliteration";
+  badge.textContent = `with ${parts.join(" and ")}`;
   badge.setAttr(
     "title",
-    "Some words are shown as their Hebrew or Greek transliteration, so this is not the translation's own wording."
+    `Some words are shown as their Hebrew or Greek transliteration or as a lexicon meaning, so this is not the translation's own wording. Lexicon text adapted from the ${STRONGS_CREDIT}.`
   );
   if (label && label.parentElement)
     label.insertAdjacentElement("afterend", badge);
   else
     wrapper.appendChild(badge);
 }
-async function toggleWord(span, word, layer) {
-  var _a;
-  if (!layer.transliterated.has(word.key)) {
-    let translit = (_a = layer.transliterations.get(word.key)) != null ? _a : null;
-    if (translit === null) {
-      try {
-        translit = transliterationFor(await layer.lookup(word.number));
-      } catch (e) {
-        console.error("Bible Verse: lexicon lookup failed", e);
-      }
+async function applyDisplay(span, word, layer, display) {
+  var _a, _b;
+  if (display.kind === "transliteration" && !layer.transliterations.has(word.key)) {
+    let translit = null;
+    try {
+      translit = transliterationFor(await layer.lookup(word.number));
+    } catch (e) {
+      console.error("Bible Verse: lexicon lookup failed", e);
     }
     if (translit === null) {
       new import_obsidian5.Notice(`No transliteration for ${word.number}.`);
@@ -2185,14 +2402,27 @@ async function toggleWord(span, word, layer) {
     }
     layer.transliterations.set(word.key, translit);
   }
-  const keys = toggleKey([...layer.transliterated], word.key);
-  layer.transliterated = new Set(keys);
-  paintWord(span, word, layer);
+  if (display.kind === "meaning") {
+    let text = null;
+    try {
+      text = (_b = (_a = meaningChoice(chooseSense(await layer.lookup(word.number)), display.label)) == null ? void 0 : _a.verseText) != null ? _b : null;
+    } catch (e) {
+      console.error("Bible Verse: lexicon lookup failed", e);
+    }
+    if (text === null) {
+      new import_obsidian5.Notice(`No meaning ${display.label} for ${word.number}.`);
+      return;
+    }
+    layer.meaningTexts.set(word.key, text);
+  }
+  layer.state = setWordDisplay(layer.state, word.key, display);
   const root = span.closest(".bible-verse");
+  const spans = root ? Array.from(root.querySelectorAll(`.${WORD_CLASS}`)).filter((s) => s.dataset.key === word.key) : [span];
+  spans.forEach((s) => paintWord(s, word, layer));
   if (root)
     paintAdapted(root, layer);
   popover.refresh();
-  layer.writer.setTransliterated(keys);
+  layer.writer.setWords(layer.state);
 }
 var SHOW_DELAY_MS = 150;
 var HIDE_DELAY_MS = 250;
@@ -2227,6 +2457,26 @@ var StrongsPopover = class {
       void this.show(this.anchor, this.word, this.layer);
     }
   }
+  /**
+   * Follow a redraw. Saving a choice rewrites the token in Live Preview, which
+   * rebuilds the verse and replaces the word the popover belongs to; move it
+   * to the new span for the same word so the next pick still works.
+   */
+  adopt(spans, layer) {
+    if (!this.el || !this.word || !this.anchor || this.anchor.isConnected)
+      return;
+    const next = spans.get(this.word.key);
+    if (!next || next.word.number !== this.word.number)
+      return;
+    this.anchor = next.span;
+    this.word = next.word;
+    this.layer = layer;
+    this.refresh();
+  }
+  closeIfOrphaned() {
+    if (this.anchor && !this.anchor.isConnected)
+      this.close();
+  }
   isAnchoredIn(el) {
     return this.anchor !== null && el.contains(this.anchor);
   }
@@ -2253,7 +2503,7 @@ var StrongsPopover = class {
     }
   }
   async show(anchor, word, layer) {
-    var _a, _b;
+    var _a, _b, _c, _d;
     if (!anchor.isConnected)
       return;
     const doc = anchor.ownerDocument;
@@ -2264,13 +2514,17 @@ var StrongsPopover = class {
       this.el.addEventListener("mouseleave", () => this.scheduleHide());
       this.el.addEventListener("mousedown", (e) => e.preventDefault());
     }
+    const refreshing = ((_b = this.word) == null ? void 0 : _b.key) === word.key && this.el.childElementCount > 0;
     this.anchor = anchor;
     this.word = word;
     this.layer = layer;
     const el = this.el;
-    el.empty();
-    el.createDiv({ cls: "bible-verse-strongs-loading", text: word.number });
-    this.place(anchor);
+    const scrollTop = refreshing ? (_d = (_c = el.querySelector(".bible-verse-strongs-definition")) == null ? void 0 : _c.scrollTop) != null ? _d : 0 : 0;
+    if (!refreshing) {
+      el.empty();
+      el.createDiv({ cls: "bible-verse-strongs-loading", text: word.number });
+      this.place(anchor);
+    }
     let entry = null;
     let failed = false;
     try {
@@ -2282,6 +2536,7 @@ var StrongsPopover = class {
     if (this.el !== el || this.word !== word)
       return;
     const sense = chooseSense(entry);
+    const display = wordDisplayOf(layer.state, word.key);
     el.empty();
     const head = el.createDiv({ cls: "bible-verse-strongs-head" });
     head.createSpan({ cls: "bible-verse-strongs-number", text: word.number });
@@ -2295,7 +2550,7 @@ var StrongsPopover = class {
       el.createDiv({ cls: "bible-verse-strongs-gloss", text: sense.gloss });
     }
     if (sense == null ? void 0 : sense.definition) {
-      el.createDiv({ cls: "bible-verse-strongs-definition", text: sense.definition });
+      this.renderDefinition(el, anchor, word, layer, sense.definition, display);
     }
     if (!sense) {
       el.createDiv({
@@ -2304,25 +2559,22 @@ var StrongsPopover = class {
       });
     }
     const actions = el.createDiv({ cls: "bible-verse-strongs-actions" });
-    const shown = layer.transliterated.has(word.key);
-    if ((sense == null ? void 0 : sense.transliteration) || shown) {
-      const swap = actions.createEl("button", {
-        text: shown ? `Show "${word.english}"` : `Show as ${(_b = sense == null ? void 0 : sense.transliteration) != null ? _b : ""}`,
-        attr: { type: "button" }
-      });
-      swap.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+    if (display.kind !== "english") {
+      this.actionButton(actions, `Show "${word.english}"`, () => {
         if (anchor.isConnected)
-          void toggleWord(anchor, word, layer);
+          void applyDisplay(anchor, word, layer, { kind: "english" });
+      });
+    }
+    if ((sense == null ? void 0 : sense.transliteration) && display.kind !== "transliteration") {
+      this.actionButton(actions, `Show as ${sense.transliteration}`, () => {
+        if (anchor.isConnected)
+          void applyDisplay(anchor, word, layer, { kind: "transliteration" });
       });
     }
     if (sense) {
-      const insert = actions.createEl("button", { text: "Insert below", attr: { type: "button" } });
-      insert.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        layer.writer.insertLineBelow(word, sense);
+      const chosen = display.kind === "meaning" ? display.label : null;
+      this.actionButton(actions, "Insert below", () => {
+        layer.writer.insertLineBelow(word, sense, chosen);
         this.close();
       });
     }
@@ -2330,7 +2582,93 @@ var StrongsPopover = class {
     const link = credit.createEl("a", { text: STRONGS_CREDIT, href: STRONGS_LICENSE_URL });
     link.setAttr("target", "_blank");
     link.setAttr("rel", "noopener");
+    const definitionEl = el.querySelector(".bible-verse-strongs-definition");
+    if (definitionEl)
+      definitionEl.scrollTop = scrollTop;
     this.place(anchor);
+  }
+  /**
+   * The definition, with each numbered meaning as a row that shows it in the
+   * verse. With word picks on, each comma-separated alternative in a row is a
+   * pick of its own. Clicking whatever is already shown puts the English back.
+   *
+   * Rows are divs with a button role, not buttons: themes style <button>
+   * heavily, and a definition should still read as text.
+   */
+  renderDefinition(el, anchor, word, layer, definition, display) {
+    const box = el.createDiv({ cls: "bible-verse-strongs-definition" });
+    const lines = definitionLines(definition);
+    const wordPicks = layer.wordPicks();
+    const chosen = display.kind === "meaning" ? parseChoiceLabel(display.label) : null;
+    const pick = (label, isShown) => {
+      if (!anchor.isConnected)
+        return;
+      void applyDisplay(anchor, word, layer, isShown ? { kind: "english" } : { kind: "meaning", label });
+    };
+    if (lines.some((l) => {
+      var _a;
+      return (_a = l.meaning) == null ? void 0 : _a.selectable;
+    })) {
+      el.insertBefore(
+        createDiv({
+          cls: "bible-verse-strongs-hint",
+          text: wordPicks ? "Pick a meaning, or one word of it, to show it in the verse." : "Pick a meaning to show it in the verse."
+        }),
+        box
+      );
+    }
+    for (const line of lines) {
+      const m = line.meaning;
+      if (!m || !m.selectable) {
+        box.createDiv({
+          cls: m ? "bible-verse-strongs-line bible-verse-strongs-heading" : "bible-verse-strongs-line",
+          text: line.text,
+          attr: m ? { style: `--depth: ${m.depth - 1}` } : {}
+        });
+        continue;
+      }
+      const lineShown = (chosen == null ? void 0 : chosen.line) === m.label && chosen.alternative === null;
+      const row = box.createDiv({
+        cls: "bible-verse-strongs-meaning",
+        attr: { style: `--depth: ${m.depth - 1}` }
+      });
+      row.toggleClass("is-selected", lineShown);
+      row.toggleClass("has-selected-word", (chosen == null ? void 0 : chosen.line) === m.label && chosen.alternative !== null);
+      makePressable(
+        row,
+        lineShown,
+        lineShown ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`,
+        () => pick(m.label, lineShown)
+      );
+      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
+      const textEl = row.createSpan({ cls: "bible-verse-strongs-meaning-text" });
+      if (!wordPicks || m.alternatives.length < 2) {
+        textEl.setText(m.text);
+        continue;
+      }
+      m.alternatives.forEach((alt, i) => {
+        if (i > 0)
+          textEl.appendText(", ");
+        const n = i + 1;
+        const altShown = (chosen == null ? void 0 : chosen.line) === m.label && chosen.alternative === n;
+        const altEl = textEl.createSpan({ cls: "bible-verse-strongs-alt", text: alt });
+        altEl.toggleClass("is-selected", altShown);
+        makePressable(
+          altEl,
+          altShown,
+          altShown ? `Show "${word.english}" again` : `Show "${meaningVerseText(alt)}" in the verse`,
+          () => pick(choiceLabel(m.label, n), altShown)
+        );
+      });
+    }
+  }
+  actionButton(parent, text, onClick) {
+    const btn = parent.createEl("button", { text, attr: { type: "button" } });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClick();
+    });
   }
   /** Below the word, kept inside the window; above it when there is no room. */
   place(anchor) {
@@ -2350,11 +2688,33 @@ var StrongsPopover = class {
     el.style.setProperty("top", `${top}px`);
   }
 };
+function makePressable(el, pressed, title, onPress) {
+  el.setAttr("role", "button");
+  el.setAttr("tabindex", "0");
+  el.setAttr("aria-pressed", String(pressed));
+  el.setAttr("title", title);
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ")
+      return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
+}
 var popover = new StrongsPopover();
-function closeStrongsPopover(within) {
-  if (within && !popover.isAnchoredIn(within))
-    return;
+function closeStrongsPopover() {
   popover.close();
+}
+var ORPHAN_GRACE_MS = 1e3;
+function releaseStrongsPopover(within) {
+  if (!popover.isAnchoredIn(within))
+    return;
+  window.setTimeout(() => popover.closeIfOrphaned(), ORPHAN_GRACE_MS);
 }
 
 // src/renderer.ts
@@ -3196,8 +3556,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   /**
    * The Strong's layer toggle (#69), the strip's twin of the "Toggle Strong's
    * on this verse" command. Turning it on first checks that the chapter has a
-   * words file; turning it off also drops any transliterated words, returning
-   * the verse to the translation's own wording.
+   * words file; turning it off also drops any transliterated words and chosen
+   * meanings, returning the verse to the translation's own wording.
    */
   renderStrongsButton(controls, view) {
     const btn = controls.createEl("button", {
@@ -3226,6 +3586,7 @@ var BibleVerseWidget = class extends import_view.WidgetType {
     if (this.currentStrongs()) {
       this.pendingPatch.strongs = false;
       this.pendingPatch.transliterate = [];
+      this.pendingPatch.meanings = {};
     } else {
       const reason = await this.spec.plugin.strongsUnavailable({ ...this.spec.inline, ref: this.currentRef() });
       if (reason) {
@@ -3239,10 +3600,11 @@ var BibleVerseWidget = class extends import_view.WidgetType {
   }
   /** Whether the layer is on once pending edits land. */
   currentStrongs() {
-    var _a, _b;
+    var _a, _b, _c;
     return strongsActive({
       strongs: (_a = this.pendingPatch.strongs) != null ? _a : this.spec.inline.strongs,
-      transliterate: (_b = this.pendingPatch.transliterate) != null ? _b : this.spec.inline.transliterate
+      transliterate: (_b = this.pendingPatch.transliterate) != null ? _b : this.spec.inline.transliterate,
+      meanings: (_c = this.pendingPatch.meanings) != null ? _c : this.spec.inline.meanings
     });
   }
   /**
@@ -3282,12 +3644,13 @@ var BibleVerseWidget = class extends import_view.WidgetType {
    */
   strongsWriter(view) {
     return {
-      setTransliterated: (keys) => {
+      setWords: (state) => {
         this.pendingPatch.strongs = true;
-        this.pendingPatch.transliterate = keys;
+        this.pendingPatch.transliterate = state.transliterate;
+        this.pendingPatch.meanings = state.meanings;
         this.scheduleCommit(view);
       },
-      insertLineBelow: (word, sense) => this.insertLineBelow(view, formatInsertLine(word, sense))
+      insertLineBelow: (word, sense, meaningLabel) => this.insertLineBelow(view, formatInsertLine(word, sense, meaningLabel))
     };
   }
   /** Add one line after the line holding this token. */
@@ -3495,7 +3858,7 @@ ${text}` } });
     this.clearRevealTimer();
     this.pendingPatch = {};
     if (this.containerEl)
-      closeStrongsPopover(this.containerEl);
+      releaseStrongsPopover(this.containerEl);
     this.containerEl = null;
   }
   renderPill(container) {
@@ -3796,7 +4159,7 @@ function decideWhatsNew(state) {
 var import_obsidian11 = require("obsidian");
 
 // CHANGELOG.md
-var CHANGELOG_default = '# Changelog\n\nAll notable changes to Bible Verse are documented here.\n\n## [Unreleased]\n\n### Added\n\n- **Strong\'s numbers on King James verses** \u2014 put the cursor in a verse and run **Toggle Strong\'s on this verse**, or click the new Strong\'s button on the verse\'s hover controls. Hover an underlined word to see its Strong\'s number, transliteration, gloss and definition from the STEPBible lexicon. Click a word to show it as its Hebrew or Greek transliteration (for example `LORD` becomes `ye.ho.vah`). The verse is then labelled "with transliteration", and the choice is saved in the note. **Insert below** adds that word\'s entry as a line under the verse, with the STEPBible credit. Works on KJV in Live Preview and Reading view. ESV and link-only translations don\'t have the data, and you\'ll see a notice if you try them.\n\n## [1.11.0] \u2014 2026-10-22\n\n### Added\n\n- **What\'s new after an update** \u2014 the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what\'s new after updates" in settings. The "Show what\'s new" command opens it any time.\n- **A map of supported translations** \u2014 the README now has a chart of which translations Bible Verse can show, and a Request a translation button that opens a GitHub issue form.\n\n### Fixed\n\n- **Verse controls in pop-out windows** \u2014 hovering a verse in a note opened in a separate Obsidian window now reliably reveals the verse controls, including right after you edit the reference. Previously the reveal check ran on the main window and could miss.\n- Removed leftover support for multi-chapter spans (such as `John 3:16-4:20`), which Bible Verse already refuses, so a reference the plugin writes out can always be read back in. No change in behavior is expected.\n\n## [1.10.0] \u2014 2026-10-08\n\n### Changed\n\n- **A lone verse hides its verse number by default** \u2014 a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.\n- **Reading-view comparisons obey `v` / `no-v`** \u2014 inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.\n\n## [1.8.1] \u2014 2026-08-12\n\n### Added\n\n- **Settings are searchable** \u2014 on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian\'s settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.\n\n### Changed\n\n- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can\'t drift apart.\n- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian\'s `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian\'s plugin review scan; there is no change in behavior.\n\n### Known issues\n\n- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately \u2014 the row updates the next time the settings tab is drawn. Obsidian\'s API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.\n\n## [1.8.0] \u2014 2026-08-05\n\n### Added\n\n- **Doubled braces are accepted** \u2014 `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{\u2026}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.\n\n### Changed\n\n- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.\n- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{\u2026` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.\n\n## [1.6.5] \u2014 2026-07-04\n\n### Added\n\n- **Bake to a native, collapsible callout** \u2014 the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](\u2026)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.\n- **`bake` token** \u2014 `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.\n\nBaking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.\n\n## [1.6.4] \u2014 2026-07-03\n\n### Added\n\n- **ESV (English Standard Version) inline text** \u2014 display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.\n- **In-plugin feedback** \u2014 a "Send feedback" button in settings and a "Report a bug on GitHub" command.\n- **GitHub issue templates** \u2014 structured bug-report and feature-request forms.\n\n### Fixed\n\n- **`nl` now takes effect in the inline display style** \u2014 "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).\n- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.\n- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.\n\n## [1.6.3] \u2014 2026-06-08\n\n### Fixed\n\n- **Verse double-spacing in Live Preview** \u2014 Verses in `nl` mode were rendering with a blank line between each verse in Live Preview (edit mode) while appearing correctly in reading mode. Root cause: CodeMirror 6\'s editor inherits `white-space: pre-wrap` into rendered content, causing the whitespace text nodes that Obsidian\'s markdown renderer emits after each `<br>` to render as real line breaks. Fixed by explicitly setting `white-space: normal` on the verse body container.\n- **Inline style line breaks** \u2014 `{ref, inline}` displayed verses on separate lines instead of as continuous quoted text, in both reading mode and Live Preview. Root cause: `<br>` elements from the markdown renderer were left in place after paragraph unwrapping. Fixed by replacing `<br>` with a space in the inline rendering path.\n\n## [1.6.2] \u2014 2026-05-20\n\n### Added\n\n- Reading sections (`para` mode) \u2014 display a full chapter with paragraph groupings preserved, matching the structure of the original text\n- IntelliSense helper mode \u2014 after accepting a verse suggestion, a follow-up menu offers common modifiers (callout, sidebar, verse numbers, etc.)\n- Inline syntax examples and collapsible quick-reference in the settings tab\n\n### Fixed\n\n- KJV pilcrow (`\xB6`) character stripped before verse-number prepend to prevent broken line breaks\n- Paragraph spacing normalised across inline and block display styles\n- Verse number list markers escaped so `1.` is not misread as a markdown ordered list\n\n## [1.6.0] \u2014 2026-04-25\n\n### Added\n\n- Initial public release prepared for Obsidian community plugin submission\n- Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags\n- Display styles: callout, sidebar, blockquote, inline\n- Side-by-side translation comparison (`{ref, KJV | NIV}`)\n- Baked verse text via `Bake` and `Refresh` commands\n- Verse cache with optional persistence\n- Quick Insert command palette modal\n- Settings tab with per-option syntax examples\n';
+var CHANGELOG_default = '# Changelog\n\nAll notable changes to Bible Verse are documented here.\n\n## [Unreleased]\n\n### Added\n\n- **Strong\'s numbers on King James verses** \u2014 put the cursor in a verse and run **Toggle Strong\'s on this verse**, or click the new Strong\'s button on the verse\'s hover controls. Hover an underlined word to see its Strong\'s number, transliteration, gloss and definition from the STEPBible lexicon. Click a word to show it as its Hebrew or Greek transliteration (for example `LORD` becomes `ye.ho.vah`). The verse is then labelled "with transliteration", and the choice is saved in the note. **Insert below** adds that word\'s entry as a line under the verse, with the STEPBible credit. Works on KJV in Live Preview and Reading view. ESV and link-only translations don\'t have the data, and you\'ll see a notice if you try them.\n- **Show a word as one of its meanings** \u2014 the Strong\'s popover now lists the lexicon\'s numbered meanings (1, 1a, 1b\u2026). Click one to show that meaning in the verse in place of the word, for example "In all thy \u231Cjourney\u231D" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence ("to guard, keep" shows as \u231Cguard, keep\u231D), while the popover keeps the lexicon\'s wording; hover a substituted word to see what it replaced and the STEPBible credit. Click it again, or the word itself, to go back to the King James word. The choice is saved in the note, the verse is labelled "with lexicon meanings", and **Insert below** still adds the word\'s whole entry for study, with the meaning you picked in bold.\n- **Pick a single word from a meaning** \u2014 turn on **Pick single words from lexicon meanings** in settings (off by default) to pick one word or phrase from a lexicon meaning instead of the whole line, for example *ignore* from "to forget, ignore, wither". The verse shows just that word, marked as adapted from the STEPBible lexicon.\n\n## [1.11.0] \u2014 2026-10-22\n\n### Added\n\n- **What\'s new after an update** \u2014 the first time Obsidian starts after Bible Verse updates, a short pop-up shows what changed in the new version, with a link to ask questions or share ideas in Discussions. It appears once per update, never on a fresh install, and can be turned off with "Show what\'s new after updates" in settings. The "Show what\'s new" command opens it any time.\n- **A map of supported translations** \u2014 the README now has a chart of which translations Bible Verse can show, and a Request a translation button that opens a GitHub issue form.\n\n### Fixed\n\n- **Verse controls in pop-out windows** \u2014 hovering a verse in a note opened in a separate Obsidian window now reliably reveals the verse controls, including right after you edit the reference. Previously the reveal check ran on the main window and could miss.\n- Removed leftover support for multi-chapter spans (such as `John 3:16-4:20`), which Bible Verse already refuses, so a reference the plugin writes out can always be read back in. No change in behavior is expected.\n\n## [1.10.0] \u2014 2026-10-08\n\n### Changed\n\n- **A lone verse hides its verse number by default** \u2014 a reference that resolves to exactly one verse (`{John 3:16}`) no longer shows `16.`. Asking explicitly still wins: inline `v` / `no-v`, or `numbers: true` / `numbers: false` in a `bible` code block. Ranges, comma lists and whole chapters still follow the "Show verse numbers" setting. This applies everywhere a verse renders: Live Preview, Reading view, `bible` code blocks, comparison views, ESV, and baked text.\n- **Reading-view comparisons obey `v` / `no-v`** \u2014 inline comparisons such as `{John 3:16, KJV, WEB, v}` now honor the token in Reading view, matching Live Preview.\n\n## [1.8.1] \u2014 2026-08-12\n\n### Added\n\n- **Settings are searchable** \u2014 on Obsidian 1.13 and later the settings tab is built with the declarative settings API, so every option now turns up in Obsidian\'s settings search. The token forms are indexed as well: searching `para`, `eoc` or `KJV` finds the syntax reference. Older Obsidian versions are unaffected and keep the existing settings tab.\n\n### Changed\n\n- Setting labels, dropdown options, and the token-syntax table now live in one place shared by both settings paths, so the two can\'t drift apart.\n- Declared the JavaScript library level the code actually uses (ES2020) and moved DOM construction to Obsidian\'s `createEl` / `createSpan` helpers. This clears 32 warnings from Obsidian\'s plugin review scan; there is no change in behavior.\n\n### Known issues\n\n- On Obsidian 1.13+, turning off "show verse numbers" no longer greys out "new line per verse" immediately \u2014 the row updates the next time the settings tab is drawn. Obsidian\'s API for the instant update requires a `minAppVersion` of 1.13.0, which would drop support for older versions.\n\n## [1.8.0] \u2014 2026-08-05\n\n### Added\n\n- **Doubled braces are accepted** \u2014 `{{John 3:16}}` now renders as a single token in Live Preview, Reading view, and the baker. Previously only the inner `{\u2026}` matched, leaving a stray `{` and `}` bracketing the rendered verse. Unbalanced braces (`{{ref}` / `{ref}}`) are unchanged: the inner pair matches and the odd brace stays as text.\n\n### Changed\n\n- The `{ref}` token pattern lives in one place (`INLINE_TOKEN_SOURCE` in `parser.ts`) instead of being hand-copied into the Live Preview plugin, the Reading-view postprocessor, and the baker, so the three can no longer drift apart.\n- Autocomplete tracks the opening brace depth: accepting a suggestion inside `{{\u2026` closes with `}}` and moves the cursor past both, never past more closing braces than are actually present.\n\n## [1.6.5] \u2014 2026-07-04\n\n### Added\n\n- **Bake to a native, collapsible callout** \u2014 the new `native-callout` display style (token `native-callout` / `nco`) writes a verse permanently into your note as a real Obsidian callout (`> [!quote]+ [John 3:16 (KJV)](\u2026)`), so it inherits your theme, icon packs, and native fold behavior. Use `nco-` to start it collapsed, `nco+` to force expanded. The callout type (default `quote`) is configurable in settings.\n- **`bake` token** \u2014 `{ref, bake}` bakes a reference into a ` ```bible ` code block on render.\n\nBaking is one-way: once written, the text is ordinary Markdown and the plugin no longer tracks it. In the editor a "will bake" pill is shown; the bake happens when the note renders in Reading view.\n\n## [1.6.4] \u2014 2026-07-03\n\n### Added\n\n- **ESV (English Standard Version) inline text** \u2014 display ESV as text using your own free API key from [api.esv.org](https://api.esv.org). The required Crossway attribution is shown automatically; without a key, ESV falls back to a link.\n- **In-plugin feedback** \u2014 a "Send feedback" button in settings and a "Report a bug on GitHub" command.\n- **GitHub issue templates** \u2014 structured bug-report and feature-request forms.\n\n### Fixed\n\n- **`nl` now takes effect in the inline display style** \u2014 "new line per verse" was silently ignored for `inline`; each verse now breaks correctly (without reintroducing the Live Preview blank-line issue).\n- **ESV honors `nl` / `no-nl`** consistently with the HelloAO translations, and its poetry/paragraph breaks are normalized to match.\n- Removed a redundant inline `(ESV)` marker now that attribution is handled explicitly.\n\n## [1.6.3] \u2014 2026-06-08\n\n### Fixed\n\n- **Verse double-spacing in Live Preview** \u2014 Verses in `nl` mode were rendering with a blank line between each verse in Live Preview (edit mode) while appearing correctly in reading mode. Root cause: CodeMirror 6\'s editor inherits `white-space: pre-wrap` into rendered content, causing the whitespace text nodes that Obsidian\'s markdown renderer emits after each `<br>` to render as real line breaks. Fixed by explicitly setting `white-space: normal` on the verse body container.\n- **Inline style line breaks** \u2014 `{ref, inline}` displayed verses on separate lines instead of as continuous quoted text, in both reading mode and Live Preview. Root cause: `<br>` elements from the markdown renderer were left in place after paragraph unwrapping. Fixed by replacing `<br>` with a space in the inline rendering path.\n\n## [1.6.2] \u2014 2026-05-20\n\n### Added\n\n- Reading sections (`para` mode) \u2014 display a full chapter with paragraph groupings preserved, matching the structure of the original text\n- IntelliSense helper mode \u2014 after accepting a verse suggestion, a follow-up menu offers common modifiers (callout, sidebar, verse numbers, etc.)\n- Inline syntax examples and collapsible quick-reference in the settings tab\n\n### Fixed\n\n- KJV pilcrow (`\xB6`) character stripped before verse-number prepend to prevent broken line breaks\n- Paragraph spacing normalised across inline and block display styles\n- Verse number list markers escaped so `1.` is not misread as a markdown ordered list\n\n## [1.6.0] \u2014 2026-04-25\n\n### Added\n\n- Initial public release prepared for Obsidian community plugin submission\n- Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags\n- Display styles: callout, sidebar, blockquote, inline\n- Side-by-side translation comparison (`{ref, KJV | NIV}`)\n- Baked verse text via `Bake` and `Refresh` commands\n- Verse cache with optional persistence\n- Quick Insert command palette modal\n- Settings tab with per-option syntax examples\n';
 
 // src/whats-new-modal.ts
 var CHANGELOG_URL = "https://github.com/kilrkrow/obsidian-bible-verse/blob/main/CHANGELOG.md";
@@ -4044,7 +4407,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
         }
         const replacement = rewriteToken(
           found.token,
-          turningOn ? { strongs: true } : { strongs: false, transliterate: [] }
+          turningOn ? { strongs: true } : { strongs: false, transliterate: [], meanings: {} }
         );
         if (replacement === null)
           return;
@@ -4165,14 +4528,25 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     if (!passage)
       return false;
     const plain = await this.fetchFromProvider(spec.ref, id, abbr, settings);
-    const transliterated = new Set(spec.transliterate);
+    const state = { transliterate: spec.transliterate, meanings: spec.meanings };
     const transliterations = /* @__PURE__ */ new Map();
+    const meaningTexts = /* @__PURE__ */ new Map();
     await Promise.all(
-      passage.words.filter((w) => transliterated.has(w.key)).map(async (w) => {
+      passage.words.map(async (w) => {
+        const display = wordDisplayOf(state, w.key);
+        if (display.kind === "english")
+          return;
         try {
-          const t = transliterationFor(await this.api.getLexiconEntry(w.number));
-          if (t)
-            transliterations.set(w.key, t);
+          const entry = await this.api.getLexiconEntry(w.number);
+          if (display.kind === "transliteration") {
+            const t = transliterationFor(entry);
+            if (t)
+              transliterations.set(w.key, t);
+          } else {
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice)
+              meaningTexts.set(w.key, choice.verseText);
+          }
         } catch (e) {
           console.error("Bible Verse: lexicon lookup failed", e);
         }
@@ -4180,8 +4554,10 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     );
     const layer = {
       words: passage.words,
-      transliterated,
+      state,
       transliterations,
+      meaningTexts,
+      wordPicks: () => this.settings.strongsWordPicks,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer
     };
@@ -4218,9 +4594,9 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     };
     const notFound = () => new import_obsidian12.Notice("Could not find this verse in the note to update it.");
     return {
-      setTransliterated: (keys) => {
+      setWords: (state) => {
         const f = file();
-        const next = rewriteToken(current, { strongs: true, transliterate: keys });
+        const next = rewriteToken(current, { strongs: true, transliterate: state.transliterate, meanings: state.meanings });
         if (!f || next === null || next === current)
           return;
         const prev = current;
@@ -4234,11 +4610,11 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
           return content.slice(0, at) + next + content.slice(at + prev.length);
         });
       },
-      insertLineBelow: (word, sense) => {
+      insertLineBelow: (word, sense, meaningLabel) => {
         const f = file();
         if (!f)
           return;
-        const line = formatInsertLine(word, sense);
+        const line = formatInsertLine(word, sense, meaningLabel);
         void this.app.vault.process(f, (content) => {
           const at = locateToken(content, current, section());
           if (at === null) {

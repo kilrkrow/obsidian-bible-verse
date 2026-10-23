@@ -30,7 +30,7 @@ import { renderVerse, renderComparison, renderError, renderBakePending } from ".
 import { verseFetchedEffect } from "./effects";
 import { resolveShowVerseNumbers } from "./format";
 import { formatInsertLine, strongsActive } from "./strongs";
-import { closeStrongsPopover, StrongsWriter } from "./strongs-dom";
+import { releaseStrongsPopover, StrongsWriter } from "./strongs-dom";
 
 /**
  * Quiet period before a burst of verse-shift clicks is written to the document
@@ -427,8 +427,8 @@ class BibleVerseWidget extends WidgetType {
   /**
    * The Strong's layer toggle (#69), the strip's twin of the "Toggle Strong's
    * on this verse" command. Turning it on first checks that the chapter has a
-   * words file; turning it off also drops any transliterated words, returning
-   * the verse to the translation's own wording.
+   * words file; turning it off also drops any transliterated words and chosen
+   * meanings, returning the verse to the translation's own wording.
    */
   private renderStrongsButton(controls: HTMLElement, view: EditorView): void {
     const btn = controls.createEl("button", {
@@ -460,6 +460,7 @@ class BibleVerseWidget extends WidgetType {
     if (this.currentStrongs()) {
       this.pendingPatch.strongs = false;
       this.pendingPatch.transliterate = [];
+      this.pendingPatch.meanings = {};
     } else {
       const reason = await this.spec.plugin.strongsUnavailable({ ...this.spec.inline, ref: this.currentRef() });
       if (reason) {
@@ -477,6 +478,7 @@ class BibleVerseWidget extends WidgetType {
     return strongsActive({
       strongs: this.pendingPatch.strongs ?? this.spec.inline.strongs,
       transliterate: this.pendingPatch.transliterate ?? this.spec.inline.transliterate,
+      meanings: this.pendingPatch.meanings ?? this.spec.inline.meanings,
     });
   }
 
@@ -515,12 +517,14 @@ class BibleVerseWidget extends WidgetType {
    */
   private strongsWriter(view: EditorView): StrongsWriter {
     return {
-      setTransliterated: (keys) => {
+      setWords: (state) => {
         this.pendingPatch.strongs = true;
-        this.pendingPatch.transliterate = keys;
+        this.pendingPatch.transliterate = state.transliterate;
+        this.pendingPatch.meanings = state.meanings;
         this.scheduleCommit(view);
       },
-      insertLineBelow: (word, sense) => this.insertLineBelow(view, formatInsertLine(word, sense)),
+      insertLineBelow: (word, sense, meaningLabel) =>
+        this.insertLineBelow(view, formatInsertLine(word, sense, meaningLabel)),
     };
   }
 
@@ -755,7 +759,7 @@ class BibleVerseWidget extends WidgetType {
     }
     this.clearRevealTimer();
     this.pendingPatch = {};
-    if (this.containerEl) closeStrongsPopover(this.containerEl);
+    if (this.containerEl) releaseStrongsPopover(this.containerEl);
     this.containerEl = null;
   }
 

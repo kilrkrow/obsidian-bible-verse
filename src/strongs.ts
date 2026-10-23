@@ -265,25 +265,277 @@ export function oneLineDefinition(definition: string | undefined): string {
 
 /**
  * The markdown line "Insert below" adds after the token: the English word, its
- * number, transliteration, gloss and first-sense definition, with the credit.
+ * number, transliteration, gloss and the whole first-sense definition, with the
+ * credit. Inserting is for study, so it always carries the full entry; a
+ * meaning chosen for the word in the verse is bolded within it.
  */
-export function formatInsertLine(word: StrongsWord, sense: LexiconSense | null): string {
+export function formatInsertLine(
+  word: StrongsWord,
+  sense: LexiconSense | null,
+  meaningLabel: string | null = null
+): string {
   const parts = [`**${word.english}**`, "—", word.number];
   const translit = sense?.transliteration?.trim();
   if (translit) parts.push(`*${translit}*`);
   const gloss = sense?.gloss?.trim();
   let line = parts.join(" ");
   if (gloss) line += ` "${gloss}"`;
-  const definition = oneLineDefinition(sense?.definition);
+  // Built from the parsed lines rather than the raw text, so Greek entries'
+  // "__" indent markers are not left for markdown to read as emphasis.
+  const chosenLine = meaningLabel !== null ? parseChoiceLabel(meaningLabel).line : null;
+  const definition = definitionLines(sense?.definition)
+    .map((l) => (chosenLine !== null && l.meaning?.selectable && l.meaning.label === chosenLine ? `**${l.text}**` : l.text))
+    .join(" ");
   if (definition) line += `: ${definition}`;
   return `${line} *(${STRONGS_CREDIT})*`;
+}
+
+// ── Meanings ────────────────────────────────────────────────────────────────
+// A definition is a list of numbered meanings, in one of two styles:
+//
+//   Hebrew (TBESH):      "1) way, road" / "1a) road, way, path" / "1a1) to trust"
+//   Greek (Abbott-Smith): "__1. Of men's love:" / "__(a) to one another, Jhn.13:35;"
+//                         with "__I." above the digits in the longer entries
+//
+// Each numbered line is offered as a meaning a word can be shown as. Labels are
+// the Hebrew numbering as written, or for Greek the levels joined: "1a", "I.2b".
+
+/** One numbered meaning in a definition. */
+export interface Meaning {
+  /** "1", "1a", "1a1"; Greek "1a" or "I.2b". Stored in the token. */
+  label: string;
+  /** Nesting level: 1 for "1)", 2 for "1a)", and so on. */
+  depth: number;
+  /** The meaning as the lexicon words it, minus tags and citations. */
+  text: string;
+  /**
+   * What the verse shows in place of the word: `text` without a leading
+   * infinitive "to" ("to cease to care" → "cease to care"), so it reads in
+   * the sentence. Shown as an adaptation; see paintWord in strongs-dom.ts.
+   */
+  verseText: string;
+  /**
+   * The meaning's comma-separated alternatives in the lexicon's wording
+   * ("to forget, ignore, wither" → "to forget" / "ignore" / "wither"). One
+   * entry when the meaning is a single phrase. Picked as "label~n", 1-based;
+   * the verse shows the pick through meaningVerseText.
+   */
+  alternatives: string[];
+  /**
+   * False for headings with nothing to show in a verse, such as a bare verb
+   * stem ("1a) (Qal)"), which only groups the meanings below it.
+   */
+  selectable: boolean;
+}
+
+/** A line of a definition: plain text, or a numbered meaning. */
+export interface DefinitionLine {
+  /** The line as the lexicon has it, minus Greek "__" indent markers. */
+  text: string;
+  meaning: Meaning | null;
+}
+
+const HEBREW_MEANING_RE = /^(\d+(?:[a-z]\d*)*)\)\s*(.*)$/;
+const GREEK_MEANING_RE = /^__\s*(?:([IVX]+)\.|(\d+)\.|\(([a-z])\))\s*(.*)$/;
+
+/** A reference such as "Jhn.13:35" or "1Co.14:9" — where Greek entries start citing. */
+const CITATION_RE = /\s*[,;:]?\s*\b[1-3]?[A-Z][a-z]{1,3}\.\s?\d+:\d+.*$/;
+
+/**
+ * A meaning's text as it should read in place of a word: no leading source or
+ * stem tag ("(TWOT) to feel safe" → "to feel safe"), no trailing citations or
+ * punctuation.
+ */
+export function cleanMeaningText(text: string): string {
+  return text
+    .replace(/^(?:\([^)]*\)\s*)+/, "")
+    .replace(CITATION_RE, "")
+    .replace(/[\s,;:.]+$/, "")
+    .trim();
+}
+
+/**
+ * A meaning as it reads in place of a word: the lexicon gives verbs as
+ * infinitives, so the leading "to" goes. Only the first one, and only when
+ * something is left.
+ */
+export function meaningVerseText(text: string): string {
+  return text.replace(/^to\s+(?=\S)/i, "");
+}
+
+/**
+ * A meaning's comma-separated alternatives. Commas inside brackets do not
+ * split, so a note like (אֲדֹנָי "Lord", H0136) stays with its phrase.
+ */
+export function splitAlternatives(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[") depth++;
+    if ((ch === ")" || ch === "]") && depth > 0) depth--;
+    if (ch === "," && depth === 0) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out.map((a) => a.trim()).filter((a) => a.length > 0);
+}
+
+/** The Meaning fields derived from its cleaned text. */
+function meaningFields(text: string): Pick<Meaning, "text" | "verseText" | "alternatives" | "selectable"> {
+  return { text, verseText: meaningVerseText(text), alternatives: splitAlternatives(text), selectable: text.length > 0 };
+}
+
+/** Split a definition into lines, recognising its numbered meanings. */
+export function definitionLines(definition: string | undefined): DefinitionLine[] {
+  const lines: DefinitionLine[] = [];
+  let roman: string | null = null;
+  let digit: string | null = null;
+
+  for (const raw of (definition ?? "").split(/\n+/)) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const hebrew = line.match(HEBREW_MEANING_RE);
+    if (hebrew) {
+      const label = hebrew[1];
+      const text = cleanMeaningText(hebrew[2]);
+      const depth = label.match(/\d+|[a-z]/g)?.length ?? 1;
+      lines.push({
+        text: line,
+        meaning: { label, depth, ...meaningFields(text) },
+      });
+      continue;
+    }
+
+    const greek = line.match(GREEK_MEANING_RE);
+    if (greek) {
+      let label: string;
+      let depth: number;
+      if (greek[1]) {
+        roman = greek[1];
+        digit = null;
+        label = roman;
+        depth = 1;
+      } else if (greek[2]) {
+        digit = greek[2];
+        label = roman ? `${roman}.${digit}` : digit;
+        depth = roman ? 2 : 1;
+      } else {
+        const prefix = (roman ? `${roman}.` : "") + (digit ?? "");
+        label = prefix + greek[3];
+        depth = (roman ? 1 : 0) + (digit ? 1 : 0) + 1;
+      }
+      const text = cleanMeaningText(greek[4]);
+      lines.push({
+        text: line.replace(/^__\s*/, ""),
+        meaning: { label, depth, ...meaningFields(text) },
+      });
+      continue;
+    }
+
+    lines.push({ text: line.replace(/^__\s*/, ""), meaning: null });
+  }
+  return lines;
+}
+
+/** The selectable meanings of a definition, in order. */
+export function meaningsOf(definition: string | undefined): Meaning[] {
+  return definitionLines(definition)
+    .map((l) => l.meaning)
+    .filter((m): m is Meaning => m !== null && m.selectable);
+}
+
+/**
+ * A chosen meaning: a whole numbered line ("1b"), or with "~n" one of its
+ * alternatives ("1~2" is "ignore" in "to forget, ignore, wither").
+ */
+export interface MeaningChoice {
+  /** The numbered line the choice comes from. */
+  meaning: Meaning;
+  /** 1-based alternative within the line, or null for the whole line. */
+  alternative: number | null;
+  /** What the verse shows. */
+  verseText: string;
+}
+
+/** Split a stored choice label into its line label and alternative. */
+export function parseChoiceLabel(label: string): { line: string; alternative: number | null } {
+  const m = label.match(/^(.+)~(\d+)$/);
+  return m ? { line: m[1], alternative: parseInt(m[2], 10) } : { line: label, alternative: null };
+}
+
+/** The label stored for a whole line, or for one of its alternatives. */
+export function choiceLabel(line: string, alternative: number | null): string {
+  return alternative === null ? line : `${line}~${alternative}`;
+}
+
+/** Resolve a stored choice against a sense's definition, or null if it no longer fits. */
+export function meaningChoice(sense: LexiconSense | null | undefined, label: string): MeaningChoice | null {
+  const { line, alternative } = parseChoiceLabel(label);
+  const meaning = meaningsOf(sense?.definition).find((m) => m.label === line);
+  if (!meaning) return null;
+  if (alternative === null) return { meaning, alternative: null, verseText: meaning.verseText };
+  const text = meaning.alternatives[alternative - 1];
+  return text === undefined ? null : { meaning, alternative, verseText: meaningVerseText(text) };
+}
+
+/** The numbered line a stored choice comes from, or null. */
+export function meaningFor(sense: LexiconSense | null | undefined, label: string): Meaning | null {
+  return meaningChoice(sense, label)?.meaning ?? null;
+}
+
+// ── What each word shows ────────────────────────────────────────────────────
+
+/**
+ * Per word, what the verse shows instead of the English: its transliteration
+ * (`transliterate`) or one of its meanings (`meanings`, key → label). A word is
+ * in at most one; a word in neither shows the English.
+ */
+export interface WordDisplayState {
+  transliterate: string[];
+  meanings: Record<string, string>;
+}
+
+export type WordDisplay =
+  | { kind: "english" }
+  | { kind: "transliteration" }
+  | { kind: "meaning"; label: string };
+
+/** What a word currently shows. A meaning wins if a token lists both. */
+export function wordDisplayOf(state: WordDisplayState, key: string): WordDisplay {
+  const label = state.meanings[key];
+  if (label !== undefined) return { kind: "meaning", label };
+  if (state.transliterate.includes(key)) return { kind: "transliteration" };
+  return { kind: "english" };
+}
+
+/** The state with one word set to `display`, clearing whatever it showed before. */
+export function setWordDisplay(state: WordDisplayState, key: string, display: WordDisplay): WordDisplayState {
+  const transliterate = state.transliterate.filter((k) => k !== key);
+  const meanings = { ...state.meanings };
+  delete meanings[key];
+
+  if (display.kind === "transliteration") transliterate.push(key);
+  if (display.kind === "meaning") meanings[key] = display.label;
+  return { transliterate: sortKeys(transliterate), meanings: sortMeanings(meanings) };
+}
+
+/** Whether any word shows something other than the English. */
+export function isAdapted(state: WordDisplayState): boolean {
+  return state.transliterate.length > 0 || Object.keys(state.meanings).length > 0;
 }
 
 // ── Token modifier ──────────────────────────────────────────────────────────
 // `strongs` turns the layer on. `tr:` lists the words shown as their
 // transliteration, joined with "+": {Proverbs 3:5, strongs, tr:5.0.15+5.0.35}.
-// Both are new modifiers, so tokens written by earlier versions parse exactly
-// as before.
+// `mn:` lists the words shown as one of their meanings, as key=label:
+// {Proverbs 3:6, strongs, mn:6.0.10=1b}. All are new modifiers, so tokens
+// written by earlier versions parse exactly as before.
 
 export const STRONGS_MODIFIER = "strongs";
 const TR_PREFIX = "tr:";
@@ -301,6 +553,35 @@ export function formatTransliterateModifier(keys: string[]): string | null {
   return keys.length > 0 ? TR_PREFIX + sortKeys(keys).join("+") : null;
 }
 
+const MN_PREFIX = "mn:";
+const MEANING_LABEL_RE = /^[0-9A-Za-z.]+(?:~\d+)?$/;
+
+/** The key → label pairs in an `mn:` modifier, or null when `token` is not one. */
+export function parseMeaningsModifier(token: string): Record<string, string> | null {
+  if (!token.toLowerCase().startsWith(MN_PREFIX)) return null;
+  const meanings: Record<string, string> = {};
+  for (const entry of token.slice(MN_PREFIX.length).split("+")) {
+    const [key, label, ...rest] = entry.trim().split("=");
+    if (rest.length > 0 || !key || !label) return null;
+    if (!WORD_KEY_RE.test(key) || !MEANING_LABEL_RE.test(label)) return null;
+    meanings[key] = label;
+  }
+  return sortMeanings(meanings);
+}
+
+/** The `mn:` modifier for a set of meanings, or null when there are none. */
+export function formatMeaningsModifier(meanings: Record<string, string>): string | null {
+  const keys = sortKeys(Object.keys(meanings));
+  return keys.length > 0 ? MN_PREFIX + keys.map((k) => `${k}=${meanings[k]}`).join("+") : null;
+}
+
+/** Meanings with their keys in reading order, so tokens are written stably. */
+function sortMeanings(meanings: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of sortKeys(Object.keys(meanings))) out[k] = meanings[k];
+  return out;
+}
+
 /** Add `key` if absent, remove it if present. */
 export function toggleKey(keys: string[], key: string): string[] {
   return keys.includes(key) ? keys.filter((k) => k !== key) : sortKeys([...keys, key]);
@@ -315,7 +596,11 @@ function sortKeys(keys: string[]): string[] {
   });
 }
 
-/** Whether a token asks for the layer: `strongs`, or any transliterated word. */
-export function strongsActive(spec: { strongs: boolean; transliterate: string[] }): boolean {
-  return spec.strongs || spec.transliterate.length > 0;
+/** Whether a token asks for the layer: `strongs`, or any word shown otherwise. */
+export function strongsActive(spec: {
+  strongs: boolean;
+  transliterate: string[];
+  meanings?: Record<string, string>;
+}): boolean {
+  return spec.strongs || isAdapted({ transliterate: spec.transliterate, meanings: spec.meanings ?? {} });
 }

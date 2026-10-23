@@ -36,7 +36,15 @@ import {
   ShiftTarget,
   ShiftDelta,
 } from "./shift";
-import { formatInsertLine, strongsActive, transliterationFor } from "./strongs";
+import {
+  chooseSense,
+  formatInsertLine,
+  meaningChoice,
+  strongsActive,
+  transliterationFor,
+  wordDisplayOf,
+  WordDisplayState,
+} from "./strongs";
 import { closeStrongsPopover, StrongsLayer, StrongsWriter } from "./strongs-dom";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { fetchEsvPassage, getEffectiveMode } from "./providers";
@@ -287,7 +295,7 @@ export default class BibleVersePlugin extends Plugin {
 
         const replacement = rewriteToken(
           found.token,
-          turningOn ? { strongs: true } : { strongs: false, transliterate: [] }
+          turningOn ? { strongs: true } : { strongs: false, transliterate: [], meanings: {} }
         );
         if (replacement === null) return;
 
@@ -441,27 +449,36 @@ export default class BibleVersePlugin extends Plugin {
     // The plain verse supplies everything but the text: label, licence, length.
     const plain = await this.fetchFromProvider(spec.ref, id, abbr, settings);
 
-    // Look up the words already shown as transliterations before drawing, so
-    // they render that way instead of flashing the English first.
-    const transliterated = new Set(spec.transliterate);
+    // Look up the words already shown as a transliteration or a meaning before
+    // drawing, so they render that way instead of flashing the English first.
+    const state: WordDisplayState = { transliterate: spec.transliterate, meanings: spec.meanings };
     const transliterations = new Map<string, string>();
+    const meaningTexts = new Map<string, string>();
     await Promise.all(
-      passage.words
-        .filter((w) => transliterated.has(w.key))
-        .map(async (w) => {
-          try {
-            const t = transliterationFor(await this.api.getLexiconEntry(w.number));
+      passage.words.map(async (w) => {
+        const display = wordDisplayOf(state, w.key);
+        if (display.kind === "english") return;
+        try {
+          const entry = await this.api.getLexiconEntry(w.number);
+          if (display.kind === "transliteration") {
+            const t = transliterationFor(entry);
             if (t) transliterations.set(w.key, t);
-          } catch (e) {
-            console.error("Bible Verse: lexicon lookup failed", e);
+          } else {
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice) meaningTexts.set(w.key, choice.verseText);
           }
-        })
+        } catch (e) {
+          console.error("Bible Verse: lexicon lookup failed", e);
+        }
+      })
     );
 
     const layer: StrongsLayer = {
       words: passage.words,
-      transliterated,
+      state,
       transliterations,
+      meaningTexts,
+      wordPicks: () => this.settings.strongsWordPicks,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer,
     };
@@ -505,9 +522,9 @@ export default class BibleVersePlugin extends Plugin {
     const notFound = () => new Notice("Could not find this verse in the note to update it.");
 
     return {
-      setTransliterated: (keys) => {
+      setWords: (state) => {
         const f = file();
-        const next = rewriteToken(current, { strongs: true, transliterate: keys });
+        const next = rewriteToken(current, { strongs: true, transliterate: state.transliterate, meanings: state.meanings });
         if (!f || next === null || next === current) return;
         const prev = current;
         current = next;
@@ -520,10 +537,10 @@ export default class BibleVersePlugin extends Plugin {
           return content.slice(0, at) + next + content.slice(at + prev.length);
         });
       },
-      insertLineBelow: (word, sense) => {
+      insertLineBelow: (word, sense, meaningLabel) => {
         const f = file();
         if (!f) return;
-        const line = formatInsertLine(word, sense);
+        const line = formatInsertLine(word, sense, meaningLabel);
         void this.app.vault.process(f, (content) => {
           const at = locateToken(content, current, section());
           if (at === null) {

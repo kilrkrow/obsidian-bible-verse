@@ -16,13 +16,28 @@ import {
   toggleKey,
   transliterationFor,
   wordsLinkFor,
+  definitionLines,
+  formatMeaningsModifier,
+  isAdapted,
+  choiceLabel,
+  meaningChoice,
+  meaningFor,
+  meaningVerseText,
+  parseChoiceLabel,
+  splitAlternatives,
+  meaningsOf,
+  parseMeaningsModifier,
+  setWordDisplay,
+  wordDisplayOf,
   HelloAoWordsResponse,
   LexiconEntry,
+  WordDisplayState,
   STRONGS_CREDIT,
 } from "../src/strongs";
 import { assembleChapterText, computeRequestedVerses } from "../src/format";
 import { formatInlineSpec, parseInlineSpec, parseReference } from "../src/parser";
 import { insertLineAfter, locateToken, rewriteToken } from "../src/shift";
+import { DEFAULT_SETTINGS } from "../src/types";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA = join(HERE, "fixtures", "data");
@@ -269,5 +284,245 @@ describe("Reading-view edits — locating the token", () => {
     expect(insertLineAfter("{t}\nnext", 0, "X")).toBe("{t}\nX\nnext");
     expect(insertLineAfter("{t}", 0, "X")).toBe("{t}\nX");
     expect(insertLineAfter("{t}\r\nnext", 0, "X")).toBe("{t}\r\nX\r\nnext");
+  });
+});
+
+describe("meanings — numbered senses in a definition", () => {
+  it("reads the Hebrew numbering, as in H1870 for \"ways\" in Proverbs 3:6", () => {
+    const meanings = meaningsOf(chooseSense(lexicon("H1870"))!.definition);
+    expect(meanings.map((m) => [m.label, m.depth, m.text])).toEqual([
+      ["1", 1, "way, road, distance, journey, manner"],
+      ["1a", 2, "road, way, path"],
+      ["1b", 2, "journey"],
+      ["1c", 2, "direction"],
+      ["1d", 2, "manner, habit, way"],
+      ["1e", 2, "of course of life (fig.)"],
+      ["1f", 2, "of moral character (fig.)"],
+    ]);
+  });
+
+  it("keeps the unnumbered lead-in as plain text", () => {
+    const lines = definitionLines(chooseSense(lexicon("H1870"))!.definition);
+    expect(lines[0]).toEqual({ text: ": conduct/lifestyle", meaning: null });
+  });
+
+  it("offers verb stems as headings, not as meanings, and drops source tags", () => {
+    const lines = definitionLines(chooseSense(lexicon("H0982"))!.definition).filter((l) => l.meaning);
+    const qal = lines.find((l) => l.meaning!.label === "1a")!;
+    expect(qal.text).toBe("1a) (Qal)");
+    expect(qal.meaning!.selectable).toBe(false);
+    expect(meaningsOf(chooseSense(lexicon("H0982"))!.definition).map((m) => m.label)).toEqual([
+      "1", "1a1", "1a2", "1a3", "1a4", "1b1", "2",
+    ]);
+    expect(meaningFor(chooseSense(lexicon("H0982")), "2")!.text).toBe("to feel safe, be careless");
+    expect(meaningFor(chooseSense(lexicon("H0982")), "1a3")!.depth).toBe(3);
+  });
+
+  it("reads the Greek numbering and trims the verse citations", () => {
+    const meanings = meaningsOf(chooseSense(lexicon("G0026"))!.definition);
+    expect(meanings.slice(0, 5).map((m) => [m.label, m.text])).toEqual([
+      ["1", "Of men's love"],
+      ["1a", "to one another"],
+      ["1b", "to God"],
+      ["2", "Of divine love"],
+      ["2a", "God's love: to men"],
+    ]);
+  });
+
+  it("labels Greek meanings under a roman numeral with it", () => {
+    const def = "__I. Of speech.\n\n__1. a word: Mat.8:8\n\n__(a) a saying, Luk.1:29\n\n__II. Of reason.";
+    expect(meaningsOf(def).map((m) => [m.label, m.depth, m.text])).toEqual([
+      ["I", 1, "Of speech"],
+      ["I.1", 2, "a word"],
+      ["I.1a", 3, "a saying"],
+      ["II", 1, "Of reason"],
+    ]);
+  });
+
+  it("finds nothing in a definition with no numbering", () => {
+    expect(meaningsOf("goodness, kindness, faithfulness")).toEqual([]);
+    expect(meaningsOf(undefined)).toEqual([]);
+    expect(meaningFor(null, "1")).toBeNull();
+  });
+});
+
+describe("meanings — what a word shows", () => {
+  const empty: WordDisplayState = { transliterate: [], meanings: {} };
+
+  it("shows one thing per word, clearing the other choice", () => {
+    let state = setWordDisplay(empty, "6.0.10", { kind: "transliteration" });
+    expect(wordDisplayOf(state, "6.0.10")).toEqual({ kind: "transliteration" });
+
+    state = setWordDisplay(state, "6.0.10", { kind: "meaning", label: "1b" });
+    expect(state).toEqual({ transliterate: [], meanings: { "6.0.10": "1b" } });
+    expect(isAdapted(state)).toBe(true);
+
+    state = setWordDisplay(state, "6.0.10", { kind: "english" });
+    expect(state).toEqual(empty);
+    expect(isAdapted(state)).toBe(false);
+  });
+
+  it("prefers the meaning when a hand-edited token lists a word in both", () => {
+    const state = { transliterate: ["5.0.15"], meanings: { "5.0.15": "1" } };
+    expect(wordDisplayOf(state, "5.0.15")).toEqual({ kind: "meaning", label: "1" });
+  });
+
+  it("finds the Proverbs 3:6 \"ways\" word it applies to", () => {
+    const ref = parseReference("Proverbs 3:6")!;
+    const ways = buildStrongsPassage(PRO_3.chapter.content, PRO_3_WORDS, ref, PLAIN)!.words.find((w) => w.english === "ways")!;
+    expect(ways.number).toBe("H1870");
+    expect(meaningFor(chooseSense(lexicon(ways.number)), "1b")!.text).toBe("journey");
+  });
+
+  it("drops the leading infinitive \"to\" from what the verse shows, and only that", () => {
+    expect(meaningVerseText("to cease to care")).toBe("cease to care");
+    expect(meaningVerseText("to guard, watch, watch over, keep")).toBe("guard, watch, watch over, keep");
+    expect(meaningVerseText("To trust")).toBe("trust");
+    expect(meaningVerseText("toward the sea")).toBe("toward the sea");
+    expect(meaningVerseText("to")).toBe("to");
+    expect(meaningVerseText("journey")).toBe("journey");
+  });
+
+  it("keeps the lexicon's own wording for the popover and Insert below", () => {
+    const m = meaningFor(chooseSense(lexicon("H0982")), "1a1")!;
+    expect(m.text).toBe("to trust, trust in");
+    expect(m.verseText).toBe("trust, trust in");
+    const word = { key: "5.0.2", verse: 5, english: "Trust", number: "H0982" };
+    expect(formatInsertLine(word, chooseSense(lexicon("H0982")), "1a1")).toContain(" **1a1) to trust, trust in** ");
+  });
+});
+
+describe("meanings — the mn: token modifier", () => {
+  it("parses key=label pairs next to the other modifiers", () => {
+    const spec = parseInlineSpec("Proverbs 3:5-6, strongs, tr:5.0.15, mn:6.0.10=1b+5.0.35=1")!;
+    expect(spec.transliterate).toEqual(["5.0.15"]);
+    expect(spec.meanings).toEqual({ "5.0.35": "1", "6.0.10": "1b" });
+    expect(Object.keys(spec.meanings)).toEqual(["5.0.35", "6.0.10"]);
+  });
+
+  it("accepts Greek labels with a roman numeral", () => {
+    expect(parseMeaningsModifier("mn:1.0.4=I.2b")).toEqual({ "1.0.4": "I.2b" });
+  });
+
+  it("round-trips so a reload keeps the chosen meaning", () => {
+    const spec = parseInlineSpec("Proverbs 3:6, strongs, mn:6.0.10=1b")!;
+    expect(formatInlineSpec(spec)).toBe("Proverbs 3:6, strongs, mn:6.0.10=1b");
+    expect(parseInlineSpec(formatInlineSpec(spec))).toEqual(spec);
+  });
+
+  it("is written and cleared through rewriteToken", () => {
+    const on = rewriteToken("{Proverbs 3:6}", { strongs: true, meanings: { "6.0.10": "1b" } });
+    expect(on).toBe("{Proverbs 3:6, strongs, mn:6.0.10=1b}");
+    expect(rewriteToken(on!, { strongs: false, transliterate: [], meanings: {} })).toBe("{Proverbs 3:6}");
+  });
+
+  it("keeps the layer on from a meaning alone", () => {
+    expect(strongsActive(parseInlineSpec("Proverbs 3:6, mn:6.0.10=1b")!)).toBe(true);
+  });
+
+  it("leaves earlier tokens, including #71's tr:, unchanged", () => {
+    expect(parseInlineSpec("John 3:16, KJV, nl")!.meanings).toEqual({});
+    const tr = parseInlineSpec("Proverbs 3:5, strongs, tr:5.0.15")!;
+    expect(tr.meanings).toEqual({});
+    expect(formatInlineSpec(tr)).toBe("Proverbs 3:5, strongs, tr:5.0.15");
+  });
+
+  it("refuses a malformed list", () => {
+    expect(parseMeaningsModifier("mn:")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10=1b=2")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0=1b")).toBeNull();
+    expect(parseMeaningsModifier("mn:6.0.10=(Qal)")).toBeNull();
+    expect(formatMeaningsModifier({})).toBeNull();
+  });
+});
+
+describe("meanings — Insert below", () => {
+  const sense = chooseSense(lexicon("H1870"));
+  const word = { key: "6.0.10", verse: 6, english: "ways", number: "H1870" };
+  const full =
+    ": conduct/lifestyle 1) way, road, distance, journey, manner 1a) road, way, path 1b) journey " +
+    "1c) direction 1d) manner, habit, way 1e) of course of life (fig.) 1f) of moral character (fig.)";
+
+  it("always writes the whole entry, since inserting is for study", () => {
+    expect(formatInsertLine(word, sense)).toBe(`**ways** — H1870 *de.rekh* "way: conduct": ${full} *(${STRONGS_CREDIT})*`);
+  });
+
+  it("bolds the meaning chosen in the verse within the whole entry", () => {
+    expect(formatInsertLine(word, sense, "1b")).toBe(
+      `**ways** — H1870 *de.rekh* "way: conduct": ${full.replace("1b) journey", "**1b) journey**")} *(${STRONGS_CREDIT})*`
+    );
+    expect(formatInsertLine(word, sense, "9z")).toBe(formatInsertLine(word, sense));
+  });
+
+  it("leaves no Greek \"__\" markers for markdown to read as emphasis", () => {
+    const line = formatInsertLine({ key: "1.0.0", verse: 1, english: "love", number: "G0026" }, chooseSense(lexicon("G0026")));
+    expect(line).not.toContain("__");
+    expect(line).toContain("1. Of men's love: (a) to one another, Jhn.13:35;");
+  });
+});
+
+describe("word picks — one word from a meaning", () => {
+  const forget = () => chooseSense(lexicon("H7911"));
+
+  it("splits a meaning into its alternatives, in the lexicon's wording", () => {
+    const m = meaningFor(forget(), "1")!;
+    expect(m.text).toBe("to forget, ignore, wither");
+    expect(m.alternatives).toEqual(["to forget", "ignore", "wither"]);
+    expect(meaningFor(forget(), "1a2")!.alternatives).toEqual(["to cease to care"]);
+  });
+
+  it("does not split on commas inside brackets", () => {
+    expect(splitAlternatives('a word (λόγος, ῥῆμα), a saying')).toEqual(["a word (λόγος, ῥῆμα)", "a saying"]);
+    expect(splitAlternatives("one [two, three], four")).toEqual(["one [two, three]", "four"]);
+    expect(splitAlternatives("journey")).toEqual(["journey"]);
+  });
+
+  it("resolves a whole line or one alternative, as the verse shows it", () => {
+    expect(meaningChoice(forget(), "1")).toMatchObject({ alternative: null, verseText: "forget, ignore, wither" });
+    expect(meaningChoice(forget(), "1~1")).toMatchObject({ alternative: 1, verseText: "forget" });
+    expect(meaningChoice(forget(), "1~2")).toMatchObject({ alternative: 2, verseText: "ignore" });
+    expect(meaningChoice(forget(), "1~2")!.meaning.label).toBe("1");
+  });
+
+  it("refuses an alternative that is not there", () => {
+    expect(meaningChoice(forget(), "1~4")).toBeNull();
+    expect(meaningChoice(forget(), "1~0")).toBeNull();
+    expect(meaningChoice(forget(), "9~1")).toBeNull();
+  });
+
+  it("reads verb stems before a meaning as tags, not as the meaning", () => {
+    expect(meaningChoice(forget(), "1b")!.verseText).toBe("be forgotten");
+  });
+
+  it("builds and splits choice labels", () => {
+    expect(choiceLabel("1", null)).toBe("1");
+    expect(choiceLabel("1", 2)).toBe("1~2");
+    expect(parseChoiceLabel("1~2")).toEqual({ line: "1", alternative: 2 });
+    expect(parseChoiceLabel("I.2b")).toEqual({ line: "I.2b", alternative: null });
+    expect(parseChoiceLabel("I.2b~3")).toEqual({ line: "I.2b", alternative: 3 });
+  });
+
+  it("stores a word pick in mn: and reads it back", () => {
+    const spec = parseInlineSpec("Proverbs 3:1, strongs, mn:1.0.8=1~2")!;
+    expect(spec.meanings).toEqual({ "1.0.8": "1~2" });
+    expect(formatInlineSpec(spec)).toBe("Proverbs 3:1, strongs, mn:1.0.8=1~2");
+    expect(parseMeaningsModifier("mn:1.0.8=I.2b~3")).toEqual({ "1.0.8": "I.2b~3" });
+    expect(parseMeaningsModifier("mn:1.0.8=1~")).toBeNull();
+    expect(parseMeaningsModifier("mn:1.0.8=1~x")).toBeNull();
+  });
+
+  it("bolds the whole line a word was picked from in Insert below", () => {
+    const word = { key: "1.0.8", verse: 1, english: "forget", number: "H7911" };
+    const line = formatInsertLine(word, forget(), "1~2");
+    expect(line).toContain(": **1) to forget, ignore, wither** 1a) (Qal) 1a1) to forget");
+    expect(line).toContain("Aramaic equivalent");
+    expect(line.endsWith(`*(${STRONGS_CREDIT})*`)).toBe(true);
+  });
+});
+
+describe("word picks — setting", () => {
+  it("is off by default", () => {
+    expect(DEFAULT_SETTINGS.strongsWordPicks).toBe(false);
   });
 });
