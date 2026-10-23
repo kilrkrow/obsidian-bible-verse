@@ -6,9 +6,18 @@ All notable changes to Bible Verse are documented here.
 
 ### Added
 
-- **Strong's numbers on King James verses** — put the cursor in a verse and run **Toggle Strong's on this verse**, or click the new Strong's button on the verse's hover controls. Hover an underlined word to see its Strong's number, transliteration, gloss and definition from the STEPBible lexicon. Click a word to show it as its Hebrew or Greek transliteration (for example `LORD` becomes `ye.ho.vah`). The verse is then labelled "with transliteration", and the choice is saved in the note. **Insert below** adds that word's entry as a line under the verse, with the STEPBible credit. Works on KJV in Live Preview and Reading view. ESV and link-only translations don't have the data, and you'll see a notice if you try them.
-- **Show a word as one of its meanings** — the Strong's popover now lists the lexicon's numbered meanings (1, 1a, 1b…). Click one to show that meaning in the verse in place of the word, for example "In all thy ⌜journey⌝" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence ("to guard, keep" shows as ⌜guard, keep⌝), while the popover keeps the lexicon's wording; hover a substituted word to see what it replaced and the STEPBible credit. Click it again, or the word itself, to go back to the King James word. The choice is saved in the note, the verse is labelled "with lexicon meanings", and **Insert below** still adds the word's whole entry for study, with the meaning you picked in bold.
-- **Pick a single word from a meaning** — turn on **Pick single words from lexicon meanings** in settings (off by default) to pick one word or phrase from a lexicon meaning instead of the whole line, for example *ignore* from "to forget, ignore, wither". The verse shows just that word, marked as adapted from the STEPBible lexicon.
+**Strong's numbers and the STEPBible lexicon, on King James verses.** Look into the Hebrew and Greek behind a verse without leaving your note.
+
+- **Turn it on** — put the cursor in a verse such as `{Proverbs 3:5}` and run **Toggle Strong's on this verse** from the command palette, or hover the reference and click the new Strong's button (the languages icon) next to the verse controls. Words that have a Strong's number get a dotted underline.
+- **Hover a word** to see its Strong's number, transliteration, Hebrew or Greek lemma, gloss and definition. *LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*, "LORD".
+- **Click a word** to show it in the verse as its transliteration. Click it again to bring back the King James word.
+- **Pick a meaning** — the definition's numbered meanings (1, 1a, 1b…) are clickable. Pick one and the verse shows it in place of the word: "In all thy ⌜journey⌝ acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence.
+- **Pick a single word from a meaning**, such as *ignore* from "to forget, ignore, wither", by turning on **Pick single words from lexicon meanings** in settings. It's off by default.
+- **Insert below** adds the word's full lexicon entry as a line under the verse, ready for study notes, with any meaning you picked in bold.
+
+Your choices are saved in the note and survive a reload. Whenever a verse shows anything other than the King James words, it's labelled "with transliteration" or "with lexicon meanings", and hovering a changed word shows what it replaced. Lexicon text is credited to the STEPBible lexicon (CC BY 4.0, STEPBible.org / Tyndale House) in the popover, on every inserted line, and in settings.
+
+Works in Live Preview and Reading view. ESV, the link-only translations and side-by-side comparisons don't have Strong's data, so you'll get a short notice and nothing changes.
 
 ## [1.11.0] — 2026-10-22
 

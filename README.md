@@ -8,6 +8,7 @@ Look up and display Bible verses directly in your Obsidian notes. Powered by the
 - **IntelliSense autocomplete** — Typing inside `{…}` shows book name suggestions and confirms complete references
 - **Code block display** — Use ` ```bible ` blocks for full verse rendering with custom translation
 - **Comparison view** — Compare verses across multiple translations side by side
+- **Strong's numbers and lexicon (KJV)** — Hover a word in a King James verse for its Strong's number, transliteration and definition from the STEPBible lexicon; show it as its transliteration or one of its meanings, or insert the entry into your notes
 - **Multiple display styles** — Sidebar, Callout, Blockquote, Inline, or Native callout (baked, collapsible)
 - **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
 - **Local caching** — Fetched verses are cached locally to reduce API calls
@@ -180,6 +181,51 @@ compare: KJV, BSB, ASV
 ```
 ````
 
+### Strong's numbers and the STEPBible lexicon (KJV)
+
+Study the Hebrew and Greek behind a King James verse without leaving your note.
+
+**Turn it on.** Put the cursor in a verse token and run **Toggle Strong's on this verse** from the command palette, or hover the verse's reference and click the Strong's button (the languages icon) next to the verse controls. The token gains `strongs`:
+
+```
+{Proverbs 3:5}            -- plain King James
+{Proverbs 3:5, strongs}   -- Strong's layer on
+```
+
+Words that have a Strong's number get a dotted underline. Words with no number stay plain.
+
+**Hover a word** to see its entry: the Strong's number, transliteration, Hebrew or Greek lemma, gloss, and the definition. *LORD* in Proverbs 3:5 shows **H3068**, *ye.ho.vah*, "LORD". The transliteration is exactly what the lexicon gives; nothing is substituted.
+
+**Change what the verse shows.** Each tagged word can show one of three things:
+
+- **The King James word**: the default.
+- **Its transliteration**: click the word, or use **Show as …** in the popover. *LORD* becomes *ye.ho.vah*.
+- **One of its meanings**: the definition's numbered meanings (1, 1a, 1b…) are clickable. Pick one and it replaces the word: "In all thy ⌜journey⌝ acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence ("to guard, keep" shows as ⌜guard, keep⌝); the popover keeps the lexicon's wording. Headings such as "1a) (Qal)" only group the meanings under them and can't be picked.
+
+Click a changed word, or the highlighted meaning, to go back to the King James word.
+
+**Pick a single word from a meaning.** Turn on **Pick single words from lexicon meanings** in settings (off by default) and each comma-separated word in a meaning becomes a pick of its own, for example *ignore* from "1) to forget, ignore, wither".
+
+**Insert below** adds the word's full lexicon entry as one line under the verse, for study notes, with any meaning you picked in bold:
+
+```
+**ways** — H1870 *de.rekh* "way: conduct": : conduct/lifestyle 1) way, road, distance, journey, manner 1a) road, way, path **1b) journey** 1c) direction … *(STEPBible lexicon, CC BY 4.0, STEPBible.org / Tyndale House)*
+```
+
+**What gets saved.** Your choices live in the token, so they survive a reload and travel with the note:
+
+```
+{Proverbs 3:5, strongs, tr:5.0.15}        -- LORD shown as ye.ho.vah
+{Proverbs 3:6, strongs, mn:6.0.11=1b}     -- ways shown as meaning 1b
+{Proverbs 3:1, strongs, mn:1.0.8=1~2}     -- one word (the 2nd) of meaning 1
+```
+
+You don't need to type these: the clicks write them. `tr:` lists words shown as transliterations and `mn:` lists words shown as meanings. Each word is identified by its verse and its position in the source text. Turning Strong's off removes all three modifiers and gives you the plain verse back.
+
+**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, it's labelled "with transliteration" or "with lexicon meanings" next to the reference, and hovering a changed word says what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
+
+**Where it works.** King James verses in Live Preview and Reading view. ESV, the link-only translations (NIV, NKJV, NLT, AMP, CSB, NASB) and side-by-side comparisons don't have Strong's data; trying them shows a short notice and leaves the token alone. ` ```bible ` code blocks and baked text don't show the layer.
+
 ## Available Translations
 
 ### Translation support map
@@ -262,6 +308,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Show attribution | Display license and copyright links below verses | Off |
 | Bake inline references | Convert `{ref}` to code block when baking | Off |
 | Show what's new after updates | Once after each update, show a short pop-up of what changed | On |
+| Pick single words from lexicon meanings | In the Strong's popover, also pick one word or phrase from a lexicon meaning (e.g. *ignore* from "to forget, ignore, wither"), not just the whole meaning | Off |
 | ESV API key | Your [api.esv.org](https://api.esv.org) key, to display ESV text inline | (empty) |
 
 ## Baking and Persisting Text
@@ -294,6 +341,10 @@ Baking & cache:
 - **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
 - **Clear verse cache** — Clear the local verse cache to free up space
 
+Study:
+
+- **Toggle Strong's on this verse** — Place the cursor in a `{ref}` and run this to turn the Strong's layer on or off for that verse. Turning it off also clears any transliterations and meanings you picked. *(edit mode; King James only)*
+
 Help:
 
 - **Show what's new** — Open the release notes for the installed version
@@ -318,6 +369,11 @@ Help:
 
 Command palette → **Clear verse cache** (command id `clear-cache`). Use this if a translation looks stale after an upstream fix, or to reclaim space. The next view of each reference refetches.
 
+### "Strong's isn't available" or "No Strong's data"
+
+- The Strong's layer needs word-level Strong's data, which HelloAO publishes for the King James Version. A translation without it, ESV, the link-only translations and comparisons show this notice and are left unchanged; add `KJV` to the token if KJV isn't your default (`{Proverbs 3:5, KJV, strongs}`).
+- "Could not check for Strong's data" means the lookup needed the network and couldn't reach it. Try again when you're online. Chapters and lexicon entries already looked up in this session keep working offline.
+
 ### Footguns
 
 - Default display style **Native callout** auto-bakes references; that rewrites note content — switch back to Callout/Sidebar if you only wanted live rendering.
@@ -335,6 +391,8 @@ I'd love to hear how you use Bible Verse.
 ## Data Source
 
 Text for the built-in translations is provided by the [HelloAO Bible API](https://bible.helloao.org) — no API key or registration required. ESV text is fetched from the [ESV API](https://api.esv.org) using your own key, and its copyright notice is displayed automatically as required by Crossway's license.
+
+Strong's numbers, transliterations, glosses and definitions come from the **STEPBible lexicon**, the Translators Brief lexicons of Extended Strong's (TBESH and TBESG) by [STEPBible.org](https://www.stepbible.org) / Tyndale House, Cambridge, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and served through the HelloAO API (source: [STEPBible-Data](https://github.com/STEPBible/STEPBible-Data)). The plugin credits it in the Strong's popover, on every line inserted with **Insert below**, and in settings. When a meaning is shown in a verse it is shortened (a leading "to" dropped, or a single word picked), and the verse is labelled as changed.
 
 ## License
 

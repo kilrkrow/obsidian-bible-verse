@@ -534,7 +534,7 @@ export function isAdapted(state: WordDisplayState): boolean {
 // `strongs` turns the layer on. `tr:` lists the words shown as their
 // transliteration, joined with "+": {Proverbs 3:5, strongs, tr:5.0.15+5.0.35}.
 // `mn:` lists the words shown as one of their meanings, as key=label:
-// {Proverbs 3:6, strongs, mn:6.0.10=1b}. All are new modifiers, so tokens
+// {Proverbs 3:6, strongs, mn:6.0.11=1b}. All are new modifiers, so tokens
 // written by earlier versions parse exactly as before.
 
 export const STRONGS_MODIFIER = "strongs";
