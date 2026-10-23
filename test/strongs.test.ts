@@ -19,8 +19,12 @@ import {
   definitionLines,
   formatMeaningsModifier,
   isAdapted,
+  choiceLabel,
+  meaningChoice,
   meaningFor,
   meaningVerseText,
+  parseChoiceLabel,
+  splitAlternatives,
   meaningsOf,
   parseMeaningsModifier,
   setWordDisplay,
@@ -33,6 +37,7 @@ import {
 import { assembleChapterText, computeRequestedVerses } from "../src/format";
 import { formatInlineSpec, parseInlineSpec, parseReference } from "../src/parser";
 import { insertLineAfter, locateToken, rewriteToken } from "../src/shift";
+import { DEFAULT_SETTINGS } from "../src/types";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA = join(HERE, "fixtures", "data");
@@ -454,5 +459,70 @@ describe("meanings — Insert below", () => {
     const line = formatInsertLine({ key: "1.0.0", verse: 1, english: "love", number: "G0026" }, chooseSense(lexicon("G0026")));
     expect(line).not.toContain("__");
     expect(line).toContain("1. Of men's love: (a) to one another, Jhn.13:35;");
+  });
+});
+
+describe("word picks — one word from a meaning", () => {
+  const forget = () => chooseSense(lexicon("H7911"));
+
+  it("splits a meaning into its alternatives, in the lexicon's wording", () => {
+    const m = meaningFor(forget(), "1")!;
+    expect(m.text).toBe("to forget, ignore, wither");
+    expect(m.alternatives).toEqual(["to forget", "ignore", "wither"]);
+    expect(meaningFor(forget(), "1a2")!.alternatives).toEqual(["to cease to care"]);
+  });
+
+  it("does not split on commas inside brackets", () => {
+    expect(splitAlternatives('a word (λόγος, ῥῆμα), a saying')).toEqual(["a word (λόγος, ῥῆμα)", "a saying"]);
+    expect(splitAlternatives("one [two, three], four")).toEqual(["one [two, three]", "four"]);
+    expect(splitAlternatives("journey")).toEqual(["journey"]);
+  });
+
+  it("resolves a whole line or one alternative, as the verse shows it", () => {
+    expect(meaningChoice(forget(), "1")).toMatchObject({ alternative: null, verseText: "forget, ignore, wither" });
+    expect(meaningChoice(forget(), "1~1")).toMatchObject({ alternative: 1, verseText: "forget" });
+    expect(meaningChoice(forget(), "1~2")).toMatchObject({ alternative: 2, verseText: "ignore" });
+    expect(meaningChoice(forget(), "1~2")!.meaning.label).toBe("1");
+  });
+
+  it("refuses an alternative that is not there", () => {
+    expect(meaningChoice(forget(), "1~4")).toBeNull();
+    expect(meaningChoice(forget(), "1~0")).toBeNull();
+    expect(meaningChoice(forget(), "9~1")).toBeNull();
+  });
+
+  it("reads verb stems before a meaning as tags, not as the meaning", () => {
+    expect(meaningChoice(forget(), "1b")!.verseText).toBe("be forgotten");
+  });
+
+  it("builds and splits choice labels", () => {
+    expect(choiceLabel("1", null)).toBe("1");
+    expect(choiceLabel("1", 2)).toBe("1~2");
+    expect(parseChoiceLabel("1~2")).toEqual({ line: "1", alternative: 2 });
+    expect(parseChoiceLabel("I.2b")).toEqual({ line: "I.2b", alternative: null });
+    expect(parseChoiceLabel("I.2b~3")).toEqual({ line: "I.2b", alternative: 3 });
+  });
+
+  it("stores a word pick in mn: and reads it back", () => {
+    const spec = parseInlineSpec("Proverbs 3:1, strongs, mn:1.0.8=1~2")!;
+    expect(spec.meanings).toEqual({ "1.0.8": "1~2" });
+    expect(formatInlineSpec(spec)).toBe("Proverbs 3:1, strongs, mn:1.0.8=1~2");
+    expect(parseMeaningsModifier("mn:1.0.8=I.2b~3")).toEqual({ "1.0.8": "I.2b~3" });
+    expect(parseMeaningsModifier("mn:1.0.8=1~")).toBeNull();
+    expect(parseMeaningsModifier("mn:1.0.8=1~x")).toBeNull();
+  });
+
+  it("bolds the whole line a word was picked from in Insert below", () => {
+    const word = { key: "1.0.8", verse: 1, english: "forget", number: "H7911" };
+    const line = formatInsertLine(word, forget(), "1~2");
+    expect(line).toContain(": **1) to forget, ignore, wither** 1a) (Qal) 1a1) to forget");
+    expect(line).toContain("Aramaic equivalent");
+    expect(line.endsWith(`*(${STRONGS_CREDIT})*`)).toBe(true);
+  });
+});
+
+describe("word picks — setting", () => {
+  it("is off by default", () => {
+    expect(DEFAULT_SETTINGS.strongsWordPicks).toBe(false);
   });
 });

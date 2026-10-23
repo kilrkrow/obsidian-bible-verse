@@ -724,25 +724,47 @@
   font-style: italic;
 }
 
-/* Each numbered meaning is a row that shows it in the verse. Reset the theme's
-   button look so the list still reads as a definition. */
+/* Each numbered meaning is a row that shows it in the verse. A div with a
+   button role, so themes leave it looking like a line of a definition. */
 .bible-verse-strongs-meaning {
   display: flex;
   align-items: baseline;
   gap: 0.5em;
-  width: 100%;
-  height: auto;
   margin: 0.1em 0;
   padding: 0.15em 0.4em 0.15em calc(0.4em + var(--depth, 0) * 1em);
   border: 1px solid transparent;
   border-radius: var(--radius-s);
-  box-shadow: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  white-space: normal;
   cursor: pointer;
+}
+
+.bible-verse-strongs-meaning:focus-visible,
+.bible-verse-strongs-alt:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* With word picks on: each alternative in a meaning is a pick of its own. */
+.bible-verse-strongs-alt {
+  border-radius: var(--radius-s);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--text-faint);
+  text-underline-offset: 0.2em;
+}
+
+.bible-verse-strongs-alt:hover {
+  color: var(--text-accent);
+  text-decoration-color: var(--interactive-accent);
+}
+
+.bible-verse-strongs-alt.is-selected {
+  padding: 0 0.2em;
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+  color: var(--text-normal);
+  text-decoration: none;
+}
+
+.bible-verse-strongs-meaning.has-selected-word {
+  border-color: color-mix(in srgb, var(--interactive-accent) 40%, transparent);
 }
 
 .bible-verse-strongs-meaning:hover {
@@ -758,7 +780,7 @@
 
 .bible-verse-strongs-meaning-label {
   flex: none;
-  min-width: 2em;
+  min-width: 2.2em;
   font-family: var(--font-monospace);
   font-size: 0.9em;
   color: var(--text-faint);

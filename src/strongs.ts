@@ -282,8 +282,9 @@ export function formatInsertLine(
   if (gloss) line += ` "${gloss}"`;
   // Built from the parsed lines rather than the raw text, so Greek entries'
   // "__" indent markers are not left for markdown to read as emphasis.
+  const chosenLine = meaningLabel !== null ? parseChoiceLabel(meaningLabel).line : null;
   const definition = definitionLines(sense?.definition)
-    .map((l) => (meaningLabel !== null && l.meaning?.selectable && l.meaning.label === meaningLabel ? `**${l.text}**` : l.text))
+    .map((l) => (chosenLine !== null && l.meaning?.selectable && l.meaning.label === chosenLine ? `**${l.text}**` : l.text))
     .join(" ");
   if (definition) line += `: ${definition}`;
   return `${line} *(${STRONGS_CREDIT})*`;
@@ -313,6 +314,13 @@ export interface Meaning {
    * the sentence. Shown as an adaptation; see paintWord in strongs-dom.ts.
    */
   verseText: string;
+  /**
+   * The meaning's comma-separated alternatives in the lexicon's wording
+   * ("to forget, ignore, wither" → "to forget" / "ignore" / "wither"). One
+   * entry when the meaning is a single phrase. Picked as "label~n", 1-based;
+   * the verse shows the pick through meaningVerseText.
+   */
+  alternatives: string[];
   /**
    * False for headings with nothing to show in a verse, such as a bare verb
    * stem ("1a) (Qal)"), which only groups the meanings below it.
@@ -355,6 +363,33 @@ export function meaningVerseText(text: string): string {
   return text.replace(/^to\s+(?=\S)/i, "");
 }
 
+/**
+ * A meaning's comma-separated alternatives. Commas inside brackets do not
+ * split, so a note like (אֲדֹנָי "Lord", H0136) stays with its phrase.
+ */
+export function splitAlternatives(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[") depth++;
+    if ((ch === ")" || ch === "]") && depth > 0) depth--;
+    if (ch === "," && depth === 0) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out.map((a) => a.trim()).filter((a) => a.length > 0);
+}
+
+/** The Meaning fields derived from its cleaned text. */
+function meaningFields(text: string): Pick<Meaning, "text" | "verseText" | "alternatives" | "selectable"> {
+  return { text, verseText: meaningVerseText(text), alternatives: splitAlternatives(text), selectable: text.length > 0 };
+}
+
 /** Split a definition into lines, recognising its numbered meanings. */
 export function definitionLines(definition: string | undefined): DefinitionLine[] {
   const lines: DefinitionLine[] = [];
@@ -372,7 +407,7 @@ export function definitionLines(definition: string | undefined): DefinitionLine[
       const depth = label.match(/\d+|[a-z]/g)?.length ?? 1;
       lines.push({
         text: line,
-        meaning: { label, depth, text, verseText: meaningVerseText(text), selectable: text.length > 0 },
+        meaning: { label, depth, ...meaningFields(text) },
       });
       continue;
     }
@@ -398,7 +433,7 @@ export function definitionLines(definition: string | undefined): DefinitionLine[
       const text = cleanMeaningText(greek[4]);
       lines.push({
         text: line.replace(/^__\s*/, ""),
-        meaning: { label, depth, text, verseText: meaningVerseText(text), selectable: text.length > 0 },
+        meaning: { label, depth, ...meaningFields(text) },
       });
       continue;
     }
@@ -415,9 +450,43 @@ export function meaningsOf(definition: string | undefined): Meaning[] {
     .filter((m): m is Meaning => m !== null && m.selectable);
 }
 
-/** The meaning with `label` in a sense's definition, or null. */
+/**
+ * A chosen meaning: a whole numbered line ("1b"), or with "~n" one of its
+ * alternatives ("1~2" is "ignore" in "to forget, ignore, wither").
+ */
+export interface MeaningChoice {
+  /** The numbered line the choice comes from. */
+  meaning: Meaning;
+  /** 1-based alternative within the line, or null for the whole line. */
+  alternative: number | null;
+  /** What the verse shows. */
+  verseText: string;
+}
+
+/** Split a stored choice label into its line label and alternative. */
+export function parseChoiceLabel(label: string): { line: string; alternative: number | null } {
+  const m = label.match(/^(.+)~(\d+)$/);
+  return m ? { line: m[1], alternative: parseInt(m[2], 10) } : { line: label, alternative: null };
+}
+
+/** The label stored for a whole line, or for one of its alternatives. */
+export function choiceLabel(line: string, alternative: number | null): string {
+  return alternative === null ? line : `${line}~${alternative}`;
+}
+
+/** Resolve a stored choice against a sense's definition, or null if it no longer fits. */
+export function meaningChoice(sense: LexiconSense | null | undefined, label: string): MeaningChoice | null {
+  const { line, alternative } = parseChoiceLabel(label);
+  const meaning = meaningsOf(sense?.definition).find((m) => m.label === line);
+  if (!meaning) return null;
+  if (alternative === null) return { meaning, alternative: null, verseText: meaning.verseText };
+  const text = meaning.alternatives[alternative - 1];
+  return text === undefined ? null : { meaning, alternative, verseText: meaningVerseText(text) };
+}
+
+/** The numbered line a stored choice comes from, or null. */
 export function meaningFor(sense: LexiconSense | null | undefined, label: string): Meaning | null {
-  return meaningsOf(sense?.definition).find((m) => m.label === label) ?? null;
+  return meaningChoice(sense, label)?.meaning ?? null;
 }
 
 // ── What each word shows ────────────────────────────────────────────────────
@@ -485,7 +554,7 @@ export function formatTransliterateModifier(keys: string[]): string | null {
 }
 
 const MN_PREFIX = "mn:";
-const MEANING_LABEL_RE = /^[0-9A-Za-z.]+$/;
+const MEANING_LABEL_RE = /^[0-9A-Za-z.]+(?:~\d+)?$/;
 
 /** The key → label pairs in an `mn:` modifier, or null when `token` is not one. */
 export function parseMeaningsModifier(token: string): Record<string, string> | null {

@@ -1,10 +1,13 @@
 import { Notice } from "obsidian";
 import {
   chooseSense,
+  choiceLabel,
   definitionLines,
-  meaningFor,
+  meaningChoice,
+  parseChoiceLabel,
   splitMarkedText,
   hasMarkers,
+  meaningVerseText,
   setWordDisplay,
   transliterationFor,
   wordDisplayOf,
@@ -45,6 +48,8 @@ export interface StrongsLayer {
   transliterations: Map<string, string>;
   /** Text of each word's chosen meaning, by word key. */
   meaningTexts: Map<string, string>;
+  /** Whether single words can be picked from a meaning (a setting, read live). */
+  wordPicks(): boolean;
   lookup(number: string): Promise<LexiconEntry | null>;
   writer: StrongsWriter;
 }
@@ -147,9 +152,13 @@ function paintWord(span: HTMLElement, word: StrongsWord, layer: StrongsLayer): v
     return;
   }
   const display = wordDisplayOf(layer.state, word.key);
-  const what = display.kind === "meaning"
-    ? `meaning ${display.label}, adapted from the ${STRONGS_CREDIT}`
-    : `transliteration, from the ${STRONGS_CREDIT}`;
+  let what = `transliteration, from the ${STRONGS_CREDIT}`;
+  if (display.kind === "meaning") {
+    const { line, alternative } = parseChoiceLabel(display.label);
+    what = alternative === null
+      ? `meaning ${line}, adapted from the ${STRONGS_CREDIT}`
+      : `meaning ${line} (one word of it), adapted from the ${STRONGS_CREDIT}`;
+  }
   const note = `"${word.english}" (${word.number}) shown as its ${what}`;
   span.setAttr("aria-label", note);
   span.setAttr("title", note);
@@ -213,7 +222,7 @@ async function applyDisplay(
   if (display.kind === "meaning") {
     let text: string | null = null;
     try {
-      text = meaningFor(chooseSense(await layer.lookup(word.number)), display.label)?.verseText ?? null;
+      text = meaningChoice(chooseSense(await layer.lookup(word.number)), display.label)?.verseText ?? null;
     } catch (e) {
       console.error("Bible Verse: lexicon lookup failed", e);
     }
@@ -423,7 +432,11 @@ class StrongsPopover {
 
   /**
    * The definition, with each numbered meaning as a row that shows it in the
-   * verse. Clicking the meaning already shown puts the English back.
+   * verse. With word picks on, each comma-separated alternative in a row is a
+   * pick of its own. Clicking whatever is already shown puts the English back.
+   *
+   * Rows are divs with a button role, not buttons: themes style <button>
+   * heavily, and a definition should still read as text.
    */
   private renderDefinition(
     el: HTMLElement,
@@ -436,9 +449,21 @@ class StrongsPopover {
     const box = el.createDiv({ cls: "bible-verse-strongs-definition" });
     const lines = definitionLines(definition);
 
+    const wordPicks = layer.wordPicks();
+    const chosen = display.kind === "meaning" ? parseChoiceLabel(display.label) : null;
+    const pick = (label: string, isShown: boolean) => {
+      if (!anchor.isConnected) return;
+      void applyDisplay(anchor, word, layer, isShown ? { kind: "english" } : { kind: "meaning", label });
+    };
+
     if (lines.some((l) => l.meaning?.selectable)) {
       el.insertBefore(
-        createDiv({ cls: "bible-verse-strongs-hint", text: "Pick a meaning to show it in the verse." }),
+        createDiv({
+          cls: "bible-verse-strongs-hint",
+          text: wordPicks
+            ? "Pick a meaning, or one word of it, to show it in the verse."
+            : "Pick a meaning to show it in the verse.",
+        }),
         box
       );
     }
@@ -454,20 +479,33 @@ class StrongsPopover {
         continue;
       }
 
-      const selected = display.kind === "meaning" && display.label === m.label;
-      const row = box.createEl("button", {
+      const lineShown = chosen?.line === m.label && chosen.alternative === null;
+      const row = box.createDiv({
         cls: "bible-verse-strongs-meaning",
-        attr: { type: "button", "aria-pressed": String(selected), style: `--depth: ${m.depth - 1}` },
+        attr: { style: `--depth: ${m.depth - 1}` },
       });
-      row.toggleClass("is-selected", selected);
+      row.toggleClass("is-selected", lineShown);
+      row.toggleClass("has-selected-word", chosen?.line === m.label && chosen.alternative !== null);
+      makePressable(row, lineShown, lineShown ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`, () =>
+        pick(m.label, lineShown)
+      );
+
       row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
-      row.createSpan({ cls: "bible-verse-strongs-meaning-text", text: m.text });
-      row.setAttr("title", selected ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`);
-      row.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!anchor.isConnected) return;
-        void applyDisplay(anchor, word, layer, selected ? { kind: "english" } : { kind: "meaning", label: m.label });
+      const textEl = row.createSpan({ cls: "bible-verse-strongs-meaning-text" });
+
+      if (!wordPicks || m.alternatives.length < 2) {
+        textEl.setText(m.text);
+        continue;
+      }
+      m.alternatives.forEach((alt, i) => {
+        if (i > 0) textEl.appendText(", ");
+        const n = i + 1;
+        const altShown = chosen?.line === m.label && chosen.alternative === n;
+        const altEl = textEl.createSpan({ cls: "bible-verse-strongs-alt", text: alt });
+        altEl.toggleClass("is-selected", altShown);
+        makePressable(altEl, altShown, altShown ? `Show "${word.english}" again` : `Show "${meaningVerseText(alt)}" in the verse`, () =>
+          pick(choiceLabel(m.label, n), altShown)
+        );
       });
     }
   }
@@ -500,6 +538,29 @@ class StrongsPopover {
     el.style.setProperty("left", `${left}px`);
     el.style.setProperty("top", `${top}px`);
   }
+}
+
+/**
+ * Make an element act as a toggle button: clickable, focusable, Enter/Space,
+ * and pressed state for assistive tech. Clicks stop here, so a word inside a
+ * meaning row does not also pick the whole row.
+ */
+function makePressable(el: HTMLElement, pressed: boolean, title: string, onPress: () => void): void {
+  el.setAttr("role", "button");
+  el.setAttr("tabindex", "0");
+  el.setAttr("aria-pressed", String(pressed));
+  el.setAttr("title", title);
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPress();
+  });
 }
 
 const popover = new StrongsPopover();

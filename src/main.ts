@@ -39,7 +39,7 @@ import {
 import {
   chooseSense,
   formatInsertLine,
-  meaningFor,
+  meaningChoice,
   strongsActive,
   transliterationFor,
   wordDisplayOf,
@@ -464,8 +464,8 @@ export default class BibleVersePlugin extends Plugin {
             const t = transliterationFor(entry);
             if (t) transliterations.set(w.key, t);
           } else {
-            const m = meaningFor(chooseSense(entry), display.label);
-            if (m) meaningTexts.set(w.key, m.verseText);
+            const choice = meaningChoice(chooseSense(entry), display.label);
+            if (choice) meaningTexts.set(w.key, choice.verseText);
           }
         } catch (e) {
           console.error("Bible Verse: lexicon lookup failed", e);
@@ -478,6 +478,7 @@ export default class BibleVersePlugin extends Plugin {
       state,
       transliterations,
       meaningTexts,
+      wordPicks: () => this.settings.strongsWordPicks,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer,
     };
