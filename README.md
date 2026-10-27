@@ -177,13 +177,15 @@ Missing a translation? [Request it](https://github.com/kilrkrow/obsidian-bible-v
 
 ### Display styles
 
-| Sidebar | Callout | Blockquote |
-|---------|---------|------------|
-| ![Sidebar style](docs/images/style-sidebar.png) | ![Callout style](docs/images/style-callout.png) | ![Blockquote style](docs/images/style-blockquote.png) |
+Set the default under Settings → Bible Verse → Display style, or add the style to a reference.
 
-| Inline | Native callout (baked) |
-|--------|------------------------|
-| ![Inline style](docs/images/style-inline.png) | ![Native callout style](docs/images/style-native-callout.png) |
+| Style | How it looks |
+|-------|--------------|
+| `callout` (default) | A box with the linked reference as its header and the verse below |
+| `sidebar` | The verse beside a colored bar, with the reference underneath |
+| `blockquote` | A quotation followed by "— John 3:16 (KJV)" |
+| `inline` | Quoted text that flows in your sentence, followed by "(John 3:16, KJV)" |
+| `native-callout` | Baked into the note as a real `> [!quote]+` callout |
 
 ### Settings
 
@@ -207,8 +209,8 @@ Missing a translation? [Request it](https://github.com/kilrkrow/obsidian-bible-v
 
 ### Commands
 
-| Command | |
-|---------|--|
+| Command | What it does |
+|---------|--------------|
 | Quick insert reference | Insert a `{reference}`, optionally opening it on your Bible website |
 | Open reference at cursor on Bible site | Open the `{ref}` under the cursor |
 | Search Bible for selected text | Search your Bible website for the selection |
