@@ -29,6 +29,7 @@ import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types
 import { renderVerse, renderComparison, renderError, renderBakePending } from "./renderer";
 import { verseFetchedEffect } from "./effects";
 import { resolveShowVerseNumbers } from "./format";
+import { makeLinkOnlyVerse, sameCachedVerses } from "./comparison";
 import { formatInsertLine, strongsActive } from "./strongs";
 import { releaseStrongsPopover, StrongsWriter } from "./strongs-dom";
 
@@ -787,16 +788,13 @@ class BibleVerseWidget extends WidgetType {
       const verses: CachedVerse[] = [];
 
       if (translations.length >= 2) {
-        for (const trans of translations) {
-          const id = plugin.resolveTranslationIdPublic(trans);
-          const abbr = plugin.getTranslationAbbrPublic(id);
-          const v = await plugin.fetchFromProvider(ref, id, abbr, {
+        verses.push(
+          ...(await plugin.loadComparisonVerses(ref, translations, {
             showVerseNumbers: sVN,
             verseNewLine: vnL,
             paragraphBreaks: pb,
-          });
-          verses.push(v);
-        }
+          }))
+        );
       } else {
         const id = translations.length === 1
           ? plugin.resolveTranslationIdPublic(translations[0])
@@ -853,8 +851,7 @@ class BibleVerseWidget extends WidgetType {
   eq(other: BibleVerseWidget): boolean {
     return (
       this.spec.label === other.spec.label &&
-      this.spec.cachedVerses.length === other.spec.cachedVerses.length &&
-      this.spec.cachedVerses.every((v, i) => v === other.spec.cachedVerses[i]) &&
+      sameCachedVerses(this.spec.cachedVerses, other.spec.cachedVerses) &&
       this.spec.styleOverride === other.spec.styleOverride &&
       this.spec.verseNewLine === other.spec.verseNewLine &&
       this.spec.showVerseNumbers === other.spec.showVerseNumbers &&
@@ -968,6 +965,10 @@ export function buildViewPlugin(plugin: BibleVersePlugin) {
               for (const trans of translations) {
                 const id = plugin.resolveTranslationIdPublic(trans);
                 const abbr = plugin.getTranslationAbbrPublic(id);
+                if (plugin.isTranslationLinkOnly(trans) || plugin.isTranslationLinkOnly(id)) {
+                  cachedVerses.push(makeLinkOnlyVerse(ref, abbr, id));
+                  continue;
+                }
                 const cached = plugin.cache.get(abbr, refLabel, vnL, sVN, pb);
                 if (cached) cachedVerses.push(cached);
               }

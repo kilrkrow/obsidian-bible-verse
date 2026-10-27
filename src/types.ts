@@ -88,6 +88,12 @@ export interface CachedVerse {
    * undefined as "no upper bound known" rather than as zero.
    */
   numberOfVerses?: number;
+  /**
+   * Comparison column with no verse text - open the passage on the preferred
+   * Bible website. Used for link-only translations (NIV, etc.) and for ESV
+   * when no API key is set.
+   */
+  linkOnly?: boolean;
 }
 
 /** Translation info */
