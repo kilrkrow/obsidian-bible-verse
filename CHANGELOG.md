@@ -2,6 +2,12 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [1.12.2] — 2026-10-27
+
+### Fixed
+
+- **Strong's words with a single meaning can be picked too** — when a lexicon entry has no numbered meanings, such as *trying* in James 1:3 (G1383, "testing"), its gloss was a plain bold label you couldn't choose. It's now a meaning row like 1, 1a or 2 in any other entry: pick it to show "testing" in the verse, pick it again to bring back the King James word, and **Insert below** bolds it in the inserted line. A gloss of several words, such as "Greek, Gentile", can be picked one word at a time with **Pick single words from lexicon meanings** on. Entries that already have numbered meanings are unchanged.
+
 ## [1.12.1] — 2026-10-23
 
 ### Fixed

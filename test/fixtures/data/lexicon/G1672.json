@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "a6694072e973ec76c2d9205dcd9fd284cf57284957952cbf8aaef40ef3f5603b",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "G1672",
+    "language": "greek",
+    "senses": [
+      {
+        "id": "G1672",
+        "language": "greek",
+        "lemma": "Ἕλλην=Ἕλλην",
+        "transliteration": "Hellēn",
+        "partOfSpeech": "N--LG",
+        "gloss": "Greek, Gentile",
+        "definition": "Ἕλλην, -ηνος, ὁ\n\n[in LXX: Jol.3:6, Zec.9:13 (יָוָן), etc.; 1Ma.1:19, al. * ;]\n\na Greek; opposite to βάρβαρος, Rom.1:14; usually in ΝΤ of Greek Gentiles, opposite to Ἰουδαῖοι: Jhn.7:35, Act.11:29 14:1 16:1, 3 18:4 19:19, 17 20:21 21:28 Rom.1:16 2:9-10 3:9 10:12, 1Co.1:22 1:24 10:32 12:13, Gal.2:3 3:28, Col.3:11; of proselytes, Jhn.12:29, Act.17:4.†\n\n(AS)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/G1672.json"
+}

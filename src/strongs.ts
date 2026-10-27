@@ -278,11 +278,14 @@ export function formatInsertLine(
   const translit = sense?.transliteration?.trim();
   if (translit) parts.push(`*${translit}*`);
   const gloss = sense?.gloss?.trim();
+  const chosenLine = meaningLabel !== null ? parseChoiceLabel(meaningLabel).line : null;
+  // An entry offered by its gloss alone (glossMeaning) has its pick bolded in
+  // the gloss, as a numbered pick is bolded in the definition.
+  const glossChosen = chosenLine !== null && glossMeaning(sense)?.label === chosenLine;
   let line = parts.join(" ");
-  if (gloss) line += ` "${gloss}"`;
+  if (gloss) line += glossChosen ? ` "**${gloss}**"` : ` "${gloss}"`;
   // Built from the parsed lines rather than the raw text, so Greek entries'
   // "__" indent markers are not left for markdown to read as emphasis.
-  const chosenLine = meaningLabel !== null ? parseChoiceLabel(meaningLabel).line : null;
   const definition = definitionLines(sense?.definition)
     .map((l) => (chosenLine !== null && l.meaning?.selectable && l.meaning.label === chosenLine ? `**${l.text}**` : l.text))
     .join(" ");
@@ -451,6 +454,45 @@ export function meaningsOf(definition: string | undefined): Meaning[] {
 }
 
 /**
+ * Label of the meaning a lone gloss is offered as. "1", like the first of a
+ * numbered list, so a single-sense entry reads and stores the same way: a
+ * token picks it as `mn:3.0.12=1`. Only used when the definition has no
+ * numbered meanings of its own, so it never stands for a different line.
+ */
+export const GLOSS_MEANING_LABEL = "1";
+
+/**
+ * The gloss as a meaning, for an entry whose definition has no numbered
+ * meanings: G1383 "testing", or a gloss of several words ("trying, testing")
+ * whose alternatives can be picked one by one. Null when the definition has
+ * numbered meanings, which are offered instead and as they always were, or
+ * when there is no gloss to show.
+ */
+export function glossMeaning(sense: LexiconSense | null | undefined): Meaning | null {
+  if (meaningsOf(sense?.definition).length > 0) return null;
+  // A definition line already labelled "1" (an unselectable heading) would
+  // make the label ambiguous; leave such an entry as it is.
+  if (definitionLines(sense?.definition).some((l) => l.meaning?.label === GLOSS_MEANING_LABEL)) return null;
+  // As written, bar trailing punctuation: unlike a definition line, a gloss
+  // has no stem tags or citations, and a leading bracket is part of the name
+  // ("(Mount) Sinai", G4614).
+  const text = (sense?.gloss ?? "").replace(/[\s,;:.]+$/, "").trim();
+  if (!text) return null;
+  return { label: GLOSS_MEANING_LABEL, depth: 1, ...meaningFields(text) };
+}
+
+/**
+ * Every meaning a word can be shown as: the definition's numbered meanings,
+ * or, when it has none, the gloss on its own (see glossMeaning).
+ */
+export function senseMeanings(sense: LexiconSense | null | undefined): Meaning[] {
+  const numbered = meaningsOf(sense?.definition);
+  if (numbered.length > 0) return numbered;
+  const gloss = glossMeaning(sense);
+  return gloss ? [gloss] : [];
+}
+
+/**
  * A chosen meaning: a whole numbered line ("1b"), or with "~n" one of its
  * alternatives ("1~2" is "ignore" in "to forget, ignore, wither").
  */
@@ -477,7 +519,7 @@ export function choiceLabel(line: string, alternative: number | null): string {
 /** Resolve a stored choice against a sense's definition, or null if it no longer fits. */
 export function meaningChoice(sense: LexiconSense | null | undefined, label: string): MeaningChoice | null {
   const { line, alternative } = parseChoiceLabel(label);
-  const meaning = meaningsOf(sense?.definition).find((m) => m.label === line);
+  const meaning = senseMeanings(sense).find((m) => m.label === line);
   if (!meaning) return null;
   if (alternative === null) return { meaning, alternative: null, verseText: meaning.verseText };
   const text = meaning.alternatives[alternative - 1];
