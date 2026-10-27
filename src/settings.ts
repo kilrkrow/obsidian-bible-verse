@@ -67,7 +67,7 @@ const SYNTAX_ROWS: [string, string][] = [
   ["{Romans 8}", "Whole chapter"],
   ["{Romans 8:26-eoc}", "Verse to end of chapter"],
   ["{Romans 8:28, KJV}", "Translation override"],
-  ["{Romans 8:28, KJV | NIV}", "Side-by-side comparison"],
+  ["{Romans 8:28, KJV, NIV}", "Side-by-side comparison"],
   ["{Romans 8:28, callout}", "Style: callout / sidebar / blockquote / inline"],
   ["{Romans 8:28-30, v} / {…, no-v}", "Verse numbers on / off"],
   ["{Romans 8:28-30, nl} / {…, no-nl}", "New line per verse on / off"],

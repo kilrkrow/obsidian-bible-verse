@@ -3,6 +3,7 @@ import { BibleReference, CachedVerse, DisplayStyle, BibleWebsite } from "./types
 import { formatReference } from "./parser";
 import { generateLink } from "./linker";
 import { flattenInlineContent } from "./inline-dom";
+import { isLinkOnlyVerse } from "./comparison";
 import { decorateStrongs, StrongsLayer } from "./strongs-dom";
 
 /**
@@ -246,11 +247,24 @@ export async function renderComparison(
     link.setAttr("target", "_blank");
     link.setAttr("rel", "noopener");
 
-    const textContainer = col.createDiv({ cls: "bible-verse-text" });
-    await renderText(textContainer, verse.text, app, component);
+    if (isLinkOnlyVerse(verse)) {
+      // Same destination as a single link-only ref; keep the translation label
+      // in the column header and put a clear passage link in the body.
+      const body = col.createDiv({ cls: "bible-verse-text bible-verse-comparison-link" });
+      const passage = body.createEl("a", {
+        cls: "bible-verse-ref",
+        text: formatReference(ref),
+        href: url,
+      });
+      passage.setAttr("target", "_blank");
+      passage.setAttr("rel", "noopener");
+    } else {
+      const textContainer = col.createDiv({ cls: "bible-verse-text" });
+      await renderText(textContainer, verse.text, app, component);
 
-    if ((showAttribution || verse.requireAttribution) && verse.copyright) {
-      col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
+      if ((showAttribution || verse.requireAttribution) && verse.copyright) {
+        col.createDiv({ cls: "bible-verse-copyright", text: verse.copyright });
+      }
     }
   }
 }
