@@ -1,413 +1,250 @@
-# Bible Verse — Obsidian Plugin
+# Bible Verse
 
-Look up and display Bible verses directly in your Obsidian notes. Powered by the [HelloAO Bible API](https://bible.helloao.org), with support for multiple translations, comparison views, and links to popular Bible websites. **No API key required** for the built-in translations — and the ESV is also available inline with your own free API key.
+[![Obsidian 1.4.0+](https://img.shields.io/badge/Obsidian-1.4.0%2B-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md) [![Latest release](https://img.shields.io/github/v/release/kilrkrow/obsidian-bible-verse)](https://github.com/kilrkrow/obsidian-bible-verse/releases/latest) [![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json&query=%24%5B%27bible-verse%27%5D.downloads&label=downloads&color=7C3AED)](https://obsidian.md/plugins?id=bible-verse) [![License: GPL-3.0](https://img.shields.io/github/license/kilrkrow/obsidian-bible-verse)](LICENSE)
+
+Type a reference such as `{John 3:16}` in any note and Bible Verse shows the verse right there, in Live Preview and Reading view. Choose from 15 free translations with no account or API key, compare translations side by side, add the ESV with your own free key, link out to your favorite Bible website, and study the Hebrew and Greek behind King James verses with Strong's numbers. Verses can stay live or be baked into the note as plain Markdown, so your notes still read without the plugin.
+
+![Source mode on the left, Live Preview on the right: {John 3:16} renders as a KJV callout and {Psalm 23:1-3, BSB, sidebar} as a BSB passage with verse numbers](docs/images/inline-references.png)
 
 ## Features
 
-- **Inline references** — Type `{John 3:16}` anywhere in your notes to display a linked verse
-- **IntelliSense autocomplete** — Typing inside `{…}` shows book name suggestions and confirms complete references
-- **Code block display** — Use ` ```bible ` blocks for full verse rendering with custom translation
-- **Comparison view** — Compare verses across multiple translations side by side
-- **Strong's numbers and lexicon (KJV)** — Hover a word in a King James verse for its Strong's number, transliteration and definition from the STEPBible lexicon; show it as its transliteration or one of its meanings, or insert the entry into your notes
-- **Multiple display styles** — Sidebar, Callout, Blockquote, Inline, or Native callout (baked, collapsible)
-- **Bible website links** — Links to BibleHub, BibleGateway, Blue Letter Bible, or Bible.com
-- **Local caching** — Fetched verses are cached locally to reduce API calls
-- **Markdown Support** — Bold, italics, and highlights are preserved within "baked" scripture text
-- **ESV inline text** — Add your own free ESV API key to display the English Standard Version inline, not just as a link (attribution shown automatically, per Crossway's license)
-- **Link-Only Mode** — Access restricted translations (NIV, NLT, NKJV, etc.) via beautiful hyperlinked "pills"
-- **Bake mode** — Optionally persist verse text directly in your note source (Smart Non-Destructive Baking)
-- **Verse Numbers** — Optional display of verse numbers (e.g. `1.`) for easy reference
-- **Structural Formatting** — Respects poetic line breaks and paragraphs from the source text
-- **IntelliSense Autocomplete** — Suggestions for books, complete references, **and translations**
-- **Theme Integrated** — Uses native Obsidian design tokens for a premium look in both Light and Dark mode
-- **No API key needed** — The built-in translations use the free HelloAO Bible API with no registration required (the ESV is optional, with your own key)
+- **Inline references.** Wrap a reference in curly braces: a single verse, a range, a comma list, a whole chapter, or a verse to the end of the chapter.
+- **`bible` code blocks** with per-block translation, style, verse numbers, new lines and reading sections.
+- **Comparison view.** Two translations side by side inline, or as many as you like in a code block.
+- **15 free translations** through the [HelloAO Bible API](https://bible.helloao.org), no API key needed: KJV, BSB, ASV, WEB, NET, DARBY, DRB, ERV, YLT, BBE, FBV, LSV, MSB, GNV and OJB.
+- **ESV inline text** with your own free key from [api.esv.org](https://api.esv.org). Crossway's copyright notice is shown automatically.
+- **Link-only translations.** NIV, NKJV, NLT, AMP, CSB and NASB render as a link to the passage on your preferred Bible website.
+- **Bible website links** to BibleGateway, BibleHub, Blue Letter Bible or Bible.com.
+- **Five display styles:** callout, sidebar, blockquote, inline, and a native Obsidian callout that is baked into the note.
+- **Per-verse formatting:** verse numbers on or off, a new line per verse, and reading sections that follow the text's paragraphs.
+- **Strong's numbers and the STEPBible lexicon on King James verses.** Hover a word for its entry, show it as its transliteration or one of its meanings, or insert the entry below the verse.
+- **Autocomplete** inside `{…}` for book names, abbreviations, translations and display styles.
+- **Baking.** Write verse text into the note as ordinary Markdown, per reference or with commands for the note or the whole vault, and refresh or strip it later.
+- **Local cache**, so verses you have already looked up load without the network.
+- **Commands** to quick-insert a reference, open the reference at the cursor on your Bible website, search the Bible for selected text, and extend or shrink a passage one verse at a time.
+- **What's new pop-up** once after each update, which you can turn off.
+- **Searchable settings** on Obsidian 1.13 and later. Works on desktop and mobile.
 
-## Screenshots
+## What's new in 1.12
 
-Hero — curly-brace reference to rendered verse in Live Preview:
+### 1.12.1
 
-![`{John 3:16}` renders in Live Preview](docs/images/hero-john-316.png)
+- **Baking keeps your Strong's choices.** Baking a verse with transliterations or lexicon meanings used to write the plain King James text. The baked text now matches the screen: transliterations in italics, meanings in corner brackets, labelled KJV-Strong's and credited to the STEPBible lexicon. **Refresh baked verses** keeps those choices.
+- **The reference reads KJV-Strong's.** A verse with transliterations or meanings now names the translation in its reference, for example "Proverbs 3:5 (KJV-Strong's)". Hover it for the STEPBible credit.
+- **The 1.12.0 notes show up.** The release notes that were missing from the 1.12.0 update are included.
 
-Display styles (Settings → Display style, or per-reference overrides):
+### 1.12.0
 
-| Style | Preview |
-|-------|---------|
-| Sidebar | ![Sidebar style](docs/images/style-sidebar.png) |
-| Callout | ![Callout style](docs/images/style-callout.png) |
-| Blockquote | ![Blockquote style](docs/images/style-blockquote.png) |
-| Inline | ![Inline style](docs/images/style-inline.png) |
-| Native callout (bake) | ![Native callout bake](docs/images/style-native-callout.png) |
+- **Strong's numbers and the STEPBible lexicon on King James verses.** Put the cursor in a verse and run **Toggle Strong's on this verse**, or click the Strong's button next to the verse controls. Hover a word for its Strong's number, transliteration, lemma, gloss and definition. Click it to show the transliteration, or pick one of its meanings to show in the verse.
 
-## Installation
+[Release notes on GitHub](https://github.com/kilrkrow/obsidian-bible-verse/releases) · [Full changelog](CHANGELOG.md)
 
-### Manual Installation
+## Install
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the latest release
-2. Create a folder `obsidian-bible-verse` in your vault's `.obsidian/plugins/` directory
-3. Copy the three files into the folder
-4. Enable the plugin in Obsidian Settings → Community plugins
+**From Obsidian:** Settings → Community plugins → Browse → search for *Bible Verse* → Install → Enable. Requires Obsidian **1.4.0** or later and works on desktop and mobile.
 
-### Community Plugin (when available)
-
-1. Open Obsidian Settings → Community plugins
-2. Search for "Bible Verse"
-3. Install and enable
+**Manually:** download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/kilrkrow/obsidian-bible-verse/releases/latest) into `<your vault>/.obsidian/plugins/bible-verse/`, then reload Obsidian and enable **Bible Verse** under Settings → Community plugins.
 
 ## Usage
 
-### Inline Syntax
+### Inline references
 
-Wrap any Bible reference in curly braces anywhere in your notes:
-
-```
-{John 3:16}
-{1 Corinthians 13:4-7}
-{Psalm 23}
-{John 3:16-21,25}
-```
-
-The plugin renders the verse inline in Reading view and Live Preview. In Edit mode, the `{ref}` marker remains as plain text so you always know what is embedded in your note.
-
-#### IntelliSense Autocomplete
-
-Typing inside `{…}` activates autocomplete suggestions:
-
-- **Book names** — type a few letters (e.g. `{co`) to see matching books like `Colossians`, `1 Corinthians`, `2 Corinthians`
-- **Alias support** — common abbreviations work too (e.g. `{1co` → `1 Corinthians`)
-- **Complete reference** — once you have typed a full reference like `{John 3:16`, the formatted reference appears as a single suggestion; press **Enter** or **Tab** to confirm and close the braces
-- **Translations & Styles** — After a reference, type a comma and space (e.g., `{John 3:16, `) to see a list of all supported translations (including "🔗 Link-only" versions) and display styles.
-
-Selecting a book-only suggestion inserts it with a trailing space so you can continue typing the chapter and verse number.
-
-### Inline Translation and Style Overrides
-
-Both a translation and a display style can be specified inside the braces by appending comma-separated tokens after the reference. Translation codes are matched first, then a known style keyword (`sidebar`, `callout`, `blockquote`, `inline`, `native-callout`) wins when ambiguous.
+Wrap a reference in curly braces anywhere in a note:
 
 ```
-{John 3:16, KJV}                  -- override translation
-{John 3:16, KJV, DARBY}           -- side-by-side comparison
-{John 3:16, sidebar}              -- default translation, force sidebar style
-{John 3:16, KJV, sidebar}         -- KJV in sidebar style
-{John 3:16, KJV, DARBY, callout}  -- comparison (style is ignored here)
+{John 3:16}                 single verse
+{1 Corinthians 13:4-7}      range
+{John 3:16-18,21}           range plus extra verses
+{Psalm 23}                  whole chapter
+{Romans 8:26-eoc}           verse to the end of the chapter
 ```
 
-#### Formatting Overrides
-
-You can override your global settings for verse numbers and line breaks on a per-quote basis using these keywords:
-
-*   `v` / `no-v` — Force verse numbers on or off.
-*   `nl` / `no-nl` — Force each verse onto a new line (nl) or keep them in a single paragraph (no-nl).
+Add a translation, a display style, or both, separated by commas:
 
 ```
-{John 3:16-17, no-v}             -- hide verse numbers for this quote
-{John 3:16-17, KJV, nl}          -- KJV with each verse on a new line
-{John 3:16-17, KJV, nl, no-v}    -- KJV, new lines, no numbers
+{John 3:16, BSB}
+{John 3:16, sidebar}
+{Psalm 23:1-3, BSB, sidebar}
 ```
 
-**Verse numbers on a single verse.** A reference that resolves to exactly one verse (like `{John 3:16}`) shows no verse number unless you ask for one, since a lone `16.` adds nothing:
+The styles are `callout` (the default), `sidebar`, `blockquote`, `inline` and `native-callout`. Typing inside `{…}` opens autocomplete for books; after a comma it lists translations and styles.
 
-*   An explicit choice always wins: `v` / `no-v` inline, or `numbers: true` / `numbers: false` in a ` ```bible ` block.
-*   With nothing explicit, a single verse shows no number, whether **Show verse numbers** is on or off.
-*   Ranges, whole chapters, and comma lists (e.g. `{John 3:16-21,25}`) follow the **Show verse numbers** setting as before.
-
-The same rule applies everywhere a verse is shown: Live Preview, Reading view, ` ```bible ` blocks, comparison views, ESV, and baked text (`bake`, `native-callout`, and the bake/refresh commands).
-
-```
-{John 3:16}                      -- no number
-{John 3:16, v}                   -- 16. For God so loved...
-{John 3:16-17}                   -- 16. ... 17. ... (when Show verse numbers is on)
-```
-
-### Baking into your note (`bake` and `native-callout`)
-
-"Baking" writes a verse's **text permanently into your note** as ordinary Markdown, so it reads even without the plugin. Two tokens trigger a one-way bake on render — after which the plugin no longer tracks that reference (it's just text you own):
-
-*   `bake` — bakes into a ` ```bible ` code block (the same format as the bake commands).
-*   `native-callout` (alias `nco`) — bakes into a real, **collapsible** Obsidian callout: `> [!quote]+ [John 3:16 (KJV)](…)`. Because it's a genuine callout, it inherits your theme, icon packs, and fold behavior. Add `-` to start it collapsed (`nco-`), `+` to force expanded.
-
-```
-{John 3:16, bake}                -- bake into a code block
-{John 3:16, native-callout}      -- bake into a collapsible callout (expanded)
-{John 3:16, ESV, nco-}           -- ESV, baked as a callout that starts collapsed
-```
-
-The callout type (default `quote`) is configurable in **Settings → Bible Verse → Native callout type** — set it to `bible` (or whatever your icon pack defines) to apply custom icons. Selecting **Native callout** as your *default* display style will auto-bake every reference you add. In the editor, a reference that will bake shows a placeholder pill until the note is viewed in Reading mode.
-
-### ESV (with your own API key)
-
-The English Standard Version can be displayed inline once you supply your own free API key:
-
-1. Sign up at [api.esv.org](https://api.esv.org) and create an API key.
-2. Paste it into **Settings → Bible Verse → ESV API key**.
-
-ESV references then render as text like any other translation. Without a key, ESV falls back to a link pill. The ESV license requires attribution, so the Crossway copyright notice is shown automatically for ESV verses regardless of the "Show attribution" setting.
-
-```
-{John 3:16, ESV}                 -- Renders as text once a key is set (otherwise a link pill)
-```
-
-### Link-Only Translations
-
-Other commercially licensed translations (NIV, NLT, NKJV, NASB, AMP, CSB) cannot be fetched as text due to licensing restrictions. When these are selected, the plugin renders a beautiful "Link Pill" that takes you directly to the verse on your preferred Bible website.
-
-```
-{John 3:16, NIV}                 -- Renders as a hyperlink pill
-```
-
-### Code Block
-
-Use a `bible` code block for full verse display:
+### Code blocks
 
 ````
 ```bible
-John 3:16
-translation: KJV
+John 3:16-18
+translation: BSB
 style: sidebar
-newline: true      -- override: each verse on a new line
-numbers: false     -- override: hide verse numbers
+newline: true
+numbers: false
 ```
 ````
 
-The `style:` key accepts `sidebar`, `callout`, `blockquote`, or `inline` and overrides the global display style for this block only. The `newline:` and `numbers:` keys accept `true` or `false`.
+The first line is the reference. Every other line is optional: `translation:` takes a translation code, `style:` one of `sidebar`, `callout`, `blockquote` or `inline`, and `newline:`, `numbers:` and `sections:` take `true` or `false`.
 
-### Comparison View
+### Comparison view
 
-Compare multiple translations:
+Put two translations in an inline reference, or list as many as you like after `compare:` in a code block:
 
 ````
+{John 3:16, KJV, WEB}
+
 ```bible
 Romans 8:28
 compare: KJV, BSB, ASV
 ```
 ````
 
-### Strong's numbers and the STEPBible lexicon (KJV)
+![Source mode on the left, Live Preview on the right: {John 3:16, KJV, WEB} as two columns, and a bible code block comparing Romans 8:28 in KJV, BSB and ASV](docs/images/comparison-view.png)
 
-Study the Hebrew and Greek behind a King James verse without leaving your note.
+### Verse numbers: `v`, `no-v` and `numbers:`
 
-**Turn it on.** Put the cursor in a verse token and run **Toggle Strong's on this verse** from the command palette, or hover the verse's reference and click the Strong's button (the languages icon) next to the verse controls. The token gains `strongs`:
-
-```
-{Proverbs 3:5}            -- plain King James
-{Proverbs 3:5, strongs}   -- Strong's layer on
-```
-
-Words that have a Strong's number get a dotted underline. Words with no number stay plain.
-
-**Hover a word** to see its entry: the Strong's number, transliteration, Hebrew or Greek lemma, gloss, and the definition. *LORD* in Proverbs 3:5 shows **H3068**, *ye.ho.vah*, "LORD". The transliteration is exactly what the lexicon gives; nothing is substituted.
-
-**Change what the verse shows.** Each tagged word can show one of three things:
-
-- **The King James word**: the default.
-- **Its transliteration**: click the word, or use **Show as …** in the popover. *LORD* becomes *ye.ho.vah*.
-- **One of its meanings**: the definition's numbered meanings (1, 1a, 1b…) are clickable. Pick one and it replaces the word: "In all thy ⌜journey⌝ acknowledge him" for *ways* (H1870, 1b). Verb meanings drop their leading "to" so they read in the sentence ("to guard, keep" shows as ⌜guard, keep⌝); the popover keeps the lexicon's wording. Headings such as "1a) (Qal)" only group the meanings under them and can't be picked.
-
-Click a changed word, or the highlighted meaning, to go back to the King James word.
-
-**Pick a single word from a meaning.** Turn on **Pick single words from lexicon meanings** in settings (off by default) and each comma-separated word in a meaning becomes a pick of its own, for example *ignore* from "1) to forget, ignore, wither".
-
-**Insert below** adds the word's full lexicon entry as one line under the verse, for study notes, with any meaning you picked in bold:
+Ranges, comma lists and whole chapters follow the **Show verse numbers** setting (on by default). A single verse shows no number unless you ask for one. An explicit choice always wins:
 
 ```
-**ways** — H1870 *de.rekh* "way: conduct": : conduct/lifestyle 1) way, road, distance, journey, manner 1a) road, way, path **1b) journey** 1c) direction … *(STEPBible lexicon, CC BY 4.0, STEPBible.org / Tyndale House)*
+{John 3:16}                 no number
+{John 3:16, v}              16. For God so loved the world...
+{John 3:16-18, no-v}        three verses, no numbers
 ```
 
-**What gets saved.** Your choices live in the token, so they survive a reload and travel with the note:
-
-```
-{Proverbs 3:5, strongs, tr:5.0.15}        -- LORD shown as ye.ho.vah
-{Proverbs 3:6, strongs, mn:6.0.11=1b}     -- ways shown as meaning 1b
-{Proverbs 3:1, strongs, mn:1.0.8=1~2}     -- one word (the 2nd) of meaning 1
-```
-
-You don't need to type these: the clicks write them. `tr:` lists words shown as transliterations and `mn:` lists words shown as meanings. Each word is identified by its verse and its position in the source text. Turning Strong's off removes all three modifiers and gives you the plain verse back.
-
-**Clearly marked, and credited.** Whenever a verse shows anything other than the King James words, its reference names the translation as **KJV-Strong's**: "Proverbs 3:5 (KJV-Strong's)". Undo every change and it reads "(KJV)" again. Hover the reference for the STEPBible credit, or hover a changed word to see what it replaced and where the text came from. Nothing is written into your note except the line you ask for with **Insert below**.
-
-**Where it works.** King James verses in Live Preview and Reading view. ESV, the link-only translations (NIV, NKJV, NLT, AMP, CSB, NASB) and side-by-side comparisons don't have Strong's data; trying them shows a short notice and leaves the token alone. ` ```bible ` code blocks and baked text don't show the layer.
-
-**Baking a Strong's verse.** Adding `bake` (or baking with a command or as a native callout) writes the verse as it reads on screen: transliterations in *italics*, meanings in ⌜ ⌝, labelled **KJV-Strong's**, with the STEPBible credit as its attribution line. A code-block bake also records your choices in a `strongs:` line in its header (with the credit beside it, for anyone reading the note without the plugin), so **Refresh baked verses** rebuilds the same wording rather than reverting to plain King James:
+In a code block, use `numbers: true` or `numbers: false`:
 
 ````
 ```bible
-Proverbs 3:5
-translation: KJV
-strongs: tr:5.0.15
-lexicon: STEPBible lexicon, CC BY 4.0, STEPBible.org / Tyndale House
-
----
-Trust in the *ye.ho.vah* with all thine heart; and lean not unto thine own understanding.
+John 3:16-18
+numbers: false
 ```
 ````
 
-## Available Translations
+### More formatting tokens
+
+```
+{John 3:16-18, nl}          each verse on a new line (no-nl to turn it off)
+{Luke 19, para}             group the chapter into its reading sections (no-para to turn it off)
+{John 3:16, NIV}            link-only translation: a link to the passage on your Bible website
+{John 3:16, ESV}            ESV text once your key is set, otherwise a link
+```
+
+### Baking a verse into the note
+
+`bake` writes the verse into the note as a `bible` code block. `native-callout` (or `nco`) writes it as a real, collapsible Obsidian callout; add `-` to start it collapsed. After baking, the text is ordinary Markdown that you own.
+
+```
+{John 3:16, bake}
+{John 3:16, native-callout}
+{John 3:16, nco-}
+```
+
+The bake commands do the same for a whole note or vault, and **Refresh baked verses in this note** updates baked text later.
+
+### Strong's numbers (King James)
+
+Put the cursor in a KJV reference and run **Toggle Strong's on this verse**, or add the token yourself:
+
+```
+{Proverbs 3:5, strongs}
+```
+
+Words with a Strong's number get a dotted underline. Hover one to see its entry (*LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*). Click it to show the transliteration, or pick one of its numbered meanings to show in its place. Your picks are saved in the token as `tr:` and `mn:` entries, so they survive a reload. A verse that shows anything other than the King James words is labelled "KJV-Strong's".
+
+## Documentation
+
+- **Full syntax reference:** Settings → Bible Verse → Syntax reference lists every token form, and the sections below cover the rest.
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md). The same notes appear in Obsidian after each update, or any time with the **Show what's new** command.
+- **Translation support map:** [open the interactive map](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html) or see the chart below.
 
 ### Translation support map
 
-Which translations the plugin supports today, and which are planned. [Open the interactive map](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html) to hover over any bubble for the full translation name, or [download the HTML file](docs/bible_translations.html).
-
 [![Bible translation map: textual fidelity vs. translation style, colored by plugin support](docs/images/translation-map.png)](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html)
 
-| Label | Color | Meaning |
-|-------|-------|---------|
-| **supported** | Indigo | Shows inline verse text through the free HelloAO API, no key needed. |
-| **supported\*** | Light indigo | Link-only today: renders as a link to your preferred Bible website. ESV shows inline text once you add your own free API key. |
-| **planned** | Plum | Feasible, but not supported yet. You can request it below. |
-| **not planned** | Orange | Not possible to support. |
+| Label | Meaning |
+|-------|---------|
+| **supported** | Shows verse text through the free HelloAO API, no key needed. |
+| **supported\*** | Link-only, rendered as a link to your Bible website. ESV shows text once you add your own free API key. |
+| **planned** | Feasible, but not supported yet. |
+| **not planned** | Not possible to support. |
 
-Bubble size shows readability. Position shows the translation philosophy from literal to paraphrase (left to right) and textual fidelity (bottom to top).
+Missing a translation? [Request it](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+) with the issue form.
 
-#### Request a translation
+### Translations
 
-Missing one you'd like? [![Request a translation](https://img.shields.io/badge/Request%20a%20translation-open%20an%20issue-5B4FCF?style=for-the-badge)](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+) opens a GitHub issue form. For the planned translations, these links open it with the translation name already filled in:
+| Kind | Translations |
+|------|--------------|
+| Text, free (HelloAO) | KJV, BSB, ASV, WEB, NET, DARBY, DRB (Douay-Rheims 1899), ERV (Revised Version), YLT, BBE, FBV, LSV, MSB, GNV (Geneva 1599), OJB |
+| Text, your own key | ESV, from [api.esv.org](https://api.esv.org) |
+| Link only | NIV, NKJV, NLT, AMP, CSB, NASB |
 
-| Translation | |
-|-------------|--|
-| Legacy Standard Bible (LSB) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+LSB&translation=Legacy+Standard+Bible+%28LSB%29) |
-| New Revised Standard Version (NRSV) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+NRSV&translation=New+Revised+Standard+Version+%28NRSV%29) |
-| Contemporary English Version (CEV) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+CEV&translation=Contemporary+English+Version+%28CEV%29) |
-| Living Bible (TLB) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+TLB&translation=Living+Bible+%28TLB%29) |
-| The Message (MSG) | [Request](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=translation-request.yml&title=Translation+request%3A+MSG&translation=The+Message+%28MSG%29) |
+### Display styles
 
-### Text-Display Translations (Freely Available)
+| Sidebar | Callout | Blockquote |
+|---------|---------|------------|
+| ![Sidebar style](docs/images/style-sidebar.png) | ![Callout style](docs/images/style-callout.png) | ![Blockquote style](docs/images/style-blockquote.png) |
 
-| Abbreviation | Translation |
-|-------------|-------------|
-| KJV | King James Version |
-| BSB | Berean Standard Bible |
-| ASV | American Standard Version |
-| WEB | World English Bible |
-| NET | NET Bible |
-| DARBY | Darby Translation |
-| DRB | Douay-Rheims 1899 |
-| ERV | Revised Version |
-| YLT | Young's Literal Translation |
-| BBE | Bible in Basic English |
-| FBV | Free Bible Version |
-| LSV | Literal Standard Version |
-| MSB | Majority Standard Bible |
-| GNV | Geneva Bible 1599 |
-| OJB | Orthodox Jewish Bible |
+| Inline | Native callout (baked) |
+|--------|------------------------|
+| ![Inline style](docs/images/style-inline.png) | ![Native callout style](docs/images/style-native-callout.png) |
 
-### API-Key Translations
+### Settings
 
-Available inline with your own free API key (otherwise rendered as a link):
-
-| Abbreviation | Translation | Provider |
-|-------------|-------------|----------|
-| ESV | English Standard Version | [api.esv.org](https://api.esv.org) |
-
-### Link-Only Translations (Commercially Licensed)
-
-The following translations render as a hyperlink to your preferred Bible website:
-
-- **NIV** — New International Version
-- **NLT** — New Living Translation
-- **NKJV** — New King James Version
-- **NASB** — New American Standard Bible
-- **AMP** — Amplified Bible
-- **CSB** — Christian Standard Bible
-
-## Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Default translation | Which translation to use by default | KJV |
-| Preferred Bible website | Which Bible website to link to | BibleGateway |
-| Display style | Visual presentation of verses | Callout |
-| Sidebar top padding | Top spacing for the Sidebar style (in ems) | 0.5 |
-| Show verse numbers | Toggle verse numbers (e.g. `1.`) for ranges, whole chapters, and comma lists. A single verse (e.g. `{John 3:16}`) shows no number unless you add `v` or `numbers: true` | On |
-| New line per verse | Each verse starts on a new line | Off |
-| Persist verse text in notes | Automatically bake verse text when rendering | Off |
-| Show attribution | Display license and copyright links below verses | Off |
-| Bake inline references | Convert `{ref}` to code block when baking | Off |
-| Show what's new after updates | Once after each update, show a short pop-up of what changed | On |
-| Pick single words from lexicon meanings | In the Strong's popover, also pick one word or phrase from a lexicon meaning (e.g. *ignore* from "to forget, ignore, wither"), not just the whole meaning | Off |
-| ESV API key | Your [api.esv.org](https://api.esv.org) key, to display ESV text inline | (empty) |
-
-## Baking and Persisting Text
-
-When "Persist Verse Text" is enabled, fetched verse text is stored directly inside the ` ```bible ` code block. This ensures your notes are **offline-ready** and **readable by anyone**, even if they don't have the plugin installed.
-
-```bible
-John 3:16
-translation: KJV
----
-16. For God so loved the world...
-```
-
-**Markdown Support**: You can use **bold**, *italics*, and ==highlights== within baked scripture text. These styles will be preserved if you refresh the verse later.
+| Setting | What it does | Default |
+|---------|--------------|---------|
+| Default translation | Translation used when a reference names none | KJV |
+| Preferred Bible website | Where reference links and link-only translations go | BibleGateway |
+| Display style | How verses are shown | Callout |
+| Native callout type | Callout type used when baking as a native callout | `quote` |
+| Sidebar top padding | Top spacing of the sidebar style, in ems | 0.5 |
+| Persist verse text in notes | Bake verse text into the note when it renders | Off |
+| Show verse numbers | Numbers for ranges, comma lists and chapters | On |
+| Show attribution | License and copyright links below verses | Off |
+| New line per verse | Start each verse on a new line | Off |
+| Bake inline references | Bake commands also turn `{ref}` into a code block | Off |
+| Reading sections | Group verses by the text's paragraph breaks | Off |
+| IntelliSense helper mode | After a complete reference, offer the available modifiers | On |
+| Pick single words from lexicon meanings | In the Strong's popover, also pick one word from a meaning | Off |
+| Show what's new after updates | Show the release notes once after each update | On |
+| ESV API key | Your api.esv.org key, to show ESV text | (empty) |
 
 ### Commands
 
-Lookup & insert:
+| Command | |
+|---------|--|
+| Quick insert reference | Insert a `{reference}`, optionally opening it on your Bible website |
+| Open reference at cursor on Bible site | Open the `{ref}` under the cursor |
+| Search Bible for selected text | Search your Bible website for the selection |
+| Extend passage by one verse / Shrink passage by one verse | Move the end verse of the reference at the cursor |
+| Move start verse forward / Move start verse back | Move the start verse of the reference at the cursor |
+| Toggle Strong's on this verse | Turn the Strong's layer on or off (KJV) |
+| Bake all verses in this note / Refresh baked verses in this note | Bake or refresh one note |
+| Bake all existing verses across vault / Refresh all baked verses in vault | Bake or refresh every note |
+| Strip baked text from all notes | Remove baked text and keep the `{ref}` markers |
+| Clear verse cache | Empty the local verse cache |
+| Show what's new | Open the release notes for the installed version |
+| Report a bug on GitHub | Open a bug report with your version info filled in |
 
-- **Search Bible for selected text** — Select any text (in edit mode *or* Reading view) and run this to search your preferred Bible website for it. The selection is also copied to your clipboard.
-- **Quick insert reference** — Open a dialog to insert a `{reference}`, optionally opening it on your preferred Bible website at the same time.
-- **Open reference at cursor on Bible site** — Place the cursor on a `{ref}` while editing and run this to open that passage on your preferred Bible website. *(edit mode)*
+### Troubleshooting
 
-Baking & cache:
+- **Verse not found.** Check the book name, chapter and verse, or pick the book from autocomplete. A reference can't span chapters (`John 3:16-4:2`); split it in two.
+- **Link instead of text.** NIV, NKJV, NLT, AMP, CSB and NASB are link-only by license. ESV needs a key under Settings → Bible Verse → ESV API key.
+- **Offline.** Verses you have viewed are cached. For notes that must read anywhere, bake the text.
+- **Stale text.** Run **Clear verse cache**; the next view fetches again.
+- **"No Strong's data".** Strong's works on KJV verses only, one translation at a time. Add `KJV` to the token if it isn't your default: `{Proverbs 3:5, KJV, strongs}`.
+- **Careful with bulk commands.** A default style of *Native callout* bakes every reference you add, and the vault-wide commands rewrite many notes. Try the note commands first.
 
-- **Bake all verses in this note** — Fetch and embed all `{ref}` verses in the current note
-- **Refresh baked verses in this note** — Re-fetch and update all baked verses
-- **Refresh all baked verses in vault** — Re-fetch across all notes
-- **Bake all existing verses across vault** — Bake all `{ref}` markers in every note
-- **Strip baked text from all notes** — Remove all baked text, keeping only `{ref}` markers
-- **Clear verse cache** — Clear the local verse cache to free up space
+### Data sources
 
-Study:
-
-- **Toggle Strong's on this verse** — Place the cursor in a `{ref}` and run this to turn the Strong's layer on or off for that verse. Turning it off also clears any transliterations and meanings you picked. *(edit mode; King James only)*
-
-Help:
-
-- **Show what's new** — Open the release notes for the installed version
-- **Report a bug on GitHub** — Open a bug report with your version info filled in
-
-## Troubleshooting
-
-### Verse not found
-
-- Check the book name and chapter/verse (typos and unsupported abbreviations fail the lookup).
-- Use IntelliSense inside `{` ... `}` to pick a known book and translation.
-- Link-only translations (NIV, NLT, ...) never show inline text — they open as a website link by design.
-- ESV needs a valid key under **Settings → Bible Verse → ESV API key**; without it ESV is link-only.
-
-### Offline / cache behavior
-
-- Built-in translations are cached locally after the first successful fetch so reopening a note works offline for those verses.
-- Enable **Persist verse text in notes** (or bake commands) to store text inside the note itself — that is the offline-ready path for sharing vaults.
-- A cold cache plus no network shows an error until the verse can be fetched once.
-
-### Clear verse cache
-
-Command palette → **Clear verse cache** (command id `clear-cache`). Use this if a translation looks stale after an upstream fix, or to reclaim space. The next view of each reference refetches.
-
-### "Strong's isn't available" or "No Strong's data"
-
-- The Strong's layer needs word-level Strong's data, which HelloAO publishes for the King James Version. A translation without it, ESV, the link-only translations and comparisons show this notice and are left unchanged; add `KJV` to the token if KJV isn't your default (`{Proverbs 3:5, KJV, strongs}`).
-- "Could not check for Strong's data" means the lookup needed the network and couldn't reach it. Try again when you're online. Chapters and lexicon entries already looked up in this session keep working offline.
-
-### Footguns
-
-- Default display style **Native callout** auto-bakes references; that rewrites note content — switch back to Callout/Sidebar if you only wanted live rendering.
-- Comparison tokens (multiple translations) ignore a style override in the same brace.
-- Baking / refresh vault-wide commands rewrite many notes — prefer note-scoped bake/refresh first.
-
-## Feedback and ideas
-
-I'd love to hear how you use Bible Verse.
-
-- **Questions, ideas, or show-and-tell:** [GitHub Discussions](https://github.com/kilrkrow/obsidian-bible-verse/discussions)
-- **Bug reports:** [open an issue](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=bug.yml)
-- **From inside Obsidian:** Settings → Bible Verse → Feedback has buttons for both, with your version info filled in for bug reports.
-
-## Data Source
-
-Text for the built-in translations is provided by the [HelloAO Bible API](https://bible.helloao.org) — no API key or registration required. ESV text is fetched from the [ESV API](https://api.esv.org) using your own key, and its copyright notice is displayed automatically as required by Crossway's license.
-
-Strong's numbers, transliterations, glosses and definitions come from the **STEPBible lexicon**, the Translators Brief lexicons of Extended Strong's (TBESH and TBESG) by [STEPBible.org](https://www.stepbible.org) / Tyndale House, Cambridge, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and served through the HelloAO API (source: [STEPBible-Data](https://github.com/STEPBible/STEPBible-Data)). The plugin credits it in the Strong's popover, on every line inserted with **Insert below**, and in settings. When a meaning is shown in a verse it is shortened (a leading "to" dropped, or a single word picked), and the verse is labelled as changed.
+Text for the free translations comes from the [HelloAO Bible API](https://bible.helloao.org). ESV text comes from the [ESV API](https://api.esv.org) with your own key, and Crossway's copyright notice is shown automatically. Strong's numbers, transliterations and definitions come from the STEPBible lexicon (TBESH and TBESG) by [STEPBible.org](https://www.stepbible.org) / Tyndale House, Cambridge, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and served through the HelloAO API. The plugin credits it wherever lexicon text is shown or inserted.
 
 ## License
 
-[GPL-3.0](LICENSE)
+[GNU General Public License v3.0](LICENSE) (GPL-3.0). You may use, change and share the plugin; changed versions you distribute must also be GPL-3.0 and come with their source.
+
+## Credits
+
+- **Author:** [kilrkrow](https://github.com/kilrkrow)
+- **Contributors:** [@tasodoufu](https://github.com/tasodoufu): removed stale multi-chapter comments from the parser ([#61](https://github.com/kilrkrow/obsidian-bible-verse/pull/61))
+- **Data:** [HelloAO Bible API](https://bible.helloao.org), [STEPBible](https://www.stepbible.org) / Tyndale House, and the [ESV API](https://api.esv.org) by Crossway
+
+## Links
+
+[Issues](https://github.com/kilrkrow/obsidian-bible-verse/issues) · [Discussions](https://github.com/kilrkrow/obsidian-bible-verse/discussions) · <!-- FORUM_THREAD_URL --> [Releases](https://github.com/kilrkrow/obsidian-bible-verse/releases)
