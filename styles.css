@@ -800,3 +800,8 @@
 .bible-verse-strongs-credit a {
   color: inherit;
 }
+
+.bible-verse-comparison-link a.bible-verse-ref {
+  font-weight: 500;
+  text-decoration: underline;
+}

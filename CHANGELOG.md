@@ -127,7 +127,7 @@ Baking is one-way: once written, the text is ordinary Markdown and the plugin no
 - Initial public release prepared for Obsidian community plugin submission
 - Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags
 - Display styles: callout, sidebar, blockquote, inline
-- Side-by-side translation comparison (`{ref, KJV | NIV}`)
+- Side-by-side translation comparison (`{ref, KJV, NIV}`)
 - Baked verse text via `Bake` and `Refresh` commands
 - Verse cache with optional persistence
 - Quick Insert command palette modal
