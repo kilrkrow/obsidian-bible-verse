@@ -16,6 +16,9 @@ shows nothing, so the changelog has to be kept up to date.
   `versions.json`, rename `## [Unreleased]` to `## [x.y.z] — YYYY-MM-DD` with the
   new version and today's date, in the same commit. The pop-up skips
   `[Unreleased]`, so a section left under that name never reaches users.
+- **In the same commit, update `## What's new in x.y` in `README.md`** to the
+  new version's highlights. Obsidian's Community plugins browser shows the
+  README as the plugin page, so a stale section is the first thing people see.
 - The heading format matters, because the pop-up parses it: `## [1.11.0] — 2026-10-16`.
   `test/whats-new.test.ts` fails if the version in `manifest.json` has no section.
 
