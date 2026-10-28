@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { closeStrongsPopover, decorateStrongs, StrongsLayer } from "../src/strongs-dom";
+import type { StrongsLinkTarget } from "../src/types";
 import { chooseSense, meaningsOf, LexiconEntry, LexiconSense, StrongsWord, WordDisplayState } from "../src/strongs";
 
 /**
@@ -63,6 +64,7 @@ function verse(number: string, english: string) {
     transliterations: new Map(),
     meaningTexts: new Map(),
     wordPicks: () => false,
+    linkTarget: () => "STEPBible" as StrongsLinkTarget,
     translation: "KJV",
     lookup: async () => lexicon(number),
     writer: {
@@ -189,5 +191,101 @@ describe("popover — numbered meanings are unchanged", () => {
     expect(pop.querySelector(".bible-verse-strongs-gloss")!.textContent).toBe(sense.gloss);
     const labels = rows(pop).map((r) => r.querySelector(".bible-verse-strongs-meaning-label")!.textContent);
     expect(labels).toEqual(meaningsOf(sense.definition).map((m) => m.label));
+  });
+});
+
+describe("popover — the Strong's number links to every verse using it", () => {
+  const numberLink = (pop: HTMLElement) => pop.querySelector<HTMLAnchorElement>(".bible-verse-strongs-head a")!;
+
+  it.each([
+    ["G1383", "https://www.stepbible.org/?q=strong=G1383"],
+    ["G0026", "https://www.stepbible.org/?q=strong=G0026"],
+    ["H0982", "https://www.stepbible.org/?q=strong=H0982"],
+    ["H1870", "https://www.stepbible.org/?q=strong=H1870G"],
+    ["H3068", "https://www.stepbible.org/?q=strong=H3068G"],
+  ])("%s links to %s", async (n, url) => {
+    const pop = await hover(verse(n, "word").span);
+    const a = numberLink(pop);
+    expect(a.textContent).toBe(n);
+    expect(a.classList.contains("bible-verse-strongs-number")).toBe(true);
+    expect(a.getAttribute("href")).toBe(url);
+    expect(a.getAttribute("title")).toBe(`See all uses of ${n}`);
+    expect(a.getAttribute("target")).toBe("_blank");
+    expect(a.getAttribute("rel")).toBe("noopener");
+    // Only the number is a link; the rest of the header is plain text.
+    expect(pop.querySelectorAll(".bible-verse-strongs-head a").length).toBe(1);
+  });
+
+  it("goes to Blue Letter Bible when there is no lexicon entry", async () => {
+    const v = verse("H0430", "God");
+    v.layer.lookup = async () => null;
+    const a = numberLink(await hover(v.span));
+    expect(a.getAttribute("href")).toBe("https://www.blueletterbible.org/lexicon/h430/kjv/wlc/0-1/");
+    expect(a.textContent).toBe("H0430");
+  });
+
+  it("stays plain text for a number it can't read", async () => {
+    const v = verse("X12", "word");
+    v.layer.lookup = async () => null;
+    const pop = await hover(v.span);
+    expect(pop.querySelector(".bible-verse-strongs-head a")).toBeNull();
+    expect(pop.querySelector(".bible-verse-strongs-number")!.textContent).toBe("X12");
+  });
+
+  it("a click stops at the link: the popover stays, the word and the note are untouched", async () => {
+    const { span, calls } = verse("G1383", "trying");
+    const pop = await hover(span);
+    let reachedBody = false;
+    const onBody = () => (reachedBody = true);
+    document.body.addEventListener("click", onBody);
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    numberLink(pop).dispatchEvent(click);
+    document.body.removeEventListener("click", onBody);
+    await settle();
+    // Not cancelled: the browser (Obsidian) follows the link as it does the credit.
+    expect(click.defaultPrevented).toBe(false);
+    expect(reachedBody).toBe(false);
+    expect(document.querySelector(".bible-verse-strongs-popover")).toBe(pop);
+    expect(pop.isConnected).toBe(true);
+    expect(span.textContent).toBe("trying");
+    expect(calls.setWords).toEqual([]);
+    expect(calls.insert).toEqual([]);
+    // The meaning row and buttons still work afterwards.
+    rows(pop)[0].click();
+    await settle();
+    expect(span.textContent).toBe("testing");
+    expect(button(document.querySelector<HTMLElement>(".bible-verse-strongs-popover")!, 'Show "trying"')).toBeTruthy();
+  });
+});
+
+describe("popover — the number link follows the \"Strong's number link\" setting", () => {
+  const href = (pop: HTMLElement) => pop.querySelector<HTMLAnchorElement>(".bible-verse-strongs-head a")!.getAttribute("href");
+
+  it.each([
+    ["BibleHub", "G1383", "https://biblehub.com/greek/1383.htm"],
+    ["BibleHub", "H1870", "https://biblehub.com/hebrew/1870.htm"],
+    ["BibleHub", "G0026", "https://biblehub.com/greek/26.htm"],
+    ["STEPBible", "H1870", "https://www.stepbible.org/?q=strong=H1870G"],
+    ["BlueLetter", "H1870", "https://www.blueletterbible.org/lexicon/h1870/kjv/wlc/0-1/"],
+    ["BlueLetter", "G0026", "https://www.blueletterbible.org/lexicon/g26/kjv/tr/0-1/"],
+  ] as [StrongsLinkTarget, string, string][])("%s: %s links to %s", async (target, n, url) => {
+    const v = verse(n, "word");
+    v.layer.linkTarget = () => target;
+    const pop = await hover(v.span);
+    expect(href(pop)).toBe(url);
+    expect(pop.querySelector(".bible-verse-strongs-head a")!.getAttribute("title")).toBe(`See all uses of ${n}`);
+  });
+
+  it("reads the setting each time the popover opens", async () => {
+    let target: StrongsLinkTarget = "BibleHub";
+    const v = verse("G1383", "trying");
+    v.layer.linkTarget = () => target;
+    expect(href(await hover(v.span))).toBe("https://biblehub.com/greek/1383.htm");
+    closeStrongsPopover();
+    target = "BlueLetter";
+    expect(href(await hover(v.span))).toBe("https://www.blueletterbible.org/lexicon/g1383/kjv/tr/0-1/");
+    closeStrongsPopover();
+    target = "STEPBible";
+    expect(href(await hover(v.span))).toBe("https://www.stepbible.org/?q=strong=G1383");
   });
 });

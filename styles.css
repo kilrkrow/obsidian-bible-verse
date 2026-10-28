@@ -674,6 +674,22 @@
   font-weight: 600;
 }
 
+/* The number links to every verse that uses it. Only the link colour and
+   underline change, from the theme's own link variables; the size, weight
+   and font stay the header's. */
+.bible-verse-strongs-number-link,
+.bible-verse-strongs-number-link:visited {
+  color: var(--link-color);
+  text-decoration-line: var(--link-decoration);
+  text-decoration-thickness: var(--link-decoration-thickness);
+  cursor: var(--cursor-link);
+}
+
+.bible-verse-strongs-number-link:hover {
+  color: var(--link-color-hover);
+  text-decoration-line: var(--link-decoration-hover);
+}
+
 .bible-verse-strongs-translit {
   font-style: italic;
 }

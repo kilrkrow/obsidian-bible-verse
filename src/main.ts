@@ -1,6 +1,6 @@
 import { MarkdownPostProcessorContext, MarkdownRenderChild, MarkdownView, Notice, Plugin, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
-import { BibleVerseSettings, DEFAULT_SETTINGS, BibleReference, CachedVerse, DisplayStyle } from "./types";
+import { BibleVerseSettings, DEFAULT_SETTINGS, settingsFromSaved, BibleReference, CachedVerse, DisplayStyle } from "./types";
 import {
   parseReference,
   parseInlineSpec,
@@ -480,6 +480,7 @@ export default class BibleVersePlugin extends Plugin {
       transliterations,
       meaningTexts,
       wordPicks: () => this.settings.strongsWordPicks,
+      linkTarget: () => this.settings.strongsLinkTarget,
       translation: plain.translation,
       lookup: (n) => this.api.getLexiconEntry(n),
       writer,
@@ -621,7 +622,7 @@ export default class BibleVersePlugin extends Plugin {
   async loadSettings(): Promise<void> {
     const saved = (await this.loadData()) as Partial<BibleVerseSettings> | null;
     this.hadSavedData = saved !== null && saved !== undefined;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+    this.settings = settingsFromSaved(saved);
   }
 
   updateStyles(): void {

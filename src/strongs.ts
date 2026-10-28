@@ -40,6 +40,8 @@ export interface HelloAoWordsResponse {
 
 /** One sense of a STEPBible lexicon entry. */
 export interface LexiconSense {
+  /** STEPBible's extended Strong's id for this sense, e.g. "H0430G" (see strongs-link.ts). */
+  id?: string;
   lemma?: string;
   transliteration?: string;
   gloss?: string;
