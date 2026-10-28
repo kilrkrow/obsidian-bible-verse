@@ -196,6 +196,12 @@ Words that have a Strong's number get a dotted underline. Words with no number s
 
 **Hover a word** to see its entry: the Strong's number, transliteration, Hebrew or Greek lemma, gloss, and the definition. *LORD* in Proverbs 3:5 shows **H3068**, *ye.ho.vah*, "LORD". The transliteration is exactly what the lexicon gives; nothing is substituted.
 
+**See every verse that uses the word.** The Strong's number at the top of the popover is a link: click it to open a concordance in your browser listing every verse with that number, for example **G4678** *sophia*, "wisdom". Hover it for "See all uses of G4678". The popover stays open. **Strong's number link** in settings picks the site:
+
+- **Bible Hub** (default): the number's page with its Englishman's Concordance, `biblehub.com/greek/4678.htm`. It covers every sense of a number. Numbers past G5624 or H8674, which Bible Hub has no page for, open on STEPBible instead.
+- **STEPBible**: a search for the number, `stepbible.org/?q=strong=G4678`. Numbers STEPBible splits into senses search the sense the popover shows, such as H0430G "God".
+- **Blue Letter Bible**: the lexicon page with its KJV concordance, `blueletterbible.org/lexicon/g4678/kjv/tr/0-1/`.
+
 **Change what the verse shows.** Each tagged word can show one of three things:
 
 - **The King James word**: the default.
@@ -323,6 +329,7 @@ The following translations render as a hyperlink to your preferred Bible website
 | Bake inline references | Convert `{ref}` to code block when baking | Off |
 | Show what's new after updates | Once after each update, show a short pop-up of what changed | On |
 | Pick single words from lexicon meanings | In the Strong's popover, also pick one word or phrase from a lexicon meaning (e.g. *ignore* from "to forget, ignore, wither"), not just the whole meaning | Off |
+| Strong's number link | Where the Strong's number in the popover links to, for every verse that uses the word: Bible Hub, STEPBible or Blue Letter Bible | Bible Hub |
 | ESV API key | Your [api.esv.org](https://api.esv.org) key, to display ESV text inline | (empty) |
 
 ## Baking and Persisting Text
