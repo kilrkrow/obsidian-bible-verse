@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type { SettingDefinitionItem } from "obsidian";
 import type BibleVersePlugin from "./main";
-import { BibleVerseSettings, BibleWebsite, DisplayStyle } from "./types";
+import { BibleVerseSettings, BibleWebsite, DisplayStyle, StrongsLinkTarget } from "./types";
 import { HELLOAO_TRANSLATIONS } from "./constants";
 import { addFeedbackSetting, configureDiscussionsSetting, configureFeedbackSetting } from "./feedback";
 import { addVersionLabel } from "./version-label";
@@ -46,6 +46,14 @@ const WHATS_NEW_DESC = "After Bible Verse updates, show a short summary of what 
 const STRONGS_WORD_PICKS_NAME = "Pick single words from lexicon meanings";
 const STRONGS_WORD_PICKS_DESC =
   "In the Strong's popover, each numbered meaning from the STEPBible lexicon can already be shown in the verse in place of the word. Turn this on to also pick one word or phrase from a meaning, for example “ignore” from “to forget, ignore, wither”. The verse then shows that word, marked as adapted from the lexicon, and the popover and Insert below still show the full entry. Off by default.";
+
+const STRONGS_LINK_NAME = "Strong's number link";
+const STRONGS_LINK_DESC = "Which site the Strong's number in the popover links to.";
+const STRONGS_LINK_OPTIONS: Record<StrongsLinkTarget, string> = {
+  BibleHub: "Bible Hub",
+  STEPBible: "STEPBible",
+  BlueLetter: "Blue Letter Bible",
+};
 
 const SIDEBAR_PADDING_LIMITS = { min: 0, max: 2, step: 0.1 };
 
@@ -211,6 +219,12 @@ export class BibleVerseSettingTab extends PluginSettingTab {
         desc: STRONGS_WORD_PICKS_DESC,
         aliases: ["Strong's", "strongs", "lexicon", "STEPBible", "meaning", "transliteration"],
         control: { type: "toggle", key: "strongsWordPicks" },
+      },
+      {
+        name: STRONGS_LINK_NAME,
+        desc: STRONGS_LINK_DESC,
+        aliases: ["Strong's", "strongs", "concordance", "Bible Hub", "STEPBible", "Blue Letter Bible", "link"],
+        control: { type: "dropdown", key: "strongsLinkTarget", options: STRONGS_LINK_OPTIONS },
       },
       {
         name: WHATS_NEW_NAME,
@@ -544,6 +558,21 @@ export class BibleVerseSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(containerEl)
+      .setName(STRONGS_LINK_NAME)
+      .setDesc(STRONGS_LINK_DESC)
+      .addDropdown((dropdown) => {
+        for (const [value, label] of Object.entries(STRONGS_LINK_OPTIONS)) {
+          dropdown.addOption(value, label);
+        }
+        dropdown
+          .setValue(this.plugin.settings.strongsLinkTarget)
+          .onChange(async (value) => {
+            this.plugin.settings.strongsLinkTarget = value as StrongsLinkTarget;
+            await this.plugin.saveSettings();
+          });
+      });
 
     new Setting(containerEl)
       .setName(WHATS_NEW_NAME)

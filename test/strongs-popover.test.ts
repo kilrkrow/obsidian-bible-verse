@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { closeStrongsPopover, decorateStrongs, StrongsLayer } from "../src/strongs-dom";
+import type { StrongsLinkTarget } from "../src/types";
 import { chooseSense, meaningsOf, LexiconEntry, LexiconSense, StrongsWord, WordDisplayState } from "../src/strongs";
 
 /**
@@ -63,6 +64,7 @@ function verse(number: string, english: string) {
     transliterations: new Map(),
     meaningTexts: new Map(),
     wordPicks: () => false,
+    linkTarget: () => "STEPBible" as StrongsLinkTarget,
     translation: "KJV",
     lookup: async () => lexicon(number),
     writer: {
@@ -253,5 +255,37 @@ describe("popover — the Strong's number links to every verse using it", () => 
     await settle();
     expect(span.textContent).toBe("testing");
     expect(button(document.querySelector<HTMLElement>(".bible-verse-strongs-popover")!, 'Show "trying"')).toBeTruthy();
+  });
+});
+
+describe("popover — the number link follows the \"Strong's number link\" setting", () => {
+  const href = (pop: HTMLElement) => pop.querySelector<HTMLAnchorElement>(".bible-verse-strongs-head a")!.getAttribute("href");
+
+  it.each([
+    ["BibleHub", "G1383", "https://biblehub.com/greek/1383.htm"],
+    ["BibleHub", "H1870", "https://biblehub.com/hebrew/1870.htm"],
+    ["BibleHub", "G0026", "https://biblehub.com/greek/26.htm"],
+    ["STEPBible", "H1870", "https://www.stepbible.org/?q=strong=H1870G"],
+    ["BlueLetter", "H1870", "https://www.blueletterbible.org/lexicon/h1870/kjv/wlc/0-1/"],
+    ["BlueLetter", "G0026", "https://www.blueletterbible.org/lexicon/g26/kjv/tr/0-1/"],
+  ] as [StrongsLinkTarget, string, string][])("%s: %s links to %s", async (target, n, url) => {
+    const v = verse(n, "word");
+    v.layer.linkTarget = () => target;
+    const pop = await hover(v.span);
+    expect(href(pop)).toBe(url);
+    expect(pop.querySelector(".bible-verse-strongs-head a")!.getAttribute("title")).toBe(`See all uses of ${n}`);
+  });
+
+  it("reads the setting each time the popover opens", async () => {
+    let target: StrongsLinkTarget = "BibleHub";
+    const v = verse("G1383", "trying");
+    v.layer.linkTarget = () => target;
+    expect(href(await hover(v.span))).toBe("https://biblehub.com/greek/1383.htm");
+    closeStrongsPopover();
+    target = "BlueLetter";
+    expect(href(await hover(v.span))).toBe("https://www.blueletterbible.org/lexicon/g1383/kjv/tr/0-1/");
+    closeStrongsPopover();
+    target = "STEPBible";
+    expect(href(await hover(v.span))).toBe("https://www.stepbible.org/?q=strong=G1383");
   });
 });

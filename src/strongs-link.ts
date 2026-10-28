@@ -1,20 +1,36 @@
+import type { StrongsLinkTarget } from "./types";
+
 /**
  * Where the Strong's number in the popover links to: a concordance page that
- * lists the verses using that number.
+ * lists the verses using that number. The "Strong's number link" setting
+ * picks the site.
  *
- * The target is STEPBible's search (https://www.stepbible.org/?q=strong=G4678),
- * the same project the lexicon comes from. STEPBible searches by its own
- * "extended" Strong's numbers: always four digits ("G0026", not "G26"), and
- * a Hebrew or Greek number that it splits into several senses only matches
- * with the sense letter ("H0430G" for "God"; a bare "H0430" finds nothing).
- * The lexicon entry the popover shows carries that sense id, so the link
- * uses it.
+ * Bible Hub (the default): https://biblehub.com/greek/4678.htm. One page per
+ * plain Strong's number, with its Englishman's Concordance of every verse.
+ * It wants the bare integer: no padding ("greek/0026.htm" is a 404) and no
+ * sense letter, so it covers every sense of the number. It has pages for
+ * G1-G5624 and H1-H8674 only; a number outside that (STEPBible's additions)
+ * links to STEPBible instead.
  *
- * When there is no sense id to go on (the entry failed to load, or there is
- * none), STEPBible could come back empty, so the link goes to Blue Letter
- * Bible's lexicon page instead, which lists every KJV verse for a plain
- * number with no sense letter: https://www.blueletterbible.org/lexicon/h430/kjv/wlc/0-1/.
+ * STEPBible: https://www.stepbible.org/?q=strong=G4678. STEPBible searches by
+ * its own "extended" Strong's numbers: always four digits ("G0026", not
+ * "G26"), and a number it splits into several senses only matches with the
+ * sense letter ("H0430G" for "God"; a bare "H0430" finds nothing). The lexicon
+ * entry the popover shows carries that sense id, so the link uses it. With no
+ * sense id to go on, STEPBible could come back empty, so the link goes to Blue
+ * Letter Bible instead.
+ *
+ * Blue Letter Bible: https://www.blueletterbible.org/lexicon/h430/kjv/wlc/0-1/.
+ * The lexicon page with its KJV concordance, for the plain number.
  */
+
+/** The sites the number can link to, in the order the setting lists them. */
+export const STRONGS_LINK_TARGETS: readonly StrongsLinkTarget[] = ["BibleHub", "STEPBible", "BlueLetter"];
+
+/** Whether `value` is one of the link targets (for reading data.json). */
+export function isStrongsLinkTarget(value: unknown): value is StrongsLinkTarget {
+  return typeof value === "string" && (STRONGS_LINK_TARGETS as readonly string[]).includes(value);
+}
 
 /** A parsed Strong's number. */
 export interface StrongsRef {
@@ -67,26 +83,56 @@ export function blueLetterBibleUrl(ref: StrongsRef): string {
   return `https://www.blueletterbible.org/lexicon/${ref.language.toLowerCase()}${ref.value}/kjv/${text}/0-1/`;
 }
 
-/**
- * The page listing every verse that uses a Strong's number, or null if
- * `number` is not one.
- *
- * `senseId` is the id of the lexicon sense the popover shows ("H0430G"). It
- * supplies STEPBible's sense letter when `number` has none; a sense id for a
- * different number is ignored. A number that carries its own letter
- * ("H1254a") keeps it. With no letter and no sense id, the link goes to
- * Blue Letter Bible (see the top of this file).
- */
-export function strongsConcordanceUrl(number: string, senseId?: string | null): string | null {
-  const ref = parseStrongsNumber(number);
-  if (!ref) return null;
-  if (ref.sense) return stepBibleSearchUrl(ref);
+/** Highest number Bible Hub has a page for, by language. */
+const BIBLE_HUB_MAX = { G: 5624, H: 8674 } as const;
 
+/**
+ * Bible Hub's page for the number, with its Englishman's Concordance, or null
+ * if Bible Hub has no page for it. Plain integer, sense letter dropped.
+ */
+export function bibleHubUrl(ref: StrongsRef): string | null {
+  if (ref.value > BIBLE_HUB_MAX[ref.language]) return null;
+  const lang = ref.language === "G" ? "greek" : "hebrew";
+  return `https://biblehub.com/${lang}/${ref.value}.htm`;
+}
+
+/**
+ * The STEPBible link: the number's own sense letter if it has one, else the
+ * shown sense's (a sense id for a different number is ignored), else Blue
+ * Letter Bible because a bare STEPBible number may find nothing.
+ */
+function stepBibleLink(ref: StrongsRef, senseId: string | null | undefined): string {
+  if (ref.sense) return stepBibleSearchUrl(ref);
   const sense = parseStrongsNumber(senseId);
   if (sense && sense.language === ref.language && sense.value === ref.value) {
     return stepBibleSearchUrl(sense);
   }
   return blueLetterBibleUrl(ref);
+}
+
+/**
+ * The page listing every verse that uses a Strong's number on the chosen
+ * site, or null if `number` is not one.
+ *
+ * `senseId` is the id of the lexicon sense the popover shows ("H0430G"); only
+ * STEPBible uses it (see the top of this file). An unknown `target` is
+ * treated as the default, Bible Hub.
+ */
+export function strongsConcordanceUrl(
+  number: string,
+  senseId: string | null | undefined,
+  target: StrongsLinkTarget
+): string | null {
+  const ref = parseStrongsNumber(number);
+  if (!ref) return null;
+  switch (target) {
+    case "STEPBible":
+      return stepBibleLink(ref, senseId);
+    case "BlueLetter":
+      return blueLetterBibleUrl(ref);
+    default:
+      return bibleHubUrl(ref) ?? stepBibleLink(ref, senseId);
+  }
 }
 
 /** Tooltip for the number's link: "See all uses of G4678". */

@@ -1,3 +1,5 @@
+import { isStrongsLinkTarget } from "./strongs-link";
+
 /**
  * Sentinel stored in `endVerse` for an "end of chapter" range ("John 3:16-eoc").
  * Resolved lazily at render time — `computeRequestedVerses` treats it as "every
@@ -19,6 +21,9 @@ export interface BibleReference {
 }
 
 export type DisplayStyle = "sidebar" | "callout" | "blockquote" | "inline" | "native-callout";
+
+/** Where the Strong's number in the popover links to (see strongs-link.ts). */
+export type StrongsLinkTarget = "BibleHub" | "STEPBible" | "BlueLetter";
 
 export type BibleWebsite = "BibleHub" | "BibleGateway" | "BlueLetter" | "BibleCom";
 
@@ -43,6 +48,8 @@ export interface BibleVerseSettings {
   lastSeenVersion: string;
   /** Strong's popover: also offer single words from a lexicon meaning. */
   strongsWordPicks: boolean;
+  /** Strong's popover: the site the number links to. */
+  strongsLinkTarget: StrongsLinkTarget;
 }
 
 export const DEFAULT_SETTINGS: BibleVerseSettings = {
@@ -62,7 +69,24 @@ export const DEFAULT_SETTINGS: BibleVerseSettings = {
   showWhatsNew: true,
   lastSeenVersion: "",
   strongsWordPicks: false,
+  strongsLinkTarget: "BibleHub",
 };
+
+/**
+ * Settings from what data.json holds. Missing keys take their defaults (so a
+ * data.json from before a setting existed gets its default), and every saved
+ * key is kept as it is, including ones this version doesn't know, so saving
+ * writes them back unchanged. Only a Strong's link target that isn't one of
+ * the sites is replaced, with the default.
+ */
+export function settingsFromSaved(saved: unknown): BibleVerseSettings {
+  const data = saved !== null && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  const settings = Object.assign({}, DEFAULT_SETTINGS, data) as BibleVerseSettings;
+  if (!isStrongsLinkTarget(settings.strongsLinkTarget)) {
+    settings.strongsLinkTarget = DEFAULT_SETTINGS.strongsLinkTarget;
+  }
+  return settings;
+}
 
 /** Cached verse entry */
 export interface CachedVerse {

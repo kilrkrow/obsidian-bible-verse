@@ -23,6 +23,7 @@ import {
   strongsTranslationLabel,
 } from "./strongs";
 import { strongsConcordanceTitle, strongsConcordanceUrl } from "./strongs-link";
+import type { StrongsLinkTarget } from "./types";
 
 /**
  * DOM half of the Strong's layer (#69), shared by Live Preview and Reading
@@ -54,6 +55,8 @@ export interface StrongsLayer {
   meaningTexts: Map<string, string>;
   /** Whether single words can be picked from a meaning (a setting, read live). */
   wordPicks(): boolean;
+  /** Where the Strong's number links to (a setting, read live). */
+  linkTarget(): StrongsLinkTarget;
   /** The translation's abbreviation, as the reference label shows it ("KJV"). */
   translation: string;
   lookup(number: string): Promise<LexiconEntry | null>;
@@ -390,7 +393,7 @@ class StrongsPopover {
     el.empty();
 
     const head = el.createDiv({ cls: "bible-verse-strongs-head" });
-    this.renderNumber(head, word.number, sense?.id ?? null);
+    this.renderNumber(head, word.number, sense?.id ?? null, layer.linkTarget());
     if (sense?.transliteration) {
       head.createSpan({ cls: "bible-verse-strongs-translit", text: sense.transliteration });
     }
@@ -533,8 +536,8 @@ class StrongsPopover {
    * further than the link, so the popover stays open and nothing in the note
    * underneath reacts. A number that can't be linked stays plain text.
    */
-  private renderNumber(head: HTMLElement, number: string, senseId: string | null): void {
-    const url = strongsConcordanceUrl(number, senseId);
+  private renderNumber(head: HTMLElement, number: string, senseId: string | null, target: StrongsLinkTarget): void {
+    const url = strongsConcordanceUrl(number, senseId, target);
     if (!url) {
       head.createSpan({ cls: "bible-verse-strongs-number", text: number });
       return;
