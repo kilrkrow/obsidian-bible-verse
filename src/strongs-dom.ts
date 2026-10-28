@@ -22,6 +22,7 @@ import {
   STRONGS_LICENSE_URL,
   strongsTranslationLabel,
 } from "./strongs";
+import { strongsConcordanceTitle, strongsConcordanceUrl } from "./strongs-link";
 
 /**
  * DOM half of the Strong's layer (#69), shared by Live Preview and Reading
@@ -389,7 +390,7 @@ class StrongsPopover {
     el.empty();
 
     const head = el.createDiv({ cls: "bible-verse-strongs-head" });
-    head.createSpan({ cls: "bible-verse-strongs-number", text: word.number });
+    this.renderNumber(head, word.number, sense?.id ?? null);
     if (sense?.transliteration) {
       head.createSpan({ cls: "bible-verse-strongs-translit", text: sense.transliteration });
     }
@@ -524,6 +525,31 @@ class StrongsPopover {
         );
       });
     }
+  }
+
+  /**
+   * The number, as a link to every verse that uses it (see strongs-link.ts).
+   * It opens in the browser like the popover's other links. A click goes no
+   * further than the link, so the popover stays open and nothing in the note
+   * underneath reacts. A number that can't be linked stays plain text.
+   */
+  private renderNumber(head: HTMLElement, number: string, senseId: string | null): void {
+    const url = strongsConcordanceUrl(number, senseId);
+    if (!url) {
+      head.createSpan({ cls: "bible-verse-strongs-number", text: number });
+      return;
+    }
+    const link = head.createEl("a", {
+      cls: "bible-verse-strongs-number bible-verse-strongs-number-link",
+      text: number,
+      href: url,
+    });
+    const title = strongsConcordanceTitle(number);
+    link.setAttr("title", title);
+    link.setAttr("aria-label", title);
+    link.setAttr("target", "_blank");
+    link.setAttr("rel", "noopener");
+    link.addEventListener("click", (e) => e.stopPropagation());
   }
 
   private actionButton(parent: HTMLElement, text: string, onClick: () => void): void {
