@@ -800,3 +800,26 @@
 .bible-verse-strongs-credit a {
   color: inherit;
 }
+
+/* Plugin name and version at the bottom right of the settings tab. On
+   Obsidian 1.13+ it is the last settings row; drop that row's card so it reads
+   as a plain line of text. */
+.setting-item.bible-verse-settings-version-row {
+  display: block;
+  padding: 0;
+  border: none;
+}
+
+.setting-group:has(> .setting-items > .bible-verse-settings-version-row) .setting-items {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.bible-verse-settings-version {
+  margin-top: 0.5em;
+  text-align: right;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  user-select: text;
+}

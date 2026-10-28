@@ -3,6 +3,7 @@ import {
   chooseSense,
   choiceLabel,
   definitionLines,
+  glossMeaning,
   meaningChoice,
   parseChoiceLabel,
   splitMarkedText,
@@ -13,6 +14,7 @@ import {
   wordDisplayOf,
   LexiconEntry,
   LexiconSense,
+  Meaning,
   StrongsWord,
   WordDisplay,
   WordDisplayState,
@@ -395,11 +397,15 @@ class StrongsPopover {
       head.createSpan({ cls: "bible-verse-strongs-lemma", text: sense.lemma });
     }
 
-    if (sense?.gloss) {
+    // An entry with no numbered meanings offers its gloss as the one meaning
+    // to pick, in the same row a numbered meaning gets; otherwise the gloss is
+    // a plain heading above the definition.
+    const gloss = glossMeaning(sense);
+    if (sense?.gloss && !gloss) {
       el.createDiv({ cls: "bible-verse-strongs-gloss", text: sense.gloss });
     }
-    if (sense?.definition) {
-      this.renderDefinition(el, anchor, word, layer, sense.definition, display);
+    if (sense?.definition || gloss) {
+      this.renderDefinition(el, anchor, word, layer, sense?.definition ?? "", gloss, display);
     }
     if (!sense) {
       el.createDiv({
@@ -442,6 +448,9 @@ class StrongsPopover {
    * verse. With word picks on, each comma-separated alternative in a row is a
    * pick of its own. Clicking whatever is already shown puts the English back.
    *
+   * An entry with no numbered meanings has its gloss as the one row, first,
+   * ahead of the lexicon text (see glossMeaning).
+   *
    * Rows are divs with a button role, not buttons: themes style <button>
    * heavily, and a definition should still read as text.
    */
@@ -451,10 +460,12 @@ class StrongsPopover {
     word: StrongsWord,
     layer: StrongsLayer,
     definition: string,
+    gloss: Meaning | null,
     display: WordDisplay
   ): void {
     const box = el.createDiv({ cls: "bible-verse-strongs-definition" });
     const lines = definitionLines(definition);
+    if (gloss) lines.unshift({ text: gloss.text, meaning: gloss });
 
     const wordPicks = layer.wordPicks();
     const chosen = display.kind === "meaning" ? parseChoiceLabel(display.label) : null;

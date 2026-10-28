@@ -4,6 +4,7 @@ import type BibleVersePlugin from "./main";
 import { BibleVerseSettings, BibleWebsite, DisplayStyle } from "./types";
 import { HELLOAO_TRANSLATIONS } from "./constants";
 import { addFeedbackSetting, configureDiscussionsSetting, configureFeedbackSetting } from "./feedback";
+import { addVersionLabel } from "./version-label";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
   const frag = createFragment();
@@ -295,6 +296,17 @@ export class BibleVerseSettingTab extends PluginSettingTab {
           },
         ],
       },
+      {
+        // Last, so it sits at the bottom of the tab: which build is running.
+        name: "Version",
+        desc: `${this.plugin.manifest.name} ${this.plugin.manifest.version}`,
+        aliases: ["version", "about"],
+        render: (setting) => {
+          setting.settingEl.empty();
+          setting.settingEl.addClass("bible-verse-settings-version-row");
+          addVersionLabel(setting.settingEl, this.plugin.manifest);
+        },
+      },
     ];
 
     return items;
@@ -575,5 +587,7 @@ export class BibleVerseSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName("Feedback").setHeading();
     addFeedbackSetting(containerEl, this.plugin.manifest.version);
+
+    addVersionLabel(containerEl, this.plugin.manifest);
   }
 }
