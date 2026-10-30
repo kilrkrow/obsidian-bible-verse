@@ -10,6 +10,8 @@
  *   - entries with no numbered meanings, whose gloss is the one meaning:
  *     G1383 ("trying", James 1:3, "testing"), H0002 (Hebrew, "father") and
  *     G1672 (a gloss of two words, "Greek, Gentile")
+ *   - G4124 ("covetousness", Ephesians 5:3), whose gloss "greediness" is
+ *     offered beside numbered meanings that never use the word
  *
  * The "no words file" case uses the existing BSB fixtures, whose chapter
  * payloads have no thisChapterWordsLink.
@@ -24,7 +26,7 @@ const BASE = "https://bible.helloao.org/api";
 const FILES = [
   { url: `${BASE}/eng_kjv/PRO/3.json`, out: "data/eng_kjv_PRO_3.json" },
   { url: `${BASE}/eng_kjv/PRO/3.words.json`, out: "data/eng_kjv_PRO_3.words.json" },
-  ...["H0982", "H3068", "H3820", "H8172", "H0998", "H1870", "G0026", "H7911", "G1383", "H0002", "G1672"].map((n) => ({
+  ...["H0982", "H3068", "H3820", "H8172", "H0998", "H1870", "G0026", "H7911", "G1383", "H0002", "G1672", "G4124"].map((n) => ({
     url: `${BASE}/d/stepbible-lexicon/lexicon/${n}.json`,
     out: `data/lexicon/${n}.json`,
   })),

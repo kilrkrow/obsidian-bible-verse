@@ -9,6 +9,7 @@ import {
   meaningChoice,
   meaningsOf,
   senseMeanings,
+  GLOSS_LABEL,
   GLOSS_MEANING_LABEL,
   LexiconEntry,
   LexiconSense,
@@ -18,7 +19,9 @@ import {
 /**
  * An entry with no numbered meanings offers its gloss as the one meaning, so
  * it can be picked like "1" or "1a" in any other entry. G1383 "testing"
- * (James 1:3, "trying") is the case that was reported.
+ * (James 1:3, "trying") is the case that was reported. An entry with numbered
+ * meanings offers its gloss too, unnumbered, ahead of them: G4124 "greediness"
+ * (Ephesians 5:3, "covetousness").
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -73,18 +76,34 @@ describe("unnumbered gloss of several words — G1672 Hellēn, \"Greek, Gentile\
   });
 });
 
-describe("numbered meanings — unchanged, the gloss is not added", () => {
+describe("numbered meanings — the gloss is offered ahead of them", () => {
+  it("G4124 offers \"greediness\", which no numbered meaning uses, as the gloss row", () => {
+    const s = sense("G4124");
+    expect(glossMeaning(s)).toMatchObject({ label: GLOSS_LABEL, text: "greediness", verseText: "greediness" });
+    expect(senseMeanings(s).map((m) => m.label)).toEqual([GLOSS_LABEL, "1", "2"]);
+    expect(meaningChoice(s, GLOSS_LABEL)!.verseText).toBe("greediness");
+  });
+
+  it("bolds the picked gloss in Insert below, and not a numbered line", () => {
+    const line = formatInsertLine({ key: "5.0.20", english: "covetousness", number: "G4124" }, sense("G4124"), GLOSS_LABEL);
+    expect(line).toContain('"**greediness**"');
+    expect(line).not.toContain("**advantage");
+  });
+
   it.each([
-    ["H1870", 8, "way, road, distance, journey, manner"],
-    ["H7911", 7, "to forget, ignore, wither"],
-    ["H0982", 6, "to trust"],
-    ["G0026", 0, null],
-  ])("%s keeps exactly its numbered meanings", (n, _count, first) => {
+    ["H1870", "way: conduct", "way, road, distance, journey, manner"],
+    ["G0026", "love", null],
+  ])("%s offers its gloss ahead of its numbered meanings", (n, gloss, first) => {
+    const s = sense(n);
+    expect(senseMeanings(s)[0]).toMatchObject({ label: GLOSS_LABEL, text: gloss });
+    expect(senseMeanings(s).slice(1)).toEqual(meaningsOf(s!.definition));
+    if (first) expect(senseMeanings(s)[1].text).toBe(first);
+  });
+
+  it.each(["H0982", "H7911"])("%s leaves the gloss out, since a numbered meaning reads the same", (n) => {
     const s = sense(n);
     expect(glossMeaning(s)).toBeNull();
     expect(senseMeanings(s)).toEqual(meaningsOf(s!.definition));
-    expect(senseMeanings(s).length).toBeGreaterThan(0);
-    if (first) expect(senseMeanings(s)[0].text).toBe(first);
   });
 
   it("still resolves numbered picks exactly as before", () => {
@@ -111,8 +130,8 @@ describe("gloss meaning — edge cases", () => {
     expect(senseMeanings(make({ gloss: "testing" })).map((m) => m.label)).toEqual(["1"]);
   });
 
-  it("stands aside when a definition line is already labelled 1", () => {
+  it("takes the gloss label when a definition line is already labelled 1", () => {
     // A bare stem heading, "1) (Qal)", is not a meaning but owns the label.
-    expect(glossMeaning(make({ gloss: "to go", definition: "1) (Qal)" }))).toBeNull();
+    expect(glossMeaning(make({ gloss: "to go", definition: "1) (Qal)" }))!.label).toBe(GLOSS_LABEL);
   });
 });

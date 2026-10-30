@@ -913,26 +913,28 @@ function meaningsOf(definition) {
   return definitionLines(definition).map((l) => l.meaning).filter((m) => m !== null && m.selectable);
 }
 var GLOSS_MEANING_LABEL = "1";
+var GLOSS_LABEL = "gloss";
 function glossMeaning(sense) {
   var _a;
-  if (meaningsOf(sense == null ? void 0 : sense.definition).length > 0)
-    return null;
-  if (definitionLines(sense == null ? void 0 : sense.definition).some((l) => {
-    var _a2;
-    return ((_a2 = l.meaning) == null ? void 0 : _a2.label) === GLOSS_MEANING_LABEL;
-  }))
-    return null;
   const text = ((_a = sense == null ? void 0 : sense.gloss) != null ? _a : "").replace(/[\s,;:.]+$/, "").trim();
   if (!text)
     return null;
-  return { label: GLOSS_MEANING_LABEL, depth: 1, ...meaningFields(text) };
+  const numbered = meaningsOf(sense == null ? void 0 : sense.definition);
+  const ownsOne = definitionLines(sense == null ? void 0 : sense.definition).some((l) => {
+    var _a2;
+    return ((_a2 = l.meaning) == null ? void 0 : _a2.label) === GLOSS_MEANING_LABEL;
+  });
+  if (numbered.length === 0 && !ownsOne) {
+    return { label: GLOSS_MEANING_LABEL, depth: 1, ...meaningFields(text) };
+  }
+  if (numbered.some((m) => m.text.toLowerCase() === text.toLowerCase()))
+    return null;
+  return { label: GLOSS_LABEL, depth: 1, ...meaningFields(text) };
 }
 function senseMeanings(sense) {
-  const numbered = meaningsOf(sense == null ? void 0 : sense.definition);
-  if (numbered.length > 0)
-    return numbered;
   const gloss = glossMeaning(sense);
-  return gloss ? [gloss] : [];
+  const numbered = meaningsOf(sense == null ? void 0 : sense.definition);
+  return gloss ? [gloss, ...numbered] : numbered;
 }
 function parseChoiceLabel(label) {
   const m = label.match(/^(.+)~(\d+)$/);
@@ -2693,8 +2695,9 @@ var StrongsPopover = class {
    * verse. With word picks on, each comma-separated alternative in a row is a
    * pick of its own. Clicking whatever is already shown puts the English back.
    *
-   * An entry with no numbered meanings has its gloss as the one row, first,
-   * ahead of the lexicon text (see glossMeaning).
+   * The gloss, when offered, is the first row, ahead of the lexicon text (see
+   * glossMeaning): meaning 1 in an entry with no numbered meanings, otherwise
+   * an unnumbered row in bold.
    *
    * Rows are divs with a button role, not buttons: themes style <button>
    * heavily, and a definition should still read as text.
@@ -2736,6 +2739,7 @@ var StrongsPopover = class {
       }
       const lineShown = (chosen == null ? void 0 : chosen.line) === m.label && chosen.alternative === null;
       const row = box.createDiv({ cls: "bible-verse-strongs-meaning" });
+      row.toggleClass("is-gloss", m.label === GLOSS_LABEL);
       row.setCssProps({ "--depth": String(m.depth - 1) });
       row.toggleClass("is-selected", lineShown);
       row.toggleClass("has-selected-word", (chosen == null ? void 0 : chosen.line) === m.label && chosen.alternative !== null);
@@ -2745,7 +2749,7 @@ var StrongsPopover = class {
         lineShown ? `Show "${word.english}" again` : `Show "${m.verseText}" in the verse`,
         () => pick(m.label, lineShown)
       );
-      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
+      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label === GLOSS_LABEL ? "" : m.label });
       const textEl = row.createSpan({ cls: "bible-verse-strongs-meaning-text" });
       if (!wordPicks || m.alternatives.length < 2) {
         textEl.setText(m.text);

@@ -182,8 +182,29 @@ describe("popover — Hebrew single gloss and an unnumbered gloss of two words",
   });
 });
 
-describe("popover — numbered meanings are unchanged", () => {
-  it.each(["H1870", "H7911", "H0982", "G0026"])("%s keeps its gloss heading and only its numbered rows", async (n) => {
+describe("popover — the gloss beside numbered meanings", () => {
+  it.each(["H1870", "G0026", "G4124"])("%s lists its gloss first, unnumbered, then its numbered rows", async (n) => {
+    const pop = await hover(verse(n, "word").span);
+    const sense = chooseSense(lexicon(n))!;
+    expect(pop.querySelector(".bible-verse-strongs-gloss")).toBeNull();
+    const [first, ...rest] = rows(pop);
+    expect(first.classList.contains("is-gloss")).toBe(true);
+    expect(first.querySelector(".bible-verse-strongs-meaning-label")!.textContent).toBe("");
+    expect(first.querySelector(".bible-verse-strongs-meaning-text")!.textContent).toBe(sense.gloss!.replace(/[\s,;:.]+$/, ""));
+    const labels = rest.map((r) => r.querySelector(".bible-verse-strongs-meaning-label")!.textContent);
+    expect(labels).toEqual(meaningsOf(sense.definition).map((m) => m.label));
+  });
+
+  it("G4124 shows \"greediness\" in the verse when its gloss row is picked", async () => {
+    const v = verse("G4124", "covetousness");
+    const pop = await hover(v.span);
+    rows(pop)[0].click();
+    await settle();
+    expect(v.span.textContent).toBe("greediness");
+    expect(v.calls.setWords.at(-1)).toEqual({ transliterate: [], meanings: { "3.0.15": "gloss" } });
+  });
+
+  it.each(["H0982", "H7911"])("%s keeps its gloss heading, since a numbered meaning reads the same", async (n) => {
     const pop = await hover(verse(n, "word").span);
     const sense = chooseSense(lexicon(n))!;
     expect(pop.querySelector(".bible-verse-strongs-gloss")!.textContent).toBe(sense.gloss);
