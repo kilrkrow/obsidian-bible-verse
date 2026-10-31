@@ -4,6 +4,7 @@ import {
   choiceLabel,
   definitionLines,
   glossMeaning,
+  GLOSS_LABEL,
   meaningChoice,
   parseChoiceLabel,
   splitMarkedText,
@@ -397,9 +398,9 @@ class StrongsPopover {
       head.createSpan({ cls: "bible-verse-strongs-lemma", text: sense.lemma });
     }
 
-    // An entry with no numbered meanings offers its gloss as the one meaning
-    // to pick, in the same row a numbered meaning gets; otherwise the gloss is
-    // a plain heading above the definition.
+    // The gloss is offered as a meaning to pick, in a row like a numbered
+    // meaning's (see glossMeaning); only when a numbered meaning already reads
+    // the same is it a plain heading above the definition.
     const gloss = glossMeaning(sense);
     if (sense?.gloss && !gloss) {
       el.createDiv({ cls: "bible-verse-strongs-gloss", text: sense.gloss });
@@ -448,8 +449,9 @@ class StrongsPopover {
    * verse. With word picks on, each comma-separated alternative in a row is a
    * pick of its own. Clicking whatever is already shown puts the English back.
    *
-   * An entry with no numbered meanings has its gloss as the one row, first,
-   * ahead of the lexicon text (see glossMeaning).
+   * The gloss, when offered, is the first row, ahead of the lexicon text (see
+   * glossMeaning): meaning 1 in an entry with no numbered meanings, otherwise
+   * an unnumbered row in bold.
    *
    * Rows are divs with a button role, not buttons: themes style <button>
    * heavily, and a definition should still read as text.
@@ -499,6 +501,7 @@ class StrongsPopover {
 
       const lineShown = chosen?.line === m.label && chosen.alternative === null;
       const row = box.createDiv({ cls: "bible-verse-strongs-meaning" });
+      row.toggleClass("is-gloss", m.label === GLOSS_LABEL);
       row.setCssProps({ "--depth": String(m.depth - 1) });
       row.toggleClass("is-selected", lineShown);
       row.toggleClass("has-selected-word", chosen?.line === m.label && chosen.alternative !== null);
@@ -506,7 +509,7 @@ class StrongsPopover {
         pick(m.label, lineShown)
       );
 
-      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label });
+      row.createSpan({ cls: "bible-verse-strongs-meaning-label", text: m.label === GLOSS_LABEL ? "" : m.label });
       const textEl = row.createSpan({ cls: "bible-verse-strongs-meaning-text" });
 
       if (!wordPicks || m.alternatives.length < 2) {

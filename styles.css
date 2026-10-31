@@ -823,3 +823,9 @@
   color: var(--text-muted);
   user-select: text;
 }
+
+/* The gloss offered beside numbered meanings: unnumbered, bold as the plain gloss heading is. */
+.bible-verse-strongs-meaning.is-gloss .bible-verse-strongs-meaning-text {
+  font-weight: 600;
+  color: var(--text-normal);
+}

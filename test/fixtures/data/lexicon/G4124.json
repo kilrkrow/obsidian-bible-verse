@@ -1,0 +1,41 @@
+{
+  "dataset": {
+    "id": "stepbible-lexicon",
+    "name": "STEPBible Brief Lexicons",
+    "website": "https://github.com/STEPBible/STEPBible-Data",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "licenseNotes": "The Translators Brief lexicons of Extended Strongs (TBESH and TBESG) are by STEPBible.org / Tyndale House, Cambridge, and are licensed under CC BY 4.0. Changes were made to the data to fit the Free Use Bible API format.",
+    "englishName": "STEPBible Brief Lexicons",
+    "language": "eng",
+    "textDirection": "ltr",
+    "sha256": "13c6a962a89ee785fee067972899bdc32d39338caede1781c65a853d1b110de7",
+    "availableFormats": [
+      "json"
+    ],
+    "listOfBooksApiLink": "/api/d/stepbible-lexicon/books.json",
+    "numberOfBooks": 0,
+    "totalNumberOfChapters": 0,
+    "totalNumberOfVerses": 0,
+    "totalNumberOfReferences": 0,
+    "languageName": "English",
+    "languageEnglishName": "English",
+    "listOfLexiconApiLink": "/api/d/stepbible-lexicon/lexicon.json",
+    "totalNumberOfLexicon": 18085
+  },
+  "entry": {
+    "id": "G4124",
+    "language": "greek",
+    "senses": [
+      {
+        "id": "G4124",
+        "language": "greek",
+        "lemma": "πλεονεξία",
+        "transliteration": "pleonexia",
+        "partOfSpeech": "N-F",
+        "gloss": "greediness",
+        "definition": "πλεονεξία, -ας, ἡ\n\n(πλεονέκτης), [in LXX for בֶּצַע ;]\n\nthe character and conduct of a πλεονέκτης.\n\n__1. advantage.\n\n__2. desire for advantage, grasping, aggression, cupidity, covetousness: Luk.12:15, Rom.1:29, 2Co.9:5, Eph.4:19 (see ICC, in l) Eph.5:3, Col.3:5, 1Th.2:5, 2Pe.2:3 2:14; pl. (see Bl., § 32, 6), Mrk.7:22.†\n\nSYN.: φιλαργυρία, avarice (see Tr., Syn., § xxiv) (AS)"
+      }
+    ]
+  },
+  "thisLexiconEntryApiLink": "/api/d/stepbible-lexicon/lexicon/G4124.json"
+}
