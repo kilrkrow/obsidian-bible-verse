@@ -2,11 +2,16 @@
 
 All notable changes to Bible Verse are documented here.
 
-## [Unreleased]
+## [1.12.3] — 2026-11-03
 
 ### Added
 
 - **Pick the bold gloss in any Strong's entry** — the bold word at the top of a lexicon entry, such as *greediness* for "covetousness" in Ephesians 5:3 (G4124), could only be read, even when none of the numbered meanings below it used that word. It's now the first row of the list, without a number: pick it to show "greediness" in the verse, pick it again to bring back the King James word, and **Insert below** bolds it in the inserted line. With **Pick single words from lexicon meanings** on, a gloss of several words can be picked one word at a time. When a numbered meaning already says exactly the same thing, such as "to trust", the gloss stays a plain heading.
+
+### Changed
+
+- Cleaned up the styles and settings code that Obsidian's plugin review flagged: link and Strong's underlines, the version line at the bottom of settings, and how Strong's words are built. Nothing looks or works differently.
+- **Contributing guide:** the README now links a short CONTRIBUTING.md on building, testing and opening a pull request.
 
 ## [1.12.2] — 2026-10-27
 
