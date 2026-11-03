@@ -31,9 +31,11 @@ beforeAll(() => {
     this?.appendChild(el);
     return el;
   }
-  P.createEl = function (this: HTMLElement, tag: string, o?: Opts) { return make.call(this, tag, o); };
-  P.createDiv = function (this: HTMLElement, o?: Opts) { return make.call(this, "div", o); };
-  P.createSpan = function (this: HTMLElement, o?: Opts) { return make.call(this, "span", o); };
+  // On Node, as in Obsidian, so a DocumentFragment has them too.
+  const N = Node.prototype as unknown as Record<string, unknown>;
+  N.createEl = function (this: HTMLElement, tag: string, o?: Opts) { return make.call(this, tag, o); };
+  N.createDiv = function (this: HTMLElement, o?: Opts) { return make.call(this, "div", o); };
+  N.createSpan = function (this: HTMLElement, o?: Opts) { return make.call(this, "span", o); };
   P.empty = function (this: HTMLElement) { this.replaceChildren(); };
   P.setText = function (this: HTMLElement, t: string) { this.textContent = t; };
   P.appendText = function (this: HTMLElement, t: string) { this.append(t); };
@@ -44,6 +46,9 @@ beforeAll(() => {
     for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
   };
   (globalThis as unknown as { createDiv: (o?: Opts) => HTMLElement }).createDiv = (o) => make.call(null, "div", o);
+  // Obsidian gives every document its window as `win`, and every window createFragment().
+  Object.defineProperty(Document.prototype, "win", { configurable: true, get(this: Document) { return this.defaultView; } });
+  (globalThis as unknown as { createFragment: () => DocumentFragment }).createFragment = () => document.createDocumentFragment();
 });
 
 afterEach(() => {

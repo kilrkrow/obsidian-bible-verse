@@ -12,6 +12,9 @@ export interface VersionedManifest {
 
 export const VERSION_LABEL_CLASS = "bible-verse-settings-version";
 
+/** Set on the settings list that holds the version row (Obsidian 1.13+). */
+export const VERSION_ITEMS_CLASS = "bible-verse-settings-version-items";
+
 /** "Bible Verse 1.12.2". */
 export function versionLabelText(manifest: VersionedManifest): string {
   return `${manifest.name} ${manifest.version}`;
@@ -19,9 +22,5 @@ export function versionLabelText(manifest: VersionedManifest): string {
 
 /** Append the label to `containerEl` and return it. */
 export function addVersionLabel(containerEl: HTMLElement, manifest: VersionedManifest): HTMLElement {
-  const el = containerEl.ownerDocument.createElement("div");
-  el.className = VERSION_LABEL_CLASS;
-  el.textContent = versionLabelText(manifest);
-  containerEl.appendChild(el);
-  return el;
+  return containerEl.createDiv({ cls: VERSION_LABEL_CLASS, text: versionLabelText(manifest) });
 }
