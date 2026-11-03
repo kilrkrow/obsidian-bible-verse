@@ -401,6 +401,7 @@ I'd love to hear how you use Bible Verse.
 - **Questions, ideas, or show-and-tell:** [GitHub Discussions](https://github.com/kilrkrow/obsidian-bible-verse/discussions)
 - **Bug reports:** [open an issue](https://github.com/kilrkrow/obsidian-bible-verse/issues/new?template=bug.yml)
 - **From inside Obsidian:** Settings → Bible Verse → Feedback has buttons for both, with your version info filled in for bug reports.
+- **Contributing code or docs:** see [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test and open a pull request.
 
 ## Data Source
 
