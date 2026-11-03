@@ -60,6 +60,9 @@ export interface StrongsLayer {
   writer: StrongsWriter;
 }
 
+/** Obsidian adds createFragment() to every window; its typings declare it only globally. */
+type WindowWithFragments = Window & { createFragment(): DocumentFragment };
+
 const WORD_CLASS = "bible-verse-strongs-word";
 const TRANSLITERATED_CLASS = "is-transliterated";
 const MEANING_CLASS = "is-meaning";
@@ -83,7 +86,9 @@ export function decorateStrongs(root: HTMLElement, layer: StrongsLayer): void {
   const created = new Map<string, { span: HTMLElement; word: StrongsWord }>();
 
   for (const textNode of nodes) {
-    const frag = doc.createDocumentFragment();
+    // Obsidian's createFragment() from the verse's own window, so pop-outs
+    // get nodes from their own document.
+    const frag = (doc.win as WindowWithFragments).createFragment();
     for (const seg of splitMarkedText(textNode.data)) {
       if (typeof seg === "string") {
         frag.appendChild(doc.createTextNode(seg));
@@ -94,9 +99,8 @@ export function decorateStrongs(root: HTMLElement, layer: StrongsLayer): void {
         frag.appendChild(doc.createTextNode(seg.text));
         continue;
       }
-      const span = createWordSpan(doc, word, layer);
+      const span = createWordSpan(frag, word, layer);
       if (!created.has(word.key)) created.set(word.key, { span, word });
-      frag.appendChild(span);
     }
     textNode.parentNode?.replaceChild(frag, textNode);
   }
@@ -105,10 +109,9 @@ export function decorateStrongs(root: HTMLElement, layer: StrongsLayer): void {
   popover.adopt(created, layer);
 }
 
-function createWordSpan(doc: Document, word: StrongsWord, layer: StrongsLayer): HTMLElement {
-  const span = doc.createElement("span");
-  span.className = WORD_CLASS;
-  span.dataset.key = word.key;
+/** Append a word span to `parent`, made in the parent's own window (pop-outs included). */
+function createWordSpan(parent: DocumentFragment, word: StrongsWord, layer: StrongsLayer): HTMLElement {
+  const span = parent.createSpan({ cls: WORD_CLASS, attr: { "data-key": word.key } });
   paintWord(span, word, layer);
 
   span.addEventListener("mouseenter", () => popover.scheduleShow(span, word, layer));
