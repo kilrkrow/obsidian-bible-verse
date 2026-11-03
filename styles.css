@@ -30,12 +30,15 @@
 
 .bible-verse-ref {
   color: var(--text-accent);
-  text-decoration: none;
+  text-decoration-line: none;
   font-weight: 600;
 }
 
 .bible-verse-ref:hover {
-  text-decoration: underline;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-color: currentcolor;
+  text-decoration-thickness: auto;
 }
 
 .bible-verse-copyright {
@@ -236,11 +239,14 @@
 
 .bible-verse-comparison-trans a {
   color: var(--interactive-accent);
-  text-decoration: none;
+  text-decoration-line: none;
 }
 
 .bible-verse-comparison-trans a:hover {
-  text-decoration: underline;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-color: currentcolor;
+  text-decoration-thickness: auto;
 }
 
 .bible-verse-comparison-col .bible-verse-text {
@@ -424,7 +430,7 @@
   font-weight: 500;
   line-height: 1.6;
   cursor: pointer;
-  text-decoration: none;
+  text-decoration-line: none;
   color: var(--interactive-accent);
   background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--interactive-accent) 30%, transparent);
@@ -434,7 +440,7 @@
 .bible-verse-pill:hover {
   background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
   border-color: var(--interactive-accent);
-  text-decoration: none;
+  text-decoration-line: none;
 }
 
 /* ── Verse shift controls (#49) ─────────────────────────────────────────── */
@@ -614,8 +620,10 @@
 
 /* A tagged word: a quiet dotted underline, so the verse still reads as text. */
 .bible-verse-strongs-word {
-  text-decoration: underline dotted;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
   text-decoration-color: var(--text-faint);
+  text-decoration-thickness: auto;
   text-underline-offset: 0.2em;
   cursor: pointer;
 }
@@ -732,8 +740,10 @@
 /* With word picks on: each alternative in a meaning is a pick of its own. */
 .bible-verse-strongs-alt {
   border-radius: var(--radius-s);
-  text-decoration: underline dotted;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
   text-decoration-color: var(--text-faint);
+  text-decoration-thickness: auto;
   text-underline-offset: 0.2em;
 }
 
@@ -746,7 +756,9 @@
   padding: 0 0.2em;
   background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   color: var(--text-normal);
-  text-decoration: none;
+  text-decoration-line: none;
+  text-decoration-style: solid;
+  text-decoration-color: currentcolor;
 }
 
 .bible-verse-strongs-meaning.has-selected-word {
@@ -803,14 +815,15 @@
 
 /* Plugin name and version at the bottom right of the settings tab. On
    Obsidian 1.13+ it is the last settings row; drop that row's card so it reads
-   as a plain line of text. */
+   as a plain line of text. settings.ts marks the list that holds the row with
+   .bible-verse-settings-version-items, so no :has selector is needed. */
 .setting-item.bible-verse-settings-version-row {
   display: block;
   padding: 0;
   border: none;
 }
 
-.setting-group:has(> .setting-items > .bible-verse-settings-version-row) .setting-items {
+.setting-group .setting-items.bible-verse-settings-version-items {
   background: none;
   border: none;
   box-shadow: none;
