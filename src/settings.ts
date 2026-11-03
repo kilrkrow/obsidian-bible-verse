@@ -4,7 +4,7 @@ import type BibleVersePlugin from "./main";
 import { BibleVerseSettings, BibleWebsite, DisplayStyle } from "./types";
 import { HELLOAO_TRANSLATIONS } from "./constants";
 import { addFeedbackSetting, configureDiscussionsSetting, configureFeedbackSetting } from "./feedback";
-import { addVersionLabel } from "./version-label";
+import { addVersionLabel, VERSION_ITEMS_CLASS } from "./version-label";
 
 function df(text: string, ...examples: string[]): DocumentFragment {
   const frag = createFragment();
@@ -304,6 +304,9 @@ export class BibleVerseSettingTab extends PluginSettingTab {
         render: (setting) => {
           setting.settingEl.empty();
           setting.settingEl.addClass("bible-verse-settings-version-row");
+          // Mark the list holding this row so styles.css can drop its card
+          // without a :has selector.
+          setting.settingEl.parentElement?.addClass(VERSION_ITEMS_CLASS);
           addVersionLabel(setting.settingEl, this.plugin.manifest);
         },
       },

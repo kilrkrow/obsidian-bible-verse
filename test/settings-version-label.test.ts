@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BibleVerseSettingTab } from "../src/settings";
-import { addVersionLabel, versionLabelText, VERSION_LABEL_CLASS } from "../src/version-label";
+import { addVersionLabel, versionLabelText, VERSION_ITEMS_CLASS, VERSION_LABEL_CLASS } from "../src/version-label";
 import type BibleVersePlugin from "../src/main";
 import type { App } from "obsidian";
 
@@ -28,6 +28,13 @@ beforeAll(() => {
   const P = HTMLElement.prototype as unknown as Record<string, unknown>;
   P.empty = function (this: HTMLElement) { this.replaceChildren(); };
   P.addClass = function (this: HTMLElement, c: string) { this.classList.add(c); };
+  P.createDiv = function (this: HTMLElement, o?: { cls?: string; text?: string }) {
+    const el = this.ownerDocument.createElement("div");
+    if (o?.cls) el.className = o.cls;
+    if (o?.text !== undefined) el.textContent = o.text;
+    this.appendChild(el);
+    return el;
+  };
   (DocumentFragment.prototype as unknown as Record<string, unknown>).appendText = function (this: DocumentFragment, t: string) {
     this.append(t);
   };
@@ -56,6 +63,21 @@ describe("settings tab — version label", () => {
     const label = settingEl.querySelector(`.${VERSION_LABEL_CLASS}`)!;
     expect(label.textContent).toBe(`Bible Verse ${manifest.version}`);
     expect(settingEl.textContent).toBe(label.textContent);
+  });
+
+  it("marks the settings list that holds the row, so its card can be dropped without :has", () => {
+    const plugin = { manifest, settings: {} } as unknown as BibleVersePlugin;
+    const tab = new BibleVerseSettingTab({} as App, plugin);
+    const items = tab.getSettingDefinitions();
+    const last = items[items.length - 1] as { render: (s: { settingEl: HTMLElement }) => void };
+
+    const listEl = document.createElement("div");
+    listEl.className = "setting-items";
+    const settingEl = document.createElement("div");
+    listEl.appendChild(settingEl);
+    last.render({ settingEl });
+    expect(listEl.classList.contains(VERSION_ITEMS_CLASS)).toBe(true);
+    expect(settingEl.classList.contains("bible-verse-settings-version-row")).toBe(true);
   });
 
   it("appends one label element", () => {
