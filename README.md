@@ -17,7 +17,7 @@ Type a reference such as `{John 3:16}` in any note and Bible Verse shows the ver
 - **Bible website links** to BibleGateway, BibleHub, Blue Letter Bible or Bible.com.
 - **Five display styles:** callout, sidebar, blockquote, inline, and a native Obsidian callout that is baked into the note.
 - **Per-verse formatting:** verse numbers on or off, a new line per verse, and reading sections that follow the text's paragraphs.
-- **Strong's numbers and the STEPBible lexicon on King James verses.** Hover a word for its entry, show it as its transliteration or one of its meanings, or insert the entry below the verse.
+- **Strong's numbers and the STEPBible lexicon on King James verses.** Hover a word for its entry, open its number to see every verse that uses it, show it as its transliteration or one of its meanings, or insert the entry below the verse.
 - **Autocomplete** inside `{…}` for book names, abbreviations, translations and display styles.
 - **Baking.** Write verse text into the note as ordinary Markdown, per reference or with commands for the note or the whole vault, and refresh or strip it later.
 - **Local cache**, so verses you have already looked up load without the network.
@@ -26,6 +26,21 @@ Type a reference such as `{John 3:16}` in any note and Bible Verse shows the ver
 - **Searchable settings** on Obsidian 1.13 and later. Works on desktop and mobile.
 
 ## What's new in 1.12
+
+### 1.12.4
+
+- **The Strong's number is a link.** In the pop-up, the number (such as G4678) opens a concordance of every verse that uses it. **Strong's number link** in settings chooses Bible Hub (the default), STEPBible or Blue Letter Bible.
+- **Comparisons can include a link-only translation.** `{Romans 8:28, KJV, NIV}` shows the King James text beside a NIV column that opens the passage on your Bible website. Separate the translations with commas.
+
+### 1.12.3
+
+- **Pick the bold gloss.** The bold word at the top of a Strong's entry, such as *greediness* for "covetousness", can be chosen like a numbered meaning. **Insert below** bolds it in the inserted line.
+- **Contributing guide.** [CONTRIBUTING.md](CONTRIBUTING.md) covers building, testing and opening a pull request.
+
+### 1.12.2
+
+- **A Strong's entry with only a gloss can be picked.** When an entry has no numbered meanings, such as *trying* in James 1:3, that gloss is a meaning you can choose.
+- **The settings tab names the version** you're running, at the bottom.
 
 ### 1.12.1
 
@@ -98,6 +113,8 @@ compare: KJV, BSB, ASV
 
 ![Source mode on the left, Live Preview on the right: {John 3:16, KJV, WEB} as two columns, and a bible code block comparing Romans 8:28 in KJV, BSB and ASV](docs/images/comparison-view.png)
 
+A link-only translation is its own column. `{Romans 8:28, KJV, NIV}` shows the King James text beside a NIV link to the passage.
+
 ### Verse numbers: `v`, `no-v` and `numbers:`
 
 Ranges, comma lists and whole chapters follow the **Show verse numbers** setting (on by default). A single verse shows no number unless you ask for one. An explicit choice always wins:
@@ -146,12 +163,13 @@ Put the cursor in a KJV reference and run **Toggle Strong's on this verse**, or 
 {Proverbs 3:5, strongs}
 ```
 
-Words with a Strong's number get a dotted underline. Hover one to see its entry (*LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*). Click it to show the transliteration, or pick one of its numbered meanings to show in its place. Your picks are saved in the token as `tr:` and `mn:` entries, so they survive a reload. A verse that shows anything other than the King James words is labelled "KJV-Strong's".
+Words with a Strong's number get a dotted underline. Hover one to see its entry (*LORD* in Proverbs 3:5 shows H3068, *ye.ho.vah*). The number at the top of the pop-up is a link to every verse that uses it. **Strong's number link** chooses Bible Hub (the default), STEPBible or Blue Letter Bible. Click the word to show the transliteration, or pick one of its meanings, including the bold gloss at the top of the entry, to show in its place. Your picks are saved in the token as `tr:` and `mn:` entries, so they survive a reload. A verse that shows anything other than the King James words is labelled "KJV-Strong's".
 
 ## Documentation
 
 - **Full syntax reference:** Settings → Bible Verse → Syntax reference lists every token form, and the sections below cover the rest.
 - **Changelog:** [CHANGELOG.md](CHANGELOG.md). The same notes appear in Obsidian after each update, or any time with the **Show what's new** command.
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) covers building, testing and opening a pull request.
 - **Translation support map:** [open the interactive map](https://htmlpreview.github.io/?https://github.com/kilrkrow/obsidian-bible-verse/blob/main/docs/bible_translations.html) or see the chart below.
 
 ### Translation support map
@@ -204,6 +222,7 @@ Set the default under Settings → Bible Verse → Display style, or add the sty
 | Reading sections | Group verses by the text's paragraph breaks | Off |
 | IntelliSense helper mode | After a complete reference, offer the available modifiers | On |
 | Pick single words from lexicon meanings | In the Strong's popover, also pick one word from a meaning | Off |
+| Strong's number link | Where the Strong's number in the pop-up links: Bible Hub, STEPBible or Blue Letter Bible | Bible Hub |
 | Show what's new after updates | Show the release notes once after each update | On |
 | ESV API key | Your api.esv.org key, to show ESV text | (empty) |
 
