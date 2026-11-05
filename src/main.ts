@@ -55,6 +55,7 @@ import {
 import { closeStrongsPopover, StrongsLayer, StrongsWriter } from "./strongs-dom";
 import { HELLOAO_ABBREV, HELLOAO_TRANSLATIONS, TranslationDef, ESV_COPYRIGHT } from "./constants";
 import { fetchEsvPassage, getEffectiveMode } from "./providers";
+import { makeLinkOnlyVerse } from "./comparison";
 import { verseFetchedEffect } from "./effects";
 import { resolveShowVerseNumbers } from "./format";
 import { bugReportUrl } from "./feedback";
@@ -690,6 +691,34 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
+   * Build one CachedVerse per comparison translation. Link-only translations
+   * (and ESV without a key) become link placeholders instead of a fetch that
+   * would throw; text translations are fetched as usual. A failed text fetch
+   * is skipped so the other columns can still render.
+   */
+  public async loadComparisonVerses(
+    ref: BibleReference,
+    translations: string[],
+    settings: { showVerseNumbers: boolean; verseNewLine: boolean; paragraphBreaks: boolean }
+  ): Promise<CachedVerse[]> {
+    const verses: CachedVerse[] = [];
+    for (const trans of translations) {
+      const id = this.resolveTranslationId(trans);
+      const abbr = this.getTranslationAbbr(id);
+      if (this.isTranslationLinkOnly(trans) || this.isTranslationLinkOnly(id)) {
+        verses.push(makeLinkOnlyVerse(ref, abbr, id));
+        continue;
+      }
+      try {
+        verses.push(await this.fetchFromProvider(ref, id, abbr, settings));
+      } catch (e) {
+        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
+      }
+    }
+    return verses;
+  }
+
+  /**
    * Fetch a verse using the current settings, routing to the correct provider.
    */
   private async fetchVerse(
@@ -949,21 +978,11 @@ export default class BibleVersePlugin extends Plugin {
   ): Promise<void> {
     const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
     const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
-    const verses = [];
-    for (const trans of translations) {
-      const id = this.resolveTranslationId(trans);
-      const abbr = this.getTranslationAbbr(id);
-      try {
-        const verse = await this.fetchFromProvider(ref, id, abbr, {
-          showVerseNumbers: sVN,
-          verseNewLine: this.settings.verseNewLine,
-          paragraphBreaks: pb,
-        });
-        verses.push(verse);
-      } catch (e) {
-        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
-      }
-    }
+    const verses = await this.loadComparisonVerses(ref, translations, {
+      showVerseNumbers: sVN,
+      verseNewLine: this.settings.verseNewLine,
+      paragraphBreaks: pb,
+    });
     if (verses.length > 0) {
       await renderComparison(container, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this);
     } else {
@@ -1143,25 +1162,14 @@ export default class BibleVersePlugin extends Plugin {
     showVerseNumbersOverride?: boolean,
     paragraphBreaksOverride?: boolean
   ): Promise<void> {
-    const verses: CachedVerse[] = [];
     const vnL = verseNewLineOverride ?? this.settings.verseNewLine;
     const sVN = resolveShowVerseNumbers(ref, showVerseNumbersOverride, this.settings.showVerseNumbers);
     const pb = paragraphBreaksOverride ?? this.settings.paragraphBreaks;
-
-    for (const trans of translations) {
-      const id = this.resolveTranslationId(trans);
-      const abbr = this.getTranslationAbbr(id);
-      try {
-        const verse = await this.fetchFromProvider(ref, id, abbr, {
-          showVerseNumbers: sVN,
-          verseNewLine: vnL,
-          paragraphBreaks: pb,
-        });
-        verses.push(verse);
-      } catch (e) {
-        console.error(`Bible Verse: Failed to fetch ${trans}`, e);
-      }
-    }
+    const verses = await this.loadComparisonVerses(ref, translations, {
+      showVerseNumbers: sVN,
+      verseNewLine: vnL,
+      paragraphBreaks: pb,
+    });
 
     if (verses.length > 0) {
       await renderComparison(el, ref, verses, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this);

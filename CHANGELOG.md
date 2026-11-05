@@ -2,6 +2,12 @@
 
 All notable changes to Bible Verse are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Comparisons can include a link-only translation** — `{Romans 8:28, KJV, NIV}` used to drop the NIV column in Reading view, or show "Could not load Romans 8:28" in Live Preview. NIV, NKJV, NLT, AMP, CSB, NASB, and ESV without an API key now appear as a labeled column that opens the passage on your Bible website, beside the full text of the other translations. Separate them with commas, as in `{Romans 8:28, KJV, NIV}`.
+
 ## [1.12.3] — 2026-11-03
 
 ### Added
@@ -148,7 +154,7 @@ Baking is one-way: once written, the text is ordinary Markdown and the plugin no
 - Initial public release prepared for Obsidian community plugin submission
 - Inline `{ref}` syntax with support for translation override, style override, verse numbers, and new-line-per-verse flags
 - Display styles: callout, sidebar, blockquote, inline
-- Side-by-side translation comparison (`{ref, KJV | NIV}`)
+- Side-by-side translation comparison (`{ref, KJV, NIV}`)
 - Baked verse text via `Bake` and `Refresh` commands
 - Verse cache with optional persistence
 - Quick Insert command palette modal
