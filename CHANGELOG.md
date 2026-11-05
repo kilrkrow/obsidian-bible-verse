@@ -2,7 +2,12 @@
 
 All notable changes to Bible Verse are documented here.
 
-## [Unreleased]
+## [1.12.4] — 2026-11-05
+
+### Added
+
+- **See every verse that uses a Strong's word** — in the Strong's pop-up, the number at the top (such as **G4678** for *sophia*, "wisdom", or **H0430** for *elohim*, "God") is now a link. Click it to open a concordance in your browser listing every verse with that word. Hover it for "See all uses of G4678". The pop-up stays open, and picking a meaning, **Show "…"** and **Insert below** work as before.
+- **Choose where the Strong's number links** — **Strong's number link** in settings picks the site: **Bible Hub** (the default), **STEPBible** or **Blue Letter Bible**. Bible Hub's page for the number has its Englishman's Concordance, every verse with that word, and covers every sense of it (H0430, not just H0430G "God"). A few numbers Bible Hub has no page for, beyond G5624 and H8674, open on STEPBible instead. STEPBible searches the sense the pop-up shows, such as H0430G "God"; if that sense couldn't be loaded, the link goes to Blue Letter Bible. Blue Letter Bible opens its lexicon page and KJV concordance. If you'd already changed other settings, they're kept as they were.
 
 ### Fixed
 
