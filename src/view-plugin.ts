@@ -32,6 +32,13 @@ import { resolveShowVerseNumbers } from "./format";
 import { makeLinkOnlyVerse, sameCachedVerses } from "./comparison";
 import { formatInsertLine, strongsActive } from "./strongs";
 import { releaseStrongsPopover, StrongsWriter } from "./strongs-dom";
+import {
+  bakeResult,
+  BAKE_FAILED_NOTICE,
+  BAKE_STALE_NOTICE,
+  COMPARISON_BAKE_NOTICE,
+  InlineBakeJob,
+} from "./inline-bake";
 
 /**
  * Quiet period before a burst of verse-shift clicks is written to the document
@@ -152,6 +159,9 @@ class BibleVerseWidget extends WidgetType {
 
   /** Non-null while a recent click is holding the control strip open. */
   private revealTimer: number | null = null;
+
+  /** One in-flight bake per widget; destroyed jobs may never dispatch. */
+  private readonly bakeJob = new InlineBakeJob((message) => new Notice(message));
 
   toDOM(view: EditorView): HTMLElement {
     const container = createSpan({ cls: "bible-verse-livepreview" });
@@ -281,6 +291,7 @@ class BibleVerseWidget extends WidgetType {
     this.renderToggleButton(controls, view, "verseNewLine", "wrap-text", "Line breaks");
     this.renderToggleButton(controls, view, "paragraphBreaks", "pilcrow", "Paragraph breaks");
     if (this.spec.translations.length < 2) this.renderStrongsButton(controls, view);
+    this.renderBakeButton(controls, view);
 
     this.bindReveal(zone);
   }
@@ -446,6 +457,100 @@ class BibleVerseWidget extends WidgetType {
       this.holdRevealed();
       void this.applyStrongsToggle(view, btn);
     });
+  }
+
+  /** Explicit one-passage bake (#84), a peer of the existing strip controls. */
+  private renderBakeButton(controls: HTMLElement, view: EditorView): void {
+    const label = this.spec.translations.length >= 2
+      ? "Bake: unavailable for comparison passages"
+      : "Bake passage into the note";
+    const btn = controls.createEl("button", {
+      cls: "bible-verse-bake-btn",
+      attr: { type: "button", "aria-label": label, title: label },
+    });
+    setIcon(btn, "lock-keyhole");
+
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.holdRevealed();
+      void this.bakeInlineToken(view, btn);
+    });
+    // A native button activates with Enter/Space. Escape only leaves the
+    // control; it does not start or approve a bake.
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.blur();
+      }
+    });
+  }
+
+  private async bakeInlineToken(view: EditorView, btn: HTMLButtonElement): Promise<void> {
+    if (this.spec.translations.length >= 2) {
+      new Notice(COMPARISON_BAKE_NOTICE);
+      return;
+    }
+    // Disable synchronously: a double-click cannot start a second fetch or write.
+    if (this.bakeJob.busy) return;
+    btn.disabled = true;
+    btn.setAttr("aria-busy", "true");
+
+    try {
+      if (this.pendingTimer !== null) {
+        window.clearTimeout(this.pendingTimer);
+        this.pendingTimer = null;
+      }
+      const patch = this.pendingPatch;
+      this.pendingPatch = {};
+      if (Object.keys(patch).length > 0) this.commitPatch(view, patch);
+      if (!this.containerEl?.isConnected) return;
+
+      // Round-trip the pending controls into the spec used by the baker, so a
+      // Bake immediately after a shift/toggle writes what those controls show.
+      const finalToken = Object.keys(patch).length > 0
+        ? rewriteToken(this.spec.token, patch)
+        : this.spec.token;
+      const finalMatch = finalToken?.match(new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`));
+      const spec = finalMatch ? parseInlineSpec(inlineTokenContent(finalMatch).trim()) : null;
+      if (!finalToken || !spec) {
+        new Notice(BAKE_STALE_NOTICE);
+        return;
+      }
+
+      const { plugin } = this.spec;
+      const id = spec.translations.length === 1
+        ? plugin.resolveTranslationIdPublic(spec.translations[0])
+        : plugin.settings.defaultTranslation;
+      const abbr = plugin.getTranslationAbbrPublic(id);
+      const nl = spec.verseNewLine ?? plugin.settings.verseNewLine;
+      const vn = resolveShowVerseNumbers(spec.ref, spec.showVerseNumbers, plugin.settings.showVerseNumbers);
+      const pb = spec.paragraphBreaks ?? plugin.settings.paragraphBreaks;
+      const result = await this.bakeJob.run(
+        view,
+        this.containerEl,
+        finalToken,
+        spec,
+        {
+          verseNewLine: plugin.settings.verseNewLine,
+          showVerseNumbers: plugin.settings.showVerseNumbers,
+          nativeCalloutType: plugin.settings.nativeCalloutType,
+        },
+        (verse) => plugin.generateLinkPublic(spec.ref, verse.translation),
+        (words) => plugin.fetchVerseForBake(spec.ref, id, abbr, nl, vn, pb, words)
+      );
+      if (result.change) view.dispatch(result.change);
+    } catch (e) {
+      console.error("Bible Verse Live Preview: bake failed", e);
+      new Notice(BAKE_FAILED_NOTICE);
+    } finally {
+      if (btn.isConnected) {
+        btn.disabled = false;
+        btn.setAttr("aria-busy", "false");
+      }
+    }
   }
 
   private paintStrongsButton(btn: HTMLButtonElement): void {
@@ -754,6 +859,7 @@ class BibleVerseWidget extends WidgetType {
    * from here would re-enter CodeMirror's update cycle, which is worse.
    */
   destroy(): void {
+    this.bakeJob.destroy();
     if (this.pendingTimer !== null) {
       window.clearTimeout(this.pendingTimer);
       this.pendingTimer = null;

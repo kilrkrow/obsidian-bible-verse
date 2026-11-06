@@ -719,6 +719,19 @@ export default class BibleVersePlugin extends Plugin {
     return verses;
   }
 
+  /** Explicit Live Preview Bake uses the same fetch/adaptation path as handleBake. */
+  async fetchVerseForBake(
+    ref: BibleReference,
+    translationId?: string,
+    translationAbbr?: string,
+    verseNewLine?: boolean,
+    showVerseNumbers?: boolean,
+    paragraphBreaks?: boolean,
+    words?: WordDisplayState
+  ): Promise<CachedVerse | null> {
+    return this.fetchVerse(ref, translationId, translationAbbr, verseNewLine, showVerseNumbers, paragraphBreaks, words);
+  }
+
   /**
    * Fetch a verse using the current settings, routing to the correct provider.
    */
