@@ -183,6 +183,8 @@ function button(view: EditorView, selector: string): HTMLButtonElement {
 }
 
 const BEFORE = "Read {John 3:16} today.";
+/** The token's line once baked: prose kept on its own lines around the fence. */
+const baked = (block: string) => `Read\n${block}\ntoday.`;
 const plus = ".bible-verse-shift-btn[data-delta='1']";
 const numbers = ".bible-verse-toggle-btn[data-flag='showVerseNumbers']";
 const bakeBtn = ".bible-verse-bake-btn";
@@ -197,10 +199,7 @@ describe("Bake through the real Live Preview widget (#84)", () => {
     button(view, bakeBtn).click(); // immediately
     await settle();
 
-    const expected = BEFORE.replace(
-      "{John 3:16}",
-      formatCodeBlockBake(verseFor(ref(16, 17)), { verseNewLine: false, showVerseNumbers: false })
-    );
+    const expected = baked(formatCodeBlockBake(verseFor(ref(16, 17)), { verseNewLine: false, showVerseNumbers: false }));
     expect(calls.map((c) => c.ref)).toEqual(["John 3:16-17"]);
     expect(view.state.doc.toString()).toBe(expected);
     expect(changes).toEqual([expected]); // one transaction; the shift was never written separately
@@ -225,10 +224,7 @@ describe("Bake through the real Live Preview widget (#84)", () => {
     await settle();
 
     expect(calls).toEqual([{ ref: "John 3:16", nl: false, vn: true }]);
-    const expected = BEFORE.replace(
-      "{John 3:16}",
-      formatCodeBlockBake(verseFor(ref(16), true), { verseNewLine: false, showVerseNumbers: true })
-    );
+    const expected = baked(formatCodeBlockBake(verseFor(ref(16), true), { verseNewLine: false, showVerseNumbers: true }));
     expect(view.state.doc.toString()).toBe(expected);
     expect(changes).toHaveLength(1);
     expect(view.state.doc.toString()).toContain("numbers: true");
@@ -276,10 +272,7 @@ describe("Bake through the real Live Preview widget (#84)", () => {
 
     expect(calls.map((c) => c.ref)).toEqual(["John 3:16-17", "John 3:16-17"]);
     expect(view.state.doc.toString()).toBe(
-      BEFORE.replace(
-        "{John 3:16}",
-        formatCodeBlockBake(verseFor(ref(16, 17)), { verseNewLine: false, showVerseNumbers: false })
-      )
+      baked(formatCodeBlockBake(verseFor(ref(16, 17)), { verseNewLine: false, showVerseNumbers: false }))
     );
     expect(changes).toHaveLength(2);
     view.destroy();

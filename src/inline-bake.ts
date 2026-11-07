@@ -2,7 +2,7 @@ import type { CachedVerse } from "./types";
 import type { InlineSpec } from "./parser";
 import type { WordDisplayState } from "./strongs";
 import { resolveShowVerseNumbers } from "./format";
-import { formatCalloutBake, formatCodeBlockBake } from "./baker";
+import { formatCalloutBake, formatCodeBlockBake, placeBakedBlock } from "./baker";
 import { formatStrongsHeader } from "./strongs";
 import { INLINE_TOKEN_SOURCE } from "./parser";
 import type { EditorView } from "@codemirror/view";
@@ -111,14 +111,17 @@ export class InlineBakeJob {
         this.notice(COMPARISON_BAKE_NOTICE);
         return { outcome: "comparison" };
       }
-      const range = locateInlineBake(source.state.doc.toString(), source.posAtDOM(container), token);
+      const text = source.state.doc.toString();
+      const range = locateInlineBake(text, source.posAtDOM(container), token);
       if (!range) {
         this.notice(BAKE_STALE_NOTICE);
         return { outcome: "failed" };
       }
+      // Same placement as the Baker's command paths: the block on its own
+      // lines, prose and container prefixes preserved, one change.
       return {
         outcome: "written",
-        change: { changes: { ...range, insert }, userEvent: "input.paste" },
+        change: { changes: placeBakedBlock(text, range.from, range.to, insert), userEvent: "input.paste" },
       };
     } finally {
       if (this.pending === job) this.pending = null;

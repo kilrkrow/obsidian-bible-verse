@@ -76,6 +76,81 @@ export function formatCodeBlockBake(verse: CachedVerse, opts?: InlineBakeOptions
   return `\`\`\`bible\n${header}\n${CODEBLOCK_BAKE_SEPARATOR}${verse.text}\n\`\`\``;
 }
 
+/** A text change: replace `from`..`to` with `insert`. */
+export interface BakePlacement {
+  from: number;
+  to: number;
+  insert: string;
+}
+
+/**
+ * Place a baked block (a ```bible fence or a native callout) where the token at
+ * `from`..`to` sits, as valid Markdown.
+ *
+ * Baking used to splice the block into the token's place, so a token with
+ * prose around it ("See {John 3:16} today") produced a fence that started
+ * mid-line and broke the rest of the note. The block now goes on its own lines:
+ * text before the token stays on the first line, text after it moves to a line
+ * after the block, and every block line carries the line's container prefix
+ * (blockquote/callout `>` markers, list continuation indent) so it stays inside
+ * the same container. A line that holds only the token (plus that prefix) is
+ * replaced in place, exactly as before.
+ *
+ * The change covers the token's whole line, so a caller applies it as one edit
+ * (one undo step in the editor).
+ */
+export function placeBakedBlock(text: string, from: number, to: number, block: string): BakePlacement {
+  const lineStart = text.lastIndexOf("\n", from - 1) + 1;
+  const nl = text.indexOf("\n", to);
+  const lineEnd = nl === -1 ? text.length : nl;
+  const line = text.slice(lineStart, lineEnd);
+  const before = text.slice(lineStart, from);
+  const after = text.slice(to, lineEnd);
+
+  // Container prefix of this line: blockquote markers, indent, list marker.
+  const m = /^((?:[ \t]*>[ \t]?)*)([ \t]*)((?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$))?/.exec(line);
+  const quote = m?.[1] ?? "";
+  const indent = m?.[2] ?? "";
+  const marker = m?.[3] ?? "";
+  const lead = quote + indent + marker;
+  // Continuation lines: same quote depth, list content indent.
+  const cont = quote + indent + " ".repeat(marker.length);
+  const prefixed = (l: string) => (l === "" ? cont.replace(/[ \t]+$/, "") : cont + l);
+
+  // A callout/blockquote block would swallow a following paragraph line (lazy
+  // continuation), so it needs a blank line after it; a fence does not.
+  const isQuoteBlock = /^>/.test(block);
+  const blank = cont.replace(/[ \t]+$/, "");
+
+  const blockLines = block.split("\n");
+  const out: string[] = [];
+  if (before.length <= lead.length && before === lead.slice(0, before.length)) {
+    // Only the container prefix precedes the token: the block starts here.
+    out.push(before + blockLines[0]);
+  } else {
+    out.push(before.replace(/[ \t]+$/, ""));
+    out.push(prefixed(blockLines[0]));
+  }
+  for (const l of blockLines.slice(1)) out.push(prefixed(l));
+
+  const rest = after.replace(/^[ \t]+/, "");
+  if (rest.length > 0) {
+    if (isQuoteBlock) out.push(blank);
+    out.push(cont + rest);
+  } else if (isQuoteBlock && nl !== -1) {
+    const nextEnd = text.indexOf("\n", nl + 1);
+    const next = text.slice(nl + 1, nextEnd === -1 ? text.length : nextEnd);
+    if (next.trim() !== "" && next.trim() !== blank.trim()) out.push(blank);
+  }
+  return { from: lineStart, to: lineEnd, insert: out.join("\n") };
+}
+
+/** Apply `placeBakedBlock` to a string. */
+export function spliceBakedBlock(text: string, from: number, to: number, block: string): string {
+  const c = placeBakedBlock(text, from, to, block);
+  return text.slice(0, c.from) + c.insert + text.slice(c.to);
+}
+
 /** A bakeable reference (inline token or ```bible block) located in note text. */
 export interface ExtractedReference {
   raw: string;
@@ -188,8 +263,11 @@ export class Baker {
       const block = opts?.format === "callout"
         ? formatCalloutBake(verse, opts.calloutType ?? "quote", opts.collapsed ?? false, opts.url ?? "")
         : formatCodeBlockBake(verse, opts);
-      // Use a replacer function so `$` in verse text isn't treated as a pattern.
-      return content.replace(refRaw, () => block);
+      // First occurrence, as before; placed on its own lines so prose around
+      // the token survives and the fence/callout is valid Markdown.
+      const at = content.indexOf(refRaw);
+      if (at < 0) return content;
+      return spliceBakedBlock(content, at, at + refRaw.length, block);
     } else {
       // Code block baking
       const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
@@ -256,7 +334,8 @@ export class Baker {
           style: styleOverride && styleOverride !== "native-callout" ? styleOverride : undefined,
           strongs: words ? formatStrongsHeader(words) ?? undefined : undefined,
         });
-        result = result.slice(0, offset) + block + result.slice(offset + raw.length);
+        // Right-to-left, so placing this block never moves an earlier offset.
+        result = spliceBakedBlock(result, offset, offset + raw.length, block);
       } else {
         const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
         let newBlock: string;
