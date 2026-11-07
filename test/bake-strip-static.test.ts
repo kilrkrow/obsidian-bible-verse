@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 
 // Static chrome/a11y assertions complement the pure job tests. Real focus,
 // hover, sizing and neighbor behavior belong to the integrated Obsidian critic.
-const view = readFileSync("src/view-plugin.ts", "utf8");
-const css = readFileSync("styles.css", "utf8");
+// Normalize line endings so the checks hold on CRLF (Windows autocrlf) checkouts.
+const view = readFileSync("src/view-plugin.ts", "utf8").replace(/\r\n/g, "\n");
+const css = readFileSync("styles.css", "utf8").replace(/\r\n/g, "\n");
 
 describe("Bake strip integration (#84)", () => {
   it("adds exactly one focusable peer control with a Bake description", () => {
