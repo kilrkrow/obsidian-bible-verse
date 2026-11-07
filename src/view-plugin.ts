@@ -387,6 +387,7 @@ class BibleVerseWidget extends WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy) return;
       this.applyShift(view, e.altKey ? "start" : "end", delta);
     });
   }
@@ -432,6 +433,7 @@ class BibleVerseWidget extends WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy) return;
       this.applyToggle(view, flag);
     });
   }
@@ -455,6 +457,7 @@ class BibleVerseWidget extends WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy) return;
       void this.applyStrongsToggle(view, btn);
     });
   }
@@ -488,38 +491,50 @@ class BibleVerseWidget extends WidgetType {
     });
   }
 
+  /**
+   * Bake this passage (#84).
+   *
+   * Any shift/toggle still waiting on the settle timer is NOT flushed first:
+   * that flush is a document change that rebuilds the decoration, destroys
+   * this widget and would cancel the bake it was meant to feed. Instead the
+   * pending patch is folded into the bake: the passage is fetched and
+   * formatted from the post-patch token, and one transaction replaces the
+   * original token text with the baked block. So the bake uses the latest
+   * reference and flags, lands exactly once, and is a single undo step back
+   * to the token as it was written. If the bake does not land, the pending
+   * patch is written as it would have been, so no click is lost.
+   */
   private async bakeInlineToken(view: EditorView, btn: HTMLButtonElement): Promise<void> {
     if (this.spec.translations.length >= 2) {
       new Notice(COMPARISON_BAKE_NOTICE);
       return;
     }
-    // Disable synchronously: a double-click cannot start a second fetch or write.
+    // One job per widget: a double-click cannot start a second fetch or write.
     if (this.bakeJob.busy) return;
+    const container = this.containerEl;
+    if (!container?.isConnected) return;
+
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    const patch = this.pendingPatch;
+    this.pendingPatch = {};
+    const patched = Object.keys(patch).length > 0;
+
+    const finalToken = patched ? rewriteToken(this.spec.token, patch) : this.spec.token;
+    const finalMatch = finalToken?.match(new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`));
+    const spec = finalMatch ? parseInlineSpec(inlineTokenContent(finalMatch).trim()) : null;
+    if (!finalToken || !spec) {
+      new Notice(BAKE_STALE_NOTICE);
+      this.restorePendingPatch(view, patch);
+      return;
+    }
+
     btn.disabled = true;
     btn.setAttr("aria-busy", "true");
-
+    let written = false;
     try {
-      if (this.pendingTimer !== null) {
-        window.clearTimeout(this.pendingTimer);
-        this.pendingTimer = null;
-      }
-      const patch = this.pendingPatch;
-      this.pendingPatch = {};
-      if (Object.keys(patch).length > 0) this.commitPatch(view, patch);
-      if (!this.containerEl?.isConnected) return;
-
-      // Round-trip the pending controls into the spec used by the baker, so a
-      // Bake immediately after a shift/toggle writes what those controls show.
-      const finalToken = Object.keys(patch).length > 0
-        ? rewriteToken(this.spec.token, patch)
-        : this.spec.token;
-      const finalMatch = finalToken?.match(new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`));
-      const spec = finalMatch ? parseInlineSpec(inlineTokenContent(finalMatch).trim()) : null;
-      if (!finalToken || !spec) {
-        new Notice(BAKE_STALE_NOTICE);
-        return;
-      }
-
       const { plugin } = this.spec;
       const id = spec.translations.length === 1
         ? plugin.resolveTranslationIdPublic(spec.translations[0])
@@ -530,8 +545,10 @@ class BibleVerseWidget extends WidgetType {
       const pb = spec.paragraphBreaks ?? plugin.settings.paragraphBreaks;
       const result = await this.bakeJob.run(
         view,
-        this.containerEl,
-        finalToken,
+        container,
+        // Locate the token as it is in the document now (pre-patch)...
+        this.spec.token,
+        // ...but bake what the controls show (post-patch).
         spec,
         {
           verseNewLine: plugin.settings.verseNewLine,
@@ -541,16 +558,37 @@ class BibleVerseWidget extends WidgetType {
         (verse) => plugin.generateLinkPublic(spec.ref, verse.translation),
         (words) => plugin.fetchVerseForBake(spec.ref, id, abbr, nl, vn, pb, words)
       );
-      if (result.change) view.dispatch(result.change);
+      if (result.change) {
+        view.dispatch(result.change);
+        written = true;
+      } else if (result.outcome !== "cancelled") {
+        // Failed or refused: keep the user's shift/toggle clicks.
+        this.restorePendingPatch(view, patch);
+      }
     } catch (e) {
       console.error("Bible Verse Live Preview: bake failed", e);
       new Notice(BAKE_FAILED_NOTICE);
+      if (!written) this.restorePendingPatch(view, patch);
     } finally {
       if (btn.isConnected) {
         btn.disabled = false;
         btn.setAttr("aria-busy", "false");
       }
     }
+  }
+
+  /**
+   * After a bake that did not land, write the shift/toggle clicks it had
+   * absorbed, merged with anything clicked meanwhile, as one change.
+   */
+  private restorePendingPatch(view: EditorView, patch: Partial<InlineSpec>): void {
+    const merged = { ...patch, ...this.pendingPatch };
+    this.pendingPatch = {};
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    if (Object.keys(merged).length > 0) this.commitPatch(view, merged);
   }
 
   private paintStrongsButton(btn: HTMLButtonElement): void {
@@ -715,6 +753,10 @@ class BibleVerseWidget extends WidgetType {
 
   /** Restart the settle timer; whatever has accumulated lands when it fires. */
   private scheduleCommit(view: EditorView): void {
+    // A bake in flight owns the token. Edits that arrive meanwhile (an async
+    // Strong's toggle, a word pick) stay pending: they are written if the bake
+    // does not land, and are moot once the token is baked.
+    if (this.bakeJob.busy) return;
     if (this.pendingTimer !== null) window.clearTimeout(this.pendingTimer);
     this.pendingTimer = window.setTimeout(() => {
       this.pendingTimer = null;

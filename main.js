@@ -3870,6 +3870,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy)
+        return;
       this.applyShift(view, e.altKey ? "start" : "end", delta);
     });
   }
@@ -3901,6 +3903,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy)
+        return;
       this.applyToggle(view, flag);
     });
   }
@@ -3922,6 +3926,8 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       e.preventDefault();
       e.stopPropagation();
       this.holdRevealed();
+      if (this.bakeJob.busy)
+        return;
       void this.applyStrongsToggle(view, btn);
     });
   }
@@ -3948,44 +3954,61 @@ var BibleVerseWidget = class extends import_view.WidgetType {
       }
     });
   }
+  /**
+   * Bake this passage (#84).
+   *
+   * Any shift/toggle still waiting on the settle timer is NOT flushed first:
+   * that flush is a document change that rebuilds the decoration, destroys
+   * this widget and would cancel the bake it was meant to feed. Instead the
+   * pending patch is folded into the bake: the passage is fetched and
+   * formatted from the post-patch token, and one transaction replaces the
+   * original token text with the baked block. So the bake uses the latest
+   * reference and flags, lands exactly once, and is a single undo step back
+   * to the token as it was written. If the bake does not land, the pending
+   * patch is written as it would have been, so no click is lost.
+   */
   async bakeInlineToken(view, btn) {
-    var _a, _b, _c;
+    var _a, _b;
     if (this.spec.translations.length >= 2) {
       new import_obsidian9.Notice(COMPARISON_BAKE_NOTICE);
       return;
     }
     if (this.bakeJob.busy)
       return;
+    const container = this.containerEl;
+    if (!(container == null ? void 0 : container.isConnected))
+      return;
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    const patch = this.pendingPatch;
+    this.pendingPatch = {};
+    const patched = Object.keys(patch).length > 0;
+    const finalToken = patched ? rewriteToken(this.spec.token, patch) : this.spec.token;
+    const finalMatch = finalToken == null ? void 0 : finalToken.match(new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`));
+    const spec = finalMatch ? parseInlineSpec(inlineTokenContent(finalMatch).trim()) : null;
+    if (!finalToken || !spec) {
+      new import_obsidian9.Notice(BAKE_STALE_NOTICE);
+      this.restorePendingPatch(view, patch);
+      return;
+    }
     btn.disabled = true;
     btn.setAttr("aria-busy", "true");
+    let written = false;
     try {
-      if (this.pendingTimer !== null) {
-        window.clearTimeout(this.pendingTimer);
-        this.pendingTimer = null;
-      }
-      const patch = this.pendingPatch;
-      this.pendingPatch = {};
-      if (Object.keys(patch).length > 0)
-        this.commitPatch(view, patch);
-      if (!((_a = this.containerEl) == null ? void 0 : _a.isConnected))
-        return;
-      const finalToken = Object.keys(patch).length > 0 ? rewriteToken(this.spec.token, patch) : this.spec.token;
-      const finalMatch = finalToken == null ? void 0 : finalToken.match(new RegExp(`^(?:${INLINE_TOKEN_SOURCE})$`));
-      const spec = finalMatch ? parseInlineSpec(inlineTokenContent(finalMatch).trim()) : null;
-      if (!finalToken || !spec) {
-        new import_obsidian9.Notice(BAKE_STALE_NOTICE);
-        return;
-      }
       const { plugin } = this.spec;
       const id = spec.translations.length === 1 ? plugin.resolveTranslationIdPublic(spec.translations[0]) : plugin.settings.defaultTranslation;
       const abbr = plugin.getTranslationAbbrPublic(id);
-      const nl = (_b = spec.verseNewLine) != null ? _b : plugin.settings.verseNewLine;
+      const nl = (_a = spec.verseNewLine) != null ? _a : plugin.settings.verseNewLine;
       const vn = resolveShowVerseNumbers(spec.ref, spec.showVerseNumbers, plugin.settings.showVerseNumbers);
-      const pb = (_c = spec.paragraphBreaks) != null ? _c : plugin.settings.paragraphBreaks;
+      const pb = (_b = spec.paragraphBreaks) != null ? _b : plugin.settings.paragraphBreaks;
       const result = await this.bakeJob.run(
         view,
-        this.containerEl,
-        finalToken,
+        container,
+        // Locate the token as it is in the document now (pre-patch)...
+        this.spec.token,
+        // ...but bake what the controls show (post-patch).
         spec,
         {
           verseNewLine: plugin.settings.verseNewLine,
@@ -3995,17 +4018,37 @@ var BibleVerseWidget = class extends import_view.WidgetType {
         (verse) => plugin.generateLinkPublic(spec.ref, verse.translation),
         (words) => plugin.fetchVerseForBake(spec.ref, id, abbr, nl, vn, pb, words)
       );
-      if (result.change)
+      if (result.change) {
         view.dispatch(result.change);
+        written = true;
+      } else if (result.outcome !== "cancelled") {
+        this.restorePendingPatch(view, patch);
+      }
     } catch (e) {
       console.error("Bible Verse Live Preview: bake failed", e);
       new import_obsidian9.Notice(BAKE_FAILED_NOTICE);
+      if (!written)
+        this.restorePendingPatch(view, patch);
     } finally {
       if (btn.isConnected) {
         btn.disabled = false;
         btn.setAttr("aria-busy", "false");
       }
     }
+  }
+  /**
+   * After a bake that did not land, write the shift/toggle clicks it had
+   * absorbed, merged with anything clicked meanwhile, as one change.
+   */
+  restorePendingPatch(view, patch) {
+    const merged = { ...patch, ...this.pendingPatch };
+    this.pendingPatch = {};
+    if (this.pendingTimer !== null) {
+      window.clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    if (Object.keys(merged).length > 0)
+      this.commitPatch(view, merged);
   }
   paintStrongsButton(btn) {
     const on = this.currentStrongs();
@@ -4157,6 +4200,8 @@ ${text}` } });
   }
   /** Restart the settle timer; whatever has accumulated lands when it fires. */
   scheduleCommit(view) {
+    if (this.bakeJob.busy)
+      return;
     if (this.pendingTimer !== null)
       window.clearTimeout(this.pendingTimer);
     this.pendingTimer = window.setTimeout(() => {
