@@ -84,6 +84,124 @@ export interface BakePlacement {
 }
 
 /**
+ * Container context of one Markdown line, as far as `limit` (the token start).
+ *
+ * Walks the line's leading containers one at a time, like CommonMark block
+ * parsing: blockquote/callout markers (`>` plus one optional space) and list
+ * markers (`-`, `*`, `+`, `1.`, `1)` followed by spaces/tabs). Columns are
+ * visual, with tab stops every 4, so a tab after a list marker gives the
+ * right content indent.
+ *
+ * - `lead` is the line's own prefix text (what precedes the content).
+ * - `cont` is the prefix a continuation line needs to stay in the same
+ *   containers: quote markers are kept, list markers become spaces up to the
+ *   item's content column.
+ * - `depth` counts the containers; `startsItem` says the line opens a list item.
+ */
+interface LineContext { lead: string; cont: string; depth: number; startsItem: boolean }
+
+function lineContext(line: string, limit = line.length): LineContext {
+  let pos = 0;
+  let col = 0;
+  let cont = "";
+  let depth = 0;
+  let startsItem = false;
+  const width = (ch: string, at: number) => (ch === "\t" ? 4 - (at % 4) : 1);
+  for (;;) {
+    // Up to 3 columns of indent may precede a container marker.
+    let p = pos;
+    let c = col;
+    while (p < limit && (line[p] === " " || line[p] === "\t") && c - col < 4) {
+      c += width(line[p], c);
+      p++;
+    }
+    if (c - col >= 4) break; // indented code, not a marker
+    if (p < limit && line[p] === ">") {
+      // Quote/callout marker: keep it verbatim, with one optional space.
+      let q = p + 1;
+      let qc = c + 1;
+      if (q < limit && (line[q] === " " || line[q] === "\t")) {
+        qc += width(line[q], qc);
+        q++;
+      }
+      cont += line.slice(pos, q);
+      pos = q;
+      col = qc;
+      depth++;
+      continue;
+    }
+    const marker = /^(?:[-*+]|\d{1,9}[.)])/.exec(line.slice(p, limit));
+    if (!marker) break;
+    const m = p + marker[0].length;
+    const mc = c + marker[0].length;
+    if (m < limit && line[m] !== " " && line[m] !== "\t") break;
+    // Spacing after the marker: 1-4 columns sets the content column; 5+ means
+    // the content is indented code, so the content column is marker + 1.
+    let s = m;
+    let sc = mc;
+    while (s < limit && (line[s] === " " || line[s] === "\t")) {
+      sc += width(line[s], sc);
+      s++;
+    }
+    if (sc - mc > 4 || s === m) {
+      // Marker then (code or end of text): content starts one column past it.
+      const contentCol = mc + 1;
+      cont += " ".repeat(contentCol - col);
+      pos = Math.min(m + 1, limit);
+      col = contentCol;
+      depth++;
+      startsItem = true;
+      break;
+    }
+    cont += " ".repeat(sc - col);
+    pos = s;
+    col = sc;
+    depth++;
+    startsItem = true;
+  }
+  // Indentation before the content (a continuation line inside a list item).
+  let w = pos;
+  while (w < limit && (line[w] === " " || line[w] === "\t")) w++;
+  if (w === limit && limit === line.length) w = pos; // all-blank line: nothing to keep
+  cont += line.slice(pos, w);
+  return { lead: line.slice(0, w), cont, depth, startsItem };
+}
+
+/** Does this line (after its containers) open a block other than a paragraph? */
+function opensBlock(content: string): boolean {
+  return /^(?:#{1,6}(?:\s|$)|```|~~~|(?:[-*_][ \t]*){3,}$|>)/.test(content);
+}
+
+/**
+ * The container context a block on `lines[index]` must carry.
+ *
+ * Usually the line's own context. But a paragraph line may sit inside a quote
+ * or list item lazily, without repeating its markers ("> A" then "B" is one
+ * quoted paragraph). Lines placed after such a line must carry the paragraph's
+ * real container prefix, or the block would fall out of the quote/list. So
+ * walk back through the paragraph to the line that opened it and take that
+ * context when it is deeper.
+ */
+function blockContext(lines: string[], index: number, limit: number): LineContext {
+  const own = lineContext(lines[index], limit);
+  if (own.startsItem) return own;
+  const ownContent = lines[index].slice(own.lead.length);
+  if (opensBlock(ownContent)) return own;
+  let best = own;
+  for (let i = index - 1; i >= 0; i--) {
+    const l = lines[i];
+    const ctx = lineContext(l);
+    const content = l.slice(ctx.lead.length);
+    if (content.trim() === "") break; // blank (or marker-only) line ends the paragraph
+    if (opensBlock(content)) break;
+    if (ctx.depth > best.depth) best = { ...ctx, lead: own.lead, startsItem: false };
+    if (ctx.startsItem) break; // the paragraph opened on this item line
+    if (ctx.depth < own.depth) break;
+  }
+  return best;
+}
+
+/**
  * Place a baked block (a ```bible fence or a native callout) where the token at
  * `from`..`to` sits, as valid Markdown.
  *
@@ -91,10 +209,11 @@ export interface BakePlacement {
  * prose around it ("See {John 3:16} today") produced a fence that started
  * mid-line and broke the rest of the note. The block now goes on its own lines:
  * text before the token stays on the first line, text after it moves to a line
- * after the block, and every block line carries the line's container prefix
- * (blockquote/callout `>` markers, list continuation indent) so it stays inside
- * the same container. A line that holds only the token (plus that prefix) is
- * replaced in place, exactly as before.
+ * after the block, and every block line carries the line's full container
+ * prefix (nested blockquote/callout `>` markers and list continuation indents,
+ * including a lazily continued quote or list paragraph) so it stays inside the
+ * same containers. A line that holds only the token (plus its prefix) is
+ * replaced in place, exactly as before. Line endings follow the document.
  *
  * The change covers the token's whole line, so a caller applies it as one edit
  * (one undo step in the editor).
@@ -102,29 +221,27 @@ export interface BakePlacement {
 export function placeBakedBlock(text: string, from: number, to: number, block: string): BakePlacement {
   const lineStart = text.lastIndexOf("\n", from - 1) + 1;
   const nl = text.indexOf("\n", to);
-  const lineEnd = nl === -1 ? text.length : nl;
-  const line = text.slice(lineStart, lineEnd);
+  // The line's own ending (CRLF stays outside the change); else the document's.
+  const crlf = nl > 0 && text[nl - 1] === "\r";
+  const lineEnd = nl === -1 ? text.length : crlf ? nl - 1 : nl;
+  const eol = nl === -1 ? (text.includes("\r\n") ? "\r\n" : "\n") : crlf ? "\r\n" : "\n";
   const before = text.slice(lineStart, from);
   const after = text.slice(to, lineEnd);
 
-  // Container prefix of this line: blockquote markers, indent, list marker.
-  const m = /^((?:[ \t]*>[ \t]?)*)([ \t]*)((?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$))?/.exec(line);
-  const quote = m?.[1] ?? "";
-  const indent = m?.[2] ?? "";
-  const marker = m?.[3] ?? "";
-  const lead = quote + indent + marker;
-  // Continuation lines: same quote depth, list content indent.
-  const cont = quote + indent + " ".repeat(marker.length);
-  const prefixed = (l: string) => (l === "" ? cont.replace(/[ \t]+$/, "") : cont + l);
+  const allLines = text.slice(0, lineEnd).split("\n").map((l) => l.replace(/\r$/, ""));
+  const ctx = blockContext(allLines, allLines.length - 1, from - lineStart);
+  const cont = ctx.cont;
+  const blank = cont.replace(/[ \t]+$/, "");
+  const prefixed = (l: string) => (l === "" ? blank : cont + l);
 
   // A callout/blockquote block would swallow a following paragraph line (lazy
   // continuation), so it needs a blank line after it; a fence does not.
   const isQuoteBlock = /^>/.test(block);
-  const blank = cont.replace(/[ \t]+$/, "");
 
-  const blockLines = block.split("\n");
+  const blockLines = block.split(/\r?\n/);
   const out: string[] = [];
-  if (before.length <= lead.length && before === lead.slice(0, before.length)) {
+  const lead = lineContext(before + "x", before.length).lead;
+  if (before.slice(lead.length).trim() === "") {
     // Only the container prefix precedes the token: the block starts here.
     out.push(before + blockLines[0]);
   } else {
@@ -139,10 +256,10 @@ export function placeBakedBlock(text: string, from: number, to: number, block: s
     out.push(cont + rest);
   } else if (isQuoteBlock && nl !== -1) {
     const nextEnd = text.indexOf("\n", nl + 1);
-    const next = text.slice(nl + 1, nextEnd === -1 ? text.length : nextEnd);
+    const next = text.slice(nl + 1, nextEnd === -1 ? text.length : nextEnd).replace(/\r$/, "");
     if (next.trim() !== "" && next.trim() !== blank.trim()) out.push(blank);
   }
-  return { from: lineStart, to: lineEnd, insert: out.join("\n") };
+  return { from: lineStart, to: lineEnd, insert: out.join(eol) };
 }
 
 /** Apply `placeBakedBlock` to a string. */

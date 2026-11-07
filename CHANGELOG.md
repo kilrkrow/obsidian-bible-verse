@@ -10,7 +10,7 @@ All notable changes to Bible Verse are documented here.
 
 ### Fixed
 
-- **Baking a verse that sits in a sentence keeps the note intact** — when a reference had other text on the same line, such as `See {John 3:16} today`, baking put the Bible block in the middle of that line, which broke how the rest of the note displayed. The block now goes on its own lines: the text before it stays where it was and the text after it moves to the line below. Inside a quote, callout or list, the block stays inside it. This applies to the Bake button, to automatic inline baking and to baking the whole vault.
+- **Baking a verse that sits in a sentence keeps the note intact** — when a reference had other text on the same line, such as `See {John 3:16} today`, baking put the Bible block in the middle of that line, which broke how the rest of the note displayed. The block now goes on its own lines: the text before it stays where it was and the text after it moves to the line below. Inside a quote, callout or list, the block stays inside it, including quotes inside lists and lists inside lists. Notes with Windows line endings keep them. This applies to the Bake button, to automatic inline baking and to baking the whole vault.
 
 ## [1.12.4] — 2026-11-05
 
