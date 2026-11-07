@@ -13,7 +13,7 @@ import {
 } from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
-import { Baker, UNSAFE_BAKE_NOTICE } from "./baker";
+import { Baker, canPlaceBake, UNSAFE_BAKE_NOTICE } from "./baker";
 import { BibleVerseSettingTab } from "./settings";
 import {
   renderVerse,
@@ -1037,6 +1037,19 @@ export default class BibleVersePlugin extends Plugin {
     const forced = spec.bake || spec.styleOverride === "native-callout";
     if (!forced && !this.settings.bakeInline) return;
 
+    // Refuse an unsafe spot before fetching, so a passive rerender of a
+    // refused token costs a parse, not a fetch. Reported once per session.
+    const key = `${ctx.sourcePath}\u0000${refMarker}`;
+    const current = await this.app.vault.cachedRead(file);
+    const at = current.indexOf(refMarker);
+    if (at >= 0 && !canPlaceBake(current, at, at + refMarker.length)) {
+      if (!this.refusedBakes.has(key)) {
+        this.refusedBakes.add(key);
+        new Notice(UNSAFE_BAKE_NOTICE);
+      }
+      return;
+    }
+
     const { ref, translations, verseNewLine, showVerseNumbers } = spec;
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : undefined;
     const transAbbr = transId ? this.getTranslationAbbr(transId) : undefined;
@@ -1070,7 +1083,6 @@ export default class BibleVersePlugin extends Plugin {
       return this.baker.bakeVerse(content, refMarker, verse, "inline", opts, () => { refused = true; });
     });
     // Tell the user once per token per session; the note is unchanged.
-    const key = `${ctx.sourcePath}\u0000${refMarker}`;
     if (refused && !this.refusedBakes.has(key)) {
       this.refusedBakes.add(key);
       new Notice(UNSAFE_BAKE_NOTICE);

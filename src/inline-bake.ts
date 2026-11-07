@@ -2,7 +2,7 @@ import type { CachedVerse } from "./types";
 import type { InlineSpec } from "./parser";
 import type { WordDisplayState } from "./strongs";
 import { resolveShowVerseNumbers } from "./format";
-import { formatCalloutBake, formatCodeBlockBake, placeBakedBlock, UNSAFE_BAKE_NOTICE } from "./baker";
+import { canPlaceBake, formatCalloutBake, formatCodeBlockBake, placeBakedBlock, UNSAFE_BAKE_NOTICE } from "./baker";
 import { formatStrongsHeader } from "./strongs";
 import { INLINE_TOKEN_SOURCE } from "./parser";
 import type { EditorView } from "@codemirror/view";
@@ -90,6 +90,15 @@ export class InlineBakeJob {
     }
     if (this.pending) return { outcome: "cancelled" };
     if (!container?.isConnected || source.posAtDOM(container) < 0) return { outcome: "cancelled" };
+    // Refuse an unsafe spot before fetching (checked again when placing).
+    const early = locateInlineBake(source.state.doc.toString(), source.posAtDOM(container), token);
+    if (early) {
+      const text = source.state.doc.toString();
+      if (!canPlaceBake(text, early.from, early.to)) {
+        this.notice(UNSAFE_BAKE_NOTICE);
+        return { outcome: "refused" };
+      }
+    }
 
     const job = { cancelled: false };
     this.pending = job;

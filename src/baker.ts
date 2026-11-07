@@ -3,8 +3,8 @@ import { BibleReference, CachedVerse } from "./types";
 import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
 import { resolveShowVerseNumbers } from "./format";
 import { formatStrongsHeader, isAdapted, parseStrongsHeader, STRONGS_CREDIT, WordDisplayState } from "./strongs";
-import { spliceBakedBlock } from "./placement";
-export { placeBakedBlock, spliceBakedBlock, UNSAFE_BAKE_NOTICE } from "./placement";
+import { canPlaceBake, spliceBakedBlock } from "./placement";
+export { canPlaceBake, placeBakedBlock, spliceBakedBlock, UNSAFE_BAKE_NOTICE } from "./placement";
 export type { BakePlacement } from "./placement";
 
 /**
@@ -251,6 +251,12 @@ export class Baker {
     for (let i = refs.length - 1; i >= 0; i--) {
       const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride, words } = refs[i];
       if (!ref) continue;
+
+      // A token that can't be placed safely is skipped before fetching.
+      if (type === "inline" && !canPlaceBake(result, offset, offset + raw.length)) {
+        onSkipped?.(raw);
+        continue;
+      }
 
       // We only bake single translation blocks for now
       const trans = (translations && translations.length === 1) ? translations[0] : undefined;

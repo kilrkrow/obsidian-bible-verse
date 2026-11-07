@@ -11,7 +11,7 @@ All notable changes to Bible Verse are documented here.
 ### Fixed
 
 - **Baking a verse that sits in a sentence keeps the note intact** — when a reference had other text on the same line, such as `See {John 3:16} today`, baking put the Bible block in the middle of that line, which broke how the rest of the note displayed. The block now goes on its own lines: the text before it stays where it was and the text after it moves to the line below. Inside a quote, callout or list, the block stays inside it, including nested ones and lines that continue a quote or list item without repeating its `>` or indent. Notes with Windows line endings keep them. This applies to the Bake button, to automatic inline baking and to baking the whole vault.
-- **Verses in spots that can't hold a Bible block are left alone** — a verse inside code, a heading, a table, a link or other formatting, front matter, a `$$` math block, a `%%` comment or a footnote isn't baked. The note stays unchanged and a notice says so. Baking a whole note or the vault skips those verses, bakes the rest, and reports how many were skipped.
+- **Verses in spots that can't hold a Bible block are left alone** — a verse isn't baked when it sits inside code, a heading, a table, a link, a wikilink or embed, other formatting such as a highlight or inline math, front matter, a `$$` math block, a `%%` comment, a footnote, or a paragraph that has a block ID. The note stays unchanged and a notice says so. Baking a whole note or the vault skips those verses before fetching them, bakes the rest, and reports how many were skipped.
 
 ## [1.12.4] — 2026-11-05
 

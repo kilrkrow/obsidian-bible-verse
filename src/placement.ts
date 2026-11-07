@@ -12,8 +12,8 @@ import type { SyntaxNode, Tree } from "@lezer/common";
  *
  * 1. The token must sit in the plain text of a paragraph (or task item) whose
  *    only containers are blockquotes/callouts and list items. A token inside
- *    code, a heading, a table, HTML, a link or other inline markup, front
- *    matter, a `$$` math block or a `%%` comment is refused.
+ *    code, a heading, a table, HTML, a link or other inline markup, or
+ *    Obsidian syntax splitting would damage (see `obsidianUnsafe`) is refused.
  * 2. The block goes on its own lines. Text before the token stays on its line,
  *    text after it moves below the block. Every new line carries the
  *    paragraph's container prefix, taken from the line where the paragraph
@@ -70,17 +70,98 @@ function outline(tree: Tree, src: string, prefix: string[] = []): Leaf[] {
   return out;
 }
 
-/** Inside front matter, a `$$` math block or a `%%` comment? Refuse those. */
-function inOpaqueRegion(text: string, from: number): boolean {
+/** Front matter at the top of the note: [0, end) or null. */
+function frontMatter(text: string): [number, number] | null {
   const fm = /^---[ \t]*\r?\n/.exec(text);
-  if (fm) {
-    const close = /^(?:---|\.\.\.)[ \t]*\r?$/m.exec(text.slice(fm[0].length));
-    const end = close ? fm[0].length + close.index + close[0].length : text.length;
-    if (from < end) return true;
+  if (!fm) return null;
+  const close = /^(?:---|\.\.\.)[ \t]*\r?$/m.exec(text.slice(fm[0].length));
+  return [0, close ? fm[0].length + close.index + close[0].length : text.length];
+}
+
+/** Spans whose characters are literal (code, HTML, escapes, front matter). */
+const PROTECTED = new Set([
+  "InlineCode", "FencedCode", "CodeBlock", "HTMLBlock", "HTMLTag", "Comment", "CommentBlock",
+  "ProcessingInstruction", "ProcessingInstructionBlock", "Escape", "URL", "Autolink",
+]);
+function protectedSpans(tree: Tree, text: string): [number, number][] {
+  const spans: [number, number][] = [];
+  const fm = frontMatter(text);
+  if (fm) spans.push(fm);
+  tree.iterate({
+    enter: (n) => {
+      if (!PROTECTED.has(n.name)) return true;
+      spans.push([n.from, n.to]);
+      return false;
+    },
+  });
+  return spans;
+}
+
+/** Offsets of `re` matches in [from, to) that are not inside a protected span. */
+function delimiters(src: string, re: RegExp, spans: [number, number][], from = 0, to = src.length): number[] {
+  const out: number[] = [];
+  const g = new RegExp(re.source, "g");
+  g.lastIndex = from;
+  for (let m = g.exec(src); m && m.index < to; m = g.exec(src)) {
+    const at = m.index;
+    if (!spans.some(([a, b]) => at < b && at + m![0].length > a)) out.push(at);
   }
-  const head = text.slice(0, from);
-  const count = (re: RegExp) => (head.match(re) || []).length;
-  return count(/%%/g) % 2 === 1 || count(/\$\$/g) % 2 === 1;
+  return out;
+}
+
+/**
+ * Obsidian syntax CommonMark doesn't know, where splitting a paragraph would
+ * damage the note. Fails closed: anything that can't be classified refuses.
+ *
+ * - Front matter; `$$` display math and `%%` comments, counting delimiters
+ *   outside code, HTML, escapes and front matter only. Refused when the token
+ *   is inside one, when the note has an unmatched delimiter, or when the
+ *   token's paragraph holds one at all.
+ * - Inside the paragraph: a wikilink or embed (`[[...]]`, `![[...]]`, also
+ *   unclosed), an inline footnote `^[...]`, inline `$...$` math or an
+ *   `==highlight==` around the token, or a block ID (`^id`) on the paragraph
+ *   (splitting would move it to another block).
+ */
+function obsidianUnsafe(tree: Tree, src: string, para: SyntaxNode, from: number, to: number): boolean {
+  const fm = frontMatter(src);
+  if (fm && from < fm[1]) return true;
+  const spans = protectedSpans(tree, src);
+  for (const re of [/\$\$/, /%%/]) {
+    const all = delimiters(src, re, spans);
+    if (all.length % 2 === 1) return true; // unmatched: can't classify
+    if (all.filter((d) => d < from).length % 2 === 1) return true; // inside one
+    if (all.some((d) => d >= para.from && d < para.to)) return true; // next to the token
+  }
+  const pFrom = para.from;
+  const pTo = para.to;
+  // Wikilinks and embeds, closed or not.
+  for (const open of delimiters(src, /\[\[/, spans, pFrom, pTo)) {
+    const close = src.indexOf("]]", open + 2);
+    const end = close === -1 || close >= pTo ? pTo : close + 2;
+    if (open < to && end > from) return true;
+  }
+  if (delimiters(src, /\]\]/, spans, from, to).length > 0) return true;
+  // Inline footnotes ^[...] (brackets may nest).
+  for (const open of delimiters(src, /\^\[/, spans, pFrom, pTo)) {
+    let depth = 0;
+    let end = pTo;
+    for (let i = open + 1; i < pTo; i++) {
+      if (src[i] === "[") depth++;
+      else if (src[i] === "]" && --depth === 0) { end = i + 1; break; }
+    }
+    if (open < to && end > from) return true;
+  }
+  // Inline math and highlights: a delimiter before the token (odd count) with
+  // another after it means the token is inside.
+  const around = (re: RegExp) => {
+    const ds = delimiters(src, re, spans, pFrom, pTo);
+    return ds.filter((d) => d < from).length % 2 === 1 && ds.some((d) => d >= to);
+  };
+  if (around(/(?<!\$)\$(?!\$)/) || around(/==/)) return true;
+  // A block ID labels this paragraph; splitting would move it.
+  const lastLine = src.slice(lineStartAt(src, pTo), pTo);
+  if (/(?:^|\s)\^[A-Za-z0-9-]+[ \t]*$/.test(lastLine)) return true;
+  return false;
 }
 
 /** Offset just past a line's container prefix (quote marks and indentation). */
@@ -119,7 +200,6 @@ function lineEndAt(text: string, pos: number): { end: number; nl: number } {
 
 export function placeBakedBlock(text: string, from: number, to: number, block: string): BakePlacement | null {
   if (from < 0 || to > text.length || from >= to) return null;
-  if (inOpaqueRegion(text, from)) return null;
   const src = parseable(text);
   const tree = mdParser.parse(src);
 
@@ -132,6 +212,7 @@ export function placeBakedBlock(text: string, from: number, to: number, block: s
   // A footnote definition is not a plain paragraph.
   if (/^\[\^[^\]]*\]:/.test(src.slice(p.from, p.to))) return null;
   const para = p;
+  if (obsidianUnsafe(tree, src, para, from, to)) return null;
   const chain = chainOf(para);
 
   // 2. Container prefix for new lines, from the line the paragraph opened on:
@@ -218,6 +299,17 @@ function indexOfLeaf(tree: Tree, leaf: SyntaxNode): number {
     },
   });
   return found;
+}
+
+const PROBE_BLOCK = "```bible\nJohn 3:16\n```";
+
+/**
+ * Can a token at `from`..`to` be baked at all? Checked before fetching, with a
+ * stand-in fence, so a refused spot costs no fetch. The real block is checked
+ * again when it is placed.
+ */
+export function canPlaceBake(text: string, from: number, to: number): boolean {
+  return placeBakedBlock(text, from, to, PROBE_BLOCK) !== null;
 }
 
 /** Apply `placeBakedBlock` to a string; null when the bake is refused. */
