@@ -96,9 +96,13 @@ export interface BakePlacement {
  * - `cont` is the prefix a continuation line needs to stay in the same
  *   containers: quote markers are kept, list markers become spaces up to the
  *   item's content column.
+ * - `open` is the prefix a block that starts on this line needs: `lead`,
+ *   except after a list marker followed by 5+ columns of whitespace (which
+ *   CommonMark reads as indented code), where it is the marker plus one space
+ *   so the block starts at the item's content column.
  * - `depth` counts the containers; `startsItem` says the line opens a list item.
  */
-interface LineContext { lead: string; cont: string; depth: number; startsItem: boolean }
+interface LineContext { lead: string; open: string; cont: string; depth: number; startsItem: boolean }
 
 function lineContext(line: string, limit = line.length): LineContext {
   let pos = 0;
@@ -151,6 +155,10 @@ function lineContext(line: string, limit = line.length): LineContext {
       col = contentCol;
       depth++;
       startsItem = true;
+      if (s > m) {
+        // The whitespace past the content column belongs to the content.
+        return { lead: line.slice(0, pos), open: line.slice(0, m) + " ", cont, depth, startsItem };
+      }
       break;
     }
     cont += " ".repeat(sc - col);
@@ -164,12 +172,15 @@ function lineContext(line: string, limit = line.length): LineContext {
   while (w < limit && (line[w] === " " || line[w] === "\t")) w++;
   if (w === limit && limit === line.length) w = pos; // all-blank line: nothing to keep
   cont += line.slice(pos, w);
-  return { lead: line.slice(0, w), cont, depth, startsItem };
+  const lead = line.slice(0, w);
+  return { lead, open: lead, cont, depth, startsItem };
 }
 
 /** Does this line (after its containers) open a block other than a paragraph? */
 function opensBlock(content: string): boolean {
-  return /^(?:#{1,6}(?:\s|$)|```|~~~|(?:[-*_][ \t]*){3,}$|>)/.test(content);
+  // Headings, fences, thematic breaks, quotes, and indented code (only left
+  // in `content` after a list marker with 5+ columns of whitespace).
+  return /^(?:#{1,6}(?:\s|$)|```|~~~|(?:[-*_][ \t]*){3,}$|>|\t| {1,3}\t| {4})/.test(content);
 }
 
 /**
@@ -194,7 +205,7 @@ function blockContext(lines: string[], index: number, limit: number): LineContex
     const content = l.slice(ctx.lead.length);
     if (content.trim() === "") break; // blank (or marker-only) line ends the paragraph
     if (opensBlock(content)) break;
-    if (ctx.depth > best.depth) best = { ...ctx, lead: own.lead, startsItem: false };
+    if (ctx.depth > best.depth) best = { ...ctx, lead: own.lead, open: own.open, startsItem: false };
     if (ctx.startsItem) break; // the paragraph opened on this item line
     if (ctx.depth < own.depth) break;
   }
@@ -240,10 +251,14 @@ export function placeBakedBlock(text: string, from: number, to: number, block: s
 
   const blockLines = block.split(/\r?\n/);
   const out: string[] = [];
-  const lead = lineContext(before + "x", before.length).lead;
-  if (before.slice(lead.length).trim() === "") {
+  const own = lineContext(before + "x", before.length);
+  if (before.slice(own.lead.length).trim() === "") {
     // Only the container prefix precedes the token: the block starts here.
-    out.push(before + blockLines[0]);
+    // When the line's explicit prefix is shallower than its real context (a
+    // lazily continued quote/list paragraph, or only some of the `>` markers
+    // written), the opening line takes the full inferred prefix like every
+    // other block line; otherwise the line's own prefix is kept as written.
+    out.push((ctx.depth > own.depth ? cont : own.open) + blockLines[0]);
   } else {
     out.push(before.replace(/[ \t]+$/, ""));
     out.push(prefixed(blockLines[0]));
