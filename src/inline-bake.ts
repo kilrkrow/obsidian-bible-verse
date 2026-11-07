@@ -2,7 +2,7 @@ import type { CachedVerse } from "./types";
 import type { InlineSpec } from "./parser";
 import type { WordDisplayState } from "./strongs";
 import { resolveShowVerseNumbers } from "./format";
-import { formatCalloutBake, formatCodeBlockBake, placeBakedBlock } from "./baker";
+import { formatCalloutBake, formatCodeBlockBake, placeBakedBlock, UNSAFE_BAKE_NOTICE } from "./baker";
 import { formatStrongsHeader } from "./strongs";
 import { INLINE_TOKEN_SOURCE } from "./parser";
 import type { EditorView } from "@codemirror/view";
@@ -53,7 +53,7 @@ export interface InlineBakeDispatch {
   userEvent: "input.paste";
 }
 
-export type InlineBakeOutcome = "written" | "failed" | "cancelled" | "comparison";
+export type InlineBakeOutcome = "written" | "failed" | "cancelled" | "comparison" | "refused";
 
 /**
  * Own one widget's in-flight bake without any CodeMirror or Obsidian imports.
@@ -118,11 +118,14 @@ export class InlineBakeJob {
         return { outcome: "failed" };
       }
       // Same placement as the Baker's command paths: the block on its own
-      // lines, prose and container prefixes preserved, one change.
-      return {
-        outcome: "written",
-        change: { changes: placeBakedBlock(text, range.from, range.to, insert), userEvent: "input.paste" },
-      };
+      // lines, prose and container prefixes preserved, one change. Refused
+      // where it can't be placed safely; the note is left unchanged.
+      const changes = placeBakedBlock(text, range.from, range.to, insert);
+      if (!changes) {
+        this.notice(UNSAFE_BAKE_NOTICE);
+        return { outcome: "refused" };
+      }
+      return { outcome: "written", change: { changes, userEvent: "input.paste" } };
     } finally {
       if (this.pending === job) this.pending = null;
     }

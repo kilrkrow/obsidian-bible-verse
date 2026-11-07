@@ -29,7 +29,7 @@ const FENCE16 = formatCodeBlockBake(V16, opts);
 const byRef: Record<string, CachedVerse> = { "John 3:16": V16, "John 3:17": V17 };
 const T = "{John 3:16}";
 const baker = new Baker({} as App);
-const viaBakeVerse = (content: string, raw = T, verse = V16) => baker.bakeVerse(content, raw, verse, "inline", { format: "codeblock", ...opts });
+const viaBakeVerse = (content: string, raw = T, verse = V16, onRefused?: () => void) => baker.bakeVerse(content, raw, verse, "inline", { format: "codeblock", ...opts }, onRefused);
 const viaBakeFile = (content: string) => baker.bakeFile(content, true, async (ref) => byRef[`${ref.book} ${ref.chapter}:${ref.startVerse}`] ?? null, opts);
 const viaHelper = (content: string, block: string, raw = T) => { const at = content.indexOf(raw); const c = placeBakedBlock(content, at, at + raw.length, block); return content.slice(0, c.from) + c.insert + content.slice(c.to); };
 
@@ -207,46 +207,22 @@ describe("lookback stops at structural boundaries", () => {
 });
 
 describe("list markers followed by 5+ columns of whitespace", () => {
-  it("-<6 spaces>{ref} tail: fence opens at the content column, inside the item", () => {
-    const out = viaBakeVerse("-      {John 3:16} tail\n- next");
-    expect(lines(out)[0]).toBe("- ```bible");
-    expect(lines(out)[1]).toBe("  John 3:16");
-    expect(shape(out)).toEqual([
-      ["FencedCode", "```bible", "BulletList/ListItem"],
-      ["Paragraph", "tail", "BulletList/ListItem"],
-      ["Paragraph", "next", "BulletList/ListItem"],
-    ]);
-  });
-
-  it("1.<6 spaces>{ref}: ordered marker, content column 3", () => {
-    const out = viaBakeVerse("1.      {John 3:16}\n2. two");
-    expect(lines(out)[0]).toBe("1. ```bible");
-    expect(lines(out)[1]).toBe("   John 3:16");
-    expect(shape(out)).toEqual([
-      ["FencedCode", "```bible", "OrderedList/ListItem"],
-      ["Paragraph", "two", "OrderedList/ListItem"],
-    ]);
-  });
-
-  it("-<TAB><TAB>{ref}: two tabs count as 7 columns, same as spaces", () => {
-    const out = viaBakeVerse("-\t\t{John 3:16}\n- next");
-    expect(lines(out)[0]).toBe("- ```bible");
-    expect(shape(out)).toEqual([
-      ["FencedCode", "```bible", "BulletList/ListItem"],
-      ["Paragraph", "next", "BulletList/ListItem"],
-    ]);
-  });
-
-  it("prose before the token on a wide-marker line is kept as written; block at the content column", () => {
-    const out = viaBakeVerse("-      A {John 3:16} B\n- next");
-    expect(lines(out)[0]).toBe("-      A");
-    expect(lines(out)[1]).toBe("  ```bible");
-    expect(shape(out).slice(-3)).toEqual([
-      ["FencedCode", "```bible", "BulletList/ListItem"],
-      ["Paragraph", "B", "BulletList/ListItem"],
-      ["Paragraph", "next", "BulletList/ListItem"],
-    ]);
-  });
+  // CommonMark reads 5+ columns after a list marker as the marker, one space,
+  // and indented code. A token there is code text, so the bake is refused and
+  // the note is left unchanged (b8b8c6e baked these; that was a guess).
+  const refused = (content: string) => {
+    let n0: SyntaxNode | null = parser.parse(content).resolveInner(content.indexOf(T), 1);
+    while (n0 && n0.name !== "CodeBlock") n0 = n0.parent;
+    expect(n0?.name).toBe("CodeBlock");
+    let n = 0;
+    expect(viaBakeVerse(content, T, V16, () => n++)).toBe(content);
+    expect(placeBakedBlock(content, content.indexOf(T), content.indexOf(T) + T.length, FENCE16)).toBeNull();
+    expect(n).toBe(1);
+  };
+  it("-<6 spaces>{ref} tail: token is indented code in the item, refused", () => refused("-      {John 3:16} tail\n- next"));
+  it("1.<6 spaces>{ref}: ordered marker, token is indented code, refused", () => refused("1.      {John 3:16}\n2. two"));
+  it("-<TAB><TAB>{ref}: two tabs are 7 columns, token is indented code, refused", () => refused("-\t\t{John 3:16}\n- next"));
+  it("prose and token on a wide-marker line are indented code, refused", () => refused("-      A {John 3:16} B\n- next"));
 });
 
 describe("all callers agree", () => {
