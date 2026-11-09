@@ -481,7 +481,8 @@
 
 .bible-verse-shift-btn,
 .bible-verse-toggle-btn,
-.bible-verse-strongs-btn {
+.bible-verse-strongs-btn,
+.bible-verse-bake-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -504,7 +505,8 @@
 
 .bible-verse-shift-btn:hover:not(:disabled),
 .bible-verse-toggle-btn:hover:not(:disabled),
-.bible-verse-strongs-btn:hover:not(:disabled) {
+.bible-verse-strongs-btn:hover:not(:disabled),
+.bible-verse-bake-btn:hover:not(:disabled) {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   border-color: var(--interactive-accent);
@@ -512,7 +514,8 @@
 
 .bible-verse-shift-btn:active:not(:disabled),
 .bible-verse-toggle-btn:active:not(:disabled),
-.bible-verse-strongs-btn:active:not(:disabled) {
+.bible-verse-strongs-btn:active:not(:disabled),
+.bible-verse-bake-btn:active:not(:disabled) {
   background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
 }
 
@@ -522,14 +525,15 @@
 }
 
 /* Separate the nudge pair from the formatting toggles. The sibling selector
-   only matches a toggle that directly follows a shift button, so references
+   only matches the first peer directly following a shift button, so references
    with no +/- (whole-chapter and friends) get no stray leading gap. */
-.bible-verse-shift-btn + .bible-verse-toggle-btn {
+.bible-verse-shift-btn + :is(.bible-verse-toggle-btn, .bible-verse-bake-btn) {
   margin-left: 0.45em;
 }
 
 .bible-verse-toggle-btn .svg-icon,
-.bible-verse-strongs-btn .svg-icon {
+.bible-verse-strongs-btn .svg-icon,
+.bible-verse-bake-btn .svg-icon {
   width: 0.95em;
   height: 0.95em;
 }
@@ -865,4 +869,19 @@
   text-decoration-style: solid;
   text-decoration-color: currentcolor;
   text-decoration-thickness: auto;
+}
+
+/* Explicit one-passage bake (#84): same chrome and reserved reveal space as
+   the neighboring controls, set apart as an action rather than a modifier. */
+.bible-verse-bake-btn {
+  margin-left: 0.45em;
+}
+
+.bible-verse-bake-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+/* Set apart from Strong's: this is a one-way commit action, not a modifier. */
+.bible-verse-strongs-btn + .bible-verse-bake-btn {
+  margin-left: 0.45em;
 }

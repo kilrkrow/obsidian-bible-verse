@@ -13,7 +13,7 @@ import {
 } from "./parser";
 import { BibleApi } from "./api";
 import { VerseCache } from "./cache";
-import { Baker } from "./baker";
+import { Baker, canPlaceBake, UNSAFE_BAKE_NOTICE } from "./baker";
 import { BibleVerseSettingTab } from "./settings";
 import {
   renderVerse,
@@ -67,6 +67,11 @@ import { releaseNotesSince, WhatsNewModal } from "./whats-new-modal";
  * reference reads "KJV-Strong's", and the lexicon credit is a required
  * attribution line (shown regardless of "Show attribution", as ESV's is).
  */
+/** Shown after a note or vault bake that skipped tokens it could not place safely. */
+function skippedNotice(n: number): string {
+  return `${n} verse${n === 1 ? " was" : "s were"} left unbaked: a Bible block can't be placed safely there (for example inside code, a heading, a table or a link).`;
+}
+
 function strongsAttribution(verse: CachedVerse): Pick<CachedVerse, "label" | "copyright" | "requireAttribution"> {
   return {
     label: strongsTranslationLabel(verse.translation),
@@ -77,6 +82,8 @@ function strongsAttribution(verse: CachedVerse): Pick<CachedVerse, "label" | "co
 
 export default class BibleVersePlugin extends Plugin {
   settings: BibleVerseSettings = DEFAULT_SETTINGS;
+  /** Refused passive bakes already reported this session (path + token). */
+  private refusedBakes = new Set<string>();
   api: BibleApi = null!;
   cache: VerseCache = null!;
   baker: Baker = null!;
@@ -118,18 +125,21 @@ export default class BibleVersePlugin extends Plugin {
       name: "Bake all verses in this note",
       editorCallback: async (editor) => {
         const content = editor.getValue();
+        let skipped = 0;
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
-          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers },
+          () => skipped++
         );
         if (newContent !== content) {
           editor.setValue(newContent);
           new Notice("Bible verses baked into note.");
-        } else {
+        } else if (skipped === 0) {
           new Notice("No verses to bake.");
         }
+        if (skipped > 0) new Notice(skippedNotice(skipped));
       },
     });
 
@@ -140,14 +150,17 @@ export default class BibleVersePlugin extends Plugin {
         let content = editor.getValue();
         // Strip then re-bake
         content = this.baker.stripBakedText(content);
+        let skipped = 0;
         const newContent = await this.baker.bakeFile(
           content,
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
-          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers },
+          () => skipped++
         );
         editor.setValue(newContent);
         new Notice("Bible verses refreshed.");
+        if (skipped > 0) new Notice(skippedNotice(skipped));
       },
     });
 
@@ -155,13 +168,16 @@ export default class BibleVersePlugin extends Plugin {
       id: "refresh-vault",
       name: "Refresh all baked verses in vault",
       callback: async () => {
+        let skipped = 0;
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
-          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers },
+          () => skipped++
         );
         new Notice(`Refreshed baked verses in ${count} files.`);
+        if (skipped > 0) new Notice(skippedNotice(skipped));
       },
     });
 
@@ -169,13 +185,16 @@ export default class BibleVersePlugin extends Plugin {
       id: "bake-vault",
       name: "Bake all existing verses across vault",
       callback: async () => {
+        let skipped = 0;
         const count = await this.baker.processVault(
           "bake",
           this.settings.bakeInline,
           (ref, id, abbr, nl, vn, words) => this.fetchVerse(ref, id, abbr, nl, vn, undefined, words),
-          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers }
+          { verseNewLine: this.settings.verseNewLine, showVerseNumbers: this.settings.showVerseNumbers },
+          () => skipped++
         );
         new Notice(`Baked verses in ${count} files.`);
+        if (skipped > 0) new Notice(skippedNotice(skipped));
       },
     });
 
@@ -719,6 +738,19 @@ export default class BibleVersePlugin extends Plugin {
     return verses;
   }
 
+  /** Explicit Live Preview Bake uses the same fetch/adaptation path as handleBake. */
+  async fetchVerseForBake(
+    ref: BibleReference,
+    translationId?: string,
+    translationAbbr?: string,
+    verseNewLine?: boolean,
+    showVerseNumbers?: boolean,
+    paragraphBreaks?: boolean,
+    words?: WordDisplayState
+  ): Promise<CachedVerse | null> {
+    return this.fetchVerse(ref, translationId, translationAbbr, verseNewLine, showVerseNumbers, paragraphBreaks, words);
+  }
+
   /**
    * Fetch a verse using the current settings, routing to the correct provider.
    */
@@ -1005,6 +1037,19 @@ export default class BibleVersePlugin extends Plugin {
     const forced = spec.bake || spec.styleOverride === "native-callout";
     if (!forced && !this.settings.bakeInline) return;
 
+    // Refuse an unsafe spot before fetching, so a passive rerender of a
+    // refused token costs a parse, not a fetch. Reported once per session.
+    const key = `${ctx.sourcePath}\u0000${refMarker}`;
+    const current = await this.app.vault.cachedRead(file);
+    const at = current.indexOf(refMarker);
+    if (at >= 0 && !canPlaceBake(current, at, at + refMarker.length)) {
+      if (!this.refusedBakes.has(key)) {
+        this.refusedBakes.add(key);
+        new Notice(UNSAFE_BAKE_NOTICE);
+      }
+      return;
+    }
+
     const { ref, translations, verseNewLine, showVerseNumbers } = spec;
     const transId = translations.length === 1 ? this.resolveTranslationId(translations[0]) : undefined;
     const transAbbr = transId ? this.getTranslationAbbr(transId) : undefined;
@@ -1033,9 +1078,15 @@ export default class BibleVersePlugin extends Plugin {
           strongs: formatStrongsHeader(words) ?? undefined,
         };
 
+    let refused = false;
     await this.app.vault.process(file, (content) => {
-      return this.baker.bakeVerse(content, refMarker, verse, "inline", opts);
+      return this.baker.bakeVerse(content, refMarker, verse, "inline", opts, () => { refused = true; });
     });
+    // Tell the user once per token per session; the note is unchanged.
+    if (refused && !this.refusedBakes.has(key)) {
+      this.refusedBakes.add(key);
+      new Notice(UNSAFE_BAKE_NOTICE);
+    }
   }
 
   private async codeBlockProcessor(

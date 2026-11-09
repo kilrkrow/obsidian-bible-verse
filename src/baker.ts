@@ -3,6 +3,9 @@ import { BibleReference, CachedVerse } from "./types";
 import { parseReference, parseInlineSpec, inlineTokenRegex, inlineTokenContent } from "./parser";
 import { resolveShowVerseNumbers } from "./format";
 import { formatStrongsHeader, isAdapted, parseStrongsHeader, STRONGS_CREDIT, WordDisplayState } from "./strongs";
+import { canPlaceBake, spliceBakedBlock } from "./placement";
+export { canPlaceBake, placeBakedBlock, spliceBakedBlock, UNSAFE_BAKE_NOTICE } from "./placement";
+export type { BakePlacement } from "./placement";
 
 /**
  * Fetch the text to bake. `words` carries a Strong's verse's word choices
@@ -182,14 +185,30 @@ export class Baker {
    * Bake a verse into the content.
    * If it's an inline reference, it is CONVERTED to a code block.
    */
-  bakeVerse(content: string, refRaw: string, verse: CachedVerse, type: "inline" | "block" = "inline", opts?: InlineBakeOptions): string {
+  bakeVerse(
+    content: string,
+    refRaw: string,
+    verse: CachedVerse,
+    type: "inline" | "block" = "inline",
+    opts?: InlineBakeOptions,
+    onRefused?: () => void
+  ): string {
     if (type === "inline") {
       // Convert to a native callout (one-way) or the default ```bible code block.
       const block = opts?.format === "callout"
         ? formatCalloutBake(verse, opts.calloutType ?? "quote", opts.collapsed ?? false, opts.url ?? "")
         : formatCodeBlockBake(verse, opts);
-      // Use a replacer function so `$` in verse text isn't treated as a pattern.
-      return content.replace(refRaw, () => block);
+      // First occurrence, as before; placed on its own lines so prose around
+      // the token survives and the fence/callout is valid Markdown. Where it
+      // can't be placed safely the note is left unchanged.
+      const at = content.indexOf(refRaw);
+      if (at < 0) return content;
+      const baked = spliceBakedBlock(content, at, at + refRaw.length, block);
+      if (baked === null) {
+        onRefused?.();
+        return content;
+      }
+      return baked;
     } else {
       // Code block baking
       const separatorIdx = refRaw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
@@ -222,7 +241,8 @@ export class Baker {
     content: string,
     bakeInline: boolean,
     fetchVerse: BakeFetch,
-    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
+    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean },
+    onSkipped?: (raw: string) => void
   ): Promise<string> {
     const refs = this.extractReferences(content, bakeInline);
     if (refs.length === 0) return content;
@@ -231,6 +251,12 @@ export class Baker {
     for (let i = refs.length - 1; i >= 0; i--) {
       const { raw, ref, offset, type, translations, verseNewLine, showVerseNumbers, styleOverride, words } = refs[i];
       if (!ref) continue;
+
+      // A token that can't be placed safely is skipped before fetching.
+      if (type === "inline" && !canPlaceBake(result, offset, offset + raw.length)) {
+        onSkipped?.(raw);
+        continue;
+      }
 
       // We only bake single translation blocks for now
       const trans = (translations && translations.length === 1) ? translations[0] : undefined;
@@ -256,7 +282,14 @@ export class Baker {
           style: styleOverride && styleOverride !== "native-callout" ? styleOverride : undefined,
           strongs: words ? formatStrongsHeader(words) ?? undefined : undefined,
         });
-        result = result.slice(0, offset) + block + result.slice(offset + raw.length);
+        // Right-to-left, so placing this block never moves an earlier offset.
+        // A token that can't be placed safely is skipped and reported.
+        const baked = spliceBakedBlock(result, offset, offset + raw.length, block);
+        if (baked === null) {
+          onSkipped?.(raw);
+          continue;
+        }
+        result = baked;
       } else {
         const separatorIdx = raw.indexOf(CODEBLOCK_BAKE_SEPARATOR);
         let newBlock: string;
@@ -276,7 +309,8 @@ export class Baker {
     action: "bake" | "strip",
     bakeInline: boolean,
     fetchVerse?: BakeFetch,
-    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean }
+    defaults?: { verseNewLine: boolean; showVerseNumbers: boolean },
+    onSkipped?: (raw: string) => void
   ): Promise<number> {
     const files = this.app.vault.getMarkdownFiles();
     let count = 0;
@@ -288,7 +322,7 @@ export class Baker {
       if (action === "strip") {
         newContent = this.stripBakedText(content);
       } else if (fetchVerse) {
-        newContent = await this.bakeFile(content, bakeInline, fetchVerse, defaults);
+        newContent = await this.bakeFile(content, bakeInline, fetchVerse, defaults, onSkipped);
       } else {
         continue;
       }
