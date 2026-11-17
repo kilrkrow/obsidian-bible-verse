@@ -4,6 +4,8 @@ All notable changes to Bible Verse are documented here.
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-11-17
+
 ### Added
 
 - **Bake one passage from its mouse controls** — hover a live verse in Live Preview and click the new lock button beside the other verse controls. The passage becomes the usual baked Bible block, with its current formatting and Strong's choices preserved. It works even when automatic inline baking is off. Comparison passages can't be baked this way; if a fetch fails, the live verse stays unchanged so you can try again.
