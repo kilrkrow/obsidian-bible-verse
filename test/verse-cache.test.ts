@@ -30,7 +30,9 @@ function fakeAdapter(files: Record<string, string>, opts: { dirExists?: boolean;
     write: vi.fn(async (path: string, data: string) => {
       files[path.split("/").pop()!] = data;
     }),
-    remove: vi.fn(async () => {}),
+    remove: vi.fn(async (path: string) => {
+      delete files[path.split("/").pop()!];
+    }),
   };
   const plugin = { app: { vault: { adapter } }, manifest: { dir: ".obsidian/plugins/bible-verse" } };
   return {
@@ -43,66 +45,81 @@ function fakeAdapter(files: Record<string, string>, opts: { dirExists?: boolean;
 
 const KEY = "bsb_genesis_1_1_sn_vn_np";
 
-describe("VerseCache.load", () => {
-  it("reads nothing until asked", () => {
-    const { adapter, cache } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
-    expect(cache.size).toBe(0);
+describe("VerseCache.lookup", () => {
+  it("reads nothing until a verse is asked for", () => {
+    const { adapter } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
     expect(adapter.list).not.toHaveBeenCalled();
+    expect(adapter.read).not.toHaveBeenCalled();
   });
 
-  it("reads the folder once however many callers wait on it", async () => {
+  it("reads only the asked-for verse's file, once per session", async () => {
     const files: Record<string, string> = {};
     for (let i = 1; i <= 40; i++) files[`bsb_psalm_${i}_sn_vn_np.json`] = JSON.stringify(verse(`Psalm ${i}`));
     const { adapter, cache } = fakeAdapter(files);
-    await Promise.all([cache.load(), cache.load(), cache.load()]);
-    await cache.load();
-    expect(adapter.list).toHaveBeenCalledTimes(1);
-    expect(adapter.read).toHaveBeenCalledTimes(40);
-    expect(cache.size).toBe(40);
+
+    const [a, b] = await Promise.all([cache.lookup("BSB", "Psalm 23"), cache.lookup("BSB", "Psalm 23")]);
+    expect(a?.reference).toBe("Psalm 23");
+    expect(b).toBe(a);
+    await cache.lookup("BSB", "Psalm 23");
+
+    expect(adapter.read).toHaveBeenCalledTimes(1);
+    expect(adapter.read).toHaveBeenCalledWith(`${DIR}/bsb_psalm_23_sn_vn_np.json`);
+    expect(adapter.list).not.toHaveBeenCalled();
+    // Now in memory for the synchronous renderers too.
     expect(cache.get("BSB", "Psalm 23")?.reference).toBe("Psalm 23");
+    expect(cache.get("BSB", "Psalm 24")).toBeNull();
   });
 
-  it("skips a corrupted file and keeps the rest", async () => {
-    const { cache } = fakeAdapter({ "bad.json": "{not json", [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
-    await cache.load();
-    expect(cache.size).toBe(1);
+  it("keys on the format, so another format is a separate file", async () => {
+    const { cache } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
+    expect(await cache.lookup("BSB", "Genesis 1:1", true)).toBeNull();
+    expect(await cache.lookup("BSB", "Genesis 1:1")).not.toBeNull();
   });
 
-  it("creates a missing folder", async () => {
-    const { adapter, cache } = fakeAdapter({}, { dirExists: false });
-    await cache.load();
-    expect(adapter.mkdir).toHaveBeenCalledWith(DIR);
+  it("treats a missing or corrupted file as not cached", async () => {
+    const { cache } = fakeAdapter({ "bsb_john_3_16_sn_vn_np.json": "{not json" });
+    expect(await cache.lookup("BSB", "John 3:16")).toBeNull();
+    expect(await cache.lookup("BSB", "Genesis 1:1")).toBeNull();
   });
 
-  it("does not fail when the folder can't be listed", async () => {
-    const { cache } = fakeAdapter({}, { listFails: true });
-    await expect(cache.load()).resolves.toBeUndefined();
-    expect(cache.size).toBe(0);
-  });
-
-  it("keeps a verse fetched while the read was still running", async () => {
+  it("keeps a verse fetched while its file was being read", async () => {
     const { cache, stall, release } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1", "old")) });
     stall();
-    const loading = cache.load();
+    const reading = cache.lookup("BSB", "Genesis 1:1");
     await cache.set(verse("Genesis 1:1", "new"));
     release();
-    await loading;
+    expect((await reading)?.text).toBe("new");
     expect(cache.get("BSB", "Genesis 1:1")?.text).toBe("new");
   });
 
-  it("clear waits for the read, so nothing comes back afterwards", async () => {
+  it("clear waits for reads in flight, so nothing comes back afterwards", async () => {
     const { cache, stall, release } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
     stall();
-    void cache.load();
+    void cache.lookup("BSB", "Genesis 1:1");
     const clearing = cache.clear();
     release();
     await clearing;
-    expect(cache.size).toBe(0);
+    expect(cache.get("BSB", "Genesis 1:1")).toBeNull();
+    expect(await cache.lookup("BSB", "Genesis 1:1")).toBeNull();
   });
 });
 
-describe("BibleApi.getPassage before the cache has been read", () => {
-  it("waits for the cache and serves the saved verse without downloading", async () => {
+describe("VerseCache.hasEntries", () => {
+  it("is true when the folder holds a saved verse, without reading it", async () => {
+    const { adapter, cache } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
+    expect(await cache.hasEntries()).toBe(true);
+    expect(adapter.read).not.toHaveBeenCalled();
+  });
+
+  it("is false for an empty, missing or unreadable folder", async () => {
+    expect(await fakeAdapter({}).cache.hasEntries()).toBe(false);
+    expect(await fakeAdapter({}, { dirExists: false }).cache.hasEntries()).toBe(false);
+    expect(await fakeAdapter({}, { listFails: true }).cache.hasEntries()).toBe(false);
+  });
+});
+
+describe("BibleApi.getPassage", () => {
+  it("serves a verse saved in an earlier session without downloading", async () => {
     const { cache } = fakeAdapter({ [`${KEY}.json`]: JSON.stringify(verse("Genesis 1:1")) });
     const api = new BibleApi(cache);
     const ref = { book: "Genesis", chapter: 1, startVerse: 1, endVerse: null, additionalVerses: [], raw: "Genesis 1:1" };

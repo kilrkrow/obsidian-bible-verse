@@ -2,20 +2,22 @@ import { Plugin, normalizePath } from "obsidian";
 import { CachedVerse } from "./types";
 
 /**
- * How many cache files to read at once. Enough to overlap disk latency, few
- * enough to stay well under open-file limits (macOS defaults to 256).
- */
-const READ_CONCURRENCY = 16;
-
-/**
  * Manages a local JSON cache of fetched Bible verses.
  * Cache is stored in the plugin's data directory as individual JSON files
  * keyed by translation+reference.
+ *
+ * Nothing is read at startup. Each verse's file name is its key, so a verse is
+ * read from disk only when something asks for it (lookup), and then kept in
+ * memory for the session. Reading the whole folder up front used to cost
+ * seconds of Obsidian's startup, since the folder grows with every verse and
+ * format ever looked up.
  */
 export class VerseCache {
   public plugin: Plugin;
+  /** Verses read from disk or fetched this session. */
   private cache: Map<string, CachedVerse> = new Map();
-  private loading: Promise<void> | null = null;
+  /** Disk reads in flight, so concurrent lookups share one read. */
+  private reading: Map<string, Promise<CachedVerse | null>> = new Map();
   private cacheDir: string;
 
   constructor(plugin: Plugin) {
@@ -30,61 +32,59 @@ export class VerseCache {
   }
 
   /**
-   * Read every cached verse from disk into memory. Safe to call any number of
-   * times: the first call starts the read and later calls share it.
-   *
-   * Not awaited in onload. Each cached verse is its own file, so the folder
-   * grows with use, and reading it before onload returned held up Obsidian's
-   * startup by seconds. Anything that needs a cached verse to decide whether
-   * to download awaits this first; the synchronous get() simply misses until
-   * the read finishes, and those callers already fall back to the async path.
+   * Whether any verse has ever been cached, on disk or this session. One folder
+   * listing, no file reads.
    */
-  load(): Promise<void> {
-    this.loading ??= this.readAll();
-    return this.loading;
-  }
-
-  private async readAll(): Promise<void> {
+  async hasEntries(): Promise<boolean> {
+    if (this.cache.size > 0) return true;
     try {
       const adapter = this.plugin.app.vault.adapter;
-      if (!(await adapter.exists(this.cacheDir))) {
-        await adapter.mkdir(this.cacheDir);
-        return;
-      }
-
-      const files = (await adapter.list(this.cacheDir)).files;
-      let next = 0;
-      const worker = async (): Promise<void> => {
-        while (next < files.length) {
-          const file = files[next++];
-          try {
-            const entry = JSON.parse(await adapter.read(file)) as CachedVerse;
-            // Old cache entries won't have the new naming scheme but will be
-            // re-cached correctly when fetched.
-            const fileName = file.split("/").pop()?.replace(".json", "");
-            // A verse fetched while the read was running is at least as new
-            // as the copy on disk, so keep it.
-            if (fileName && !this.cache.has(fileName)) {
-              this.cache.set(fileName, entry);
-            }
-          } catch {
-            // Skip corrupted cache entries
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, worker));
-    } catch (e) {
-      // An unreadable cache folder only costs a re-download, never the plugin.
-      console.warn("Bible Verse: could not read the verse cache", e);
+      if (!(await adapter.exists(this.cacheDir))) return false;
+      return (await adapter.list(this.cacheDir)).files.length > 0;
+    } catch {
+      return false;
     }
   }
 
-  /** Number of cached verses loaded from disk. */
-  get size(): number {
-    return this.cache.size;
+  /**
+   * A cached verse, read from its own file on disk the first time it's asked
+   * for this session. Null if it was never cached (or its file is unreadable),
+   * in which case the caller downloads it.
+   */
+  async lookup(translation: string, reference: string, nl = false, vn = true, pb = false): Promise<CachedVerse | null> {
+    const k = this.key(translation, reference, nl, vn, pb);
+    const hit = this.cache.get(k);
+    if (hit) return hit;
+
+    let pending = this.reading.get(k);
+    if (!pending) {
+      pending = this.readEntry(k).finally(() => this.reading.delete(k));
+      this.reading.set(k, pending);
+    }
+    const entry = await pending;
+    // A fetch that finished while the file was being read is at least as new.
+    const current = this.cache.get(k);
+    if (current) return current;
+    if (entry) this.cache.set(k, entry);
+    return entry;
   }
 
-  /** Get a cached verse, or null if not cached */
+  private async readEntry(k: string): Promise<CachedVerse | null> {
+    const adapter = this.plugin.app.vault.adapter;
+    const filePath = normalizePath(`${this.cacheDir}/${k}.json`);
+    try {
+      return JSON.parse(await adapter.read(filePath)) as CachedVerse;
+    } catch {
+      // Never cached, corrupted or unreadable: the caller re-fetches.
+      return null;
+    }
+  }
+
+  /**
+   * Get a verse already in memory (read or fetched earlier this session), or
+   * null. Doesn't touch the disk; callers that miss go on to an async path
+   * that uses lookup().
+   */
   get(translation: string, reference: string, nl = false, vn = true, pb = false): CachedVerse | null {
     return this.cache.get(this.key(translation, reference, nl, vn, pb)) ?? null;
   }
@@ -104,15 +104,15 @@ export class VerseCache {
     await adapter.write(filePath, JSON.stringify(entry, null, 2));
   }
 
-  /** Check if a verse is cached */
+  /** Check if a verse is in memory this session */
   has(translation: string, reference: string, nl = false, vn = true, pb = false): boolean {
     return this.cache.has(this.key(translation, reference, nl, vn, pb));
   }
 
   /** Clear the entire cache */
   async clear(): Promise<void> {
-    // Let a read in progress finish first, or it would refill the cache.
-    await this.load();
+    // Let reads in flight finish first, or they would refill the cache.
+    await Promise.all(this.reading.values());
     const adapter = this.plugin.app.vault.adapter;
     const exists = await adapter.exists(this.cacheDir);
     if (exists) {

@@ -94,9 +94,8 @@ export default class BibleVersePlugin extends Plugin {
     await this.loadSettings();
     this.updateStyles();
 
-    // The cache is read in the background, not here: every cached verse is a
-    // file, and reading them all before onload returned cost seconds of
-    // startup. Lookups that could download await cache.load() first.
+    // Reads nothing yet: each saved verse is read from disk when a note
+    // first shows it (see VerseCache.lookup).
     this.cache = new VerseCache(this);
 
     this.api = new BibleApi(this.cache);
@@ -117,12 +116,9 @@ export default class BibleVersePlugin extends Plugin {
     // Settings tab
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
 
-    // Read the verse cache and show release notes once after an update; wait
-    // for the workspace so neither competes with Obsidian's own startup.
-    this.app.workspace.onLayoutReady(() => {
-      void this.cache.load();
-      void this.maybeShowWhatsNew();
-    });
+    // Release notes once after an update; wait for the workspace so the pop-up
+    // doesn't compete with Obsidian's own startup.
+    this.app.workspace.onLayoutReady(() => void this.maybeShowWhatsNew());
 
     // Commands
     this.addCommand({
@@ -666,10 +662,9 @@ export default class BibleVersePlugin extends Plugin {
     try {
       const currentVersion = this.manifest.version;
       // Someone who never changed a setting has no data.json, but cached verses
-      // still show they've used the plugin before. (The cache folder itself is
-      // created on every load, so it's the entries that count.)
-      if (!this.hadSavedData) await this.cache.load();
-      const isExistingUser = this.hadSavedData || this.cache.size > 0;
+      // still show they've used the plugin before. (Older versions created the
+      // cache folder on every load, so it's the entries that count.)
+      const isExistingUser = this.hadSavedData || (await this.cache.hasEntries());
       const decision = decideWhatsNew({
         enabled: this.settings.showWhatsNew,
         lastSeenVersion: this.settings.lastSeenVersion,
@@ -803,8 +798,7 @@ export default class BibleVersePlugin extends Plugin {
     const def = this.findTranslation(translationId) ?? this.findTranslation(translationAbbr);
 
     if (def?.provider === "esv" && this.settings.esvApiKey) {
-      await this.cache.load();
-      const cached = this.cache.get(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
+      const cached = await this.cache.lookup(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
       if (cached) {
         // Re-stamp entries cached before attribution was enforced.
         cached.requireAttribution = true;
@@ -918,7 +912,9 @@ export default class BibleVersePlugin extends Plugin {
             const sVN = resolveShowVerseNumbers(ref, spec.showVerseNumbers, this.settings.showVerseNumbers);
             const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
 
-            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
+            // Awaited so a saved verse renders straight away rather than
+            // showing its link first while the file is read.
+            const cached = await this.cache.lookup(abbr, formatReference(ref), vnL, sVN, pb);
             const withStrongs = strongsActive(spec) && this.strongsBlocker(spec) === null;
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);
