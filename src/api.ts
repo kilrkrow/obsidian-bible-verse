@@ -193,7 +193,8 @@ export class BibleApi {
   ): Promise<CachedVerse> {
     const refStr = formatReference(ref);
 
-    // Check cache first
+    // Check cache first, once it has been read from disk
+    await this.cache.load();
     const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     if (cached) return cached;
 

@@ -94,8 +94,10 @@ export default class BibleVersePlugin extends Plugin {
     await this.loadSettings();
     this.updateStyles();
 
+    // The cache is read in the background, not here: every cached verse is a
+    // file, and reading them all before onload returned cost seconds of
+    // startup. Lookups that could download await cache.load() first.
     this.cache = new VerseCache(this);
-    await this.cache.load();
 
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
@@ -115,9 +117,12 @@ export default class BibleVersePlugin extends Plugin {
     // Settings tab
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
 
-    // Release notes once after an update; wait for the workspace so the pop-up
-    // doesn't compete with Obsidian's own startup.
-    this.app.workspace.onLayoutReady(() => void this.maybeShowWhatsNew());
+    // Read the verse cache and show release notes once after an update; wait
+    // for the workspace so neither competes with Obsidian's own startup.
+    this.app.workspace.onLayoutReady(() => {
+      void this.cache.load();
+      void this.maybeShowWhatsNew();
+    });
 
     // Commands
     this.addCommand({
@@ -663,6 +668,7 @@ export default class BibleVersePlugin extends Plugin {
       // Someone who never changed a setting has no data.json, but cached verses
       // still show they've used the plugin before. (The cache folder itself is
       // created on every load, so it's the entries that count.)
+      if (!this.hadSavedData) await this.cache.load();
       const isExistingUser = this.hadSavedData || this.cache.size > 0;
       const decision = decideWhatsNew({
         enabled: this.settings.showWhatsNew,
@@ -797,6 +803,7 @@ export default class BibleVersePlugin extends Plugin {
     const def = this.findTranslation(translationId) ?? this.findTranslation(translationAbbr);
 
     if (def?.provider === "esv" && this.settings.esvApiKey) {
+      await this.cache.load();
       const cached = this.cache.get(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
       if (cached) {
         // Re-stamp entries cached before attribution was enforced.

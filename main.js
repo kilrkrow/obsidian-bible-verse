@@ -1542,6 +1542,7 @@ var BibleApi = class {
   async getPassage(ref, translationId, translationAbbr, settings) {
     var _a;
     const refStr = formatReference(ref);
+    await this.cache.load();
     const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     if (cached)
       return cached;
@@ -1577,10 +1578,11 @@ var BibleApi = class {
 
 // src/cache.ts
 var import_obsidian2 = require("obsidian");
+var READ_CONCURRENCY = 16;
 var VerseCache = class {
   constructor(plugin) {
     this.cache = /* @__PURE__ */ new Map();
-    this.loaded = false;
+    this.loading = null;
     this.plugin = plugin;
     this.cacheDir = (0, import_obsidian2.normalizePath)(`${plugin.manifest.dir}/cache`);
   }
@@ -1589,31 +1591,48 @@ var VerseCache = class {
     const suffix = `${nl ? "nl" : "sn"}_${vn ? "vn" : "sv"}_${pb ? "pb" : "np"}`;
     return `${translation}_${reference}_${suffix}`.toLowerCase().replace(/\s+/g, "_").replace(/:/g, "_");
   }
-  /** Load the full cache index from disk */
-  async load() {
+  /**
+   * Read every cached verse from disk into memory. Safe to call any number of
+   * times: the first call starts the read and later calls share it.
+   *
+   * Not awaited in onload. Each cached verse is its own file, so the folder
+   * grows with use, and reading it before onload returned held up Obsidian's
+   * startup by seconds. Anything that needs a cached verse to decide whether
+   * to download awaits this first; the synchronous get() simply misses until
+   * the read finishes, and those callers already fall back to the async path.
+   */
+  load() {
     var _a;
-    if (this.loaded)
-      return;
-    const adapter = this.plugin.app.vault.adapter;
-    const exists = await adapter.exists(this.cacheDir);
-    if (!exists) {
-      await adapter.mkdir(this.cacheDir);
-      this.loaded = true;
-      return;
-    }
-    const files = await adapter.list(this.cacheDir);
-    for (const file of files.files) {
-      try {
-        const data = await adapter.read(file);
-        const entry = JSON.parse(data);
-        const fileName = (_a = file.split("/").pop()) == null ? void 0 : _a.replace(".json", "");
-        if (fileName) {
-          this.cache.set(fileName, entry);
-        }
-      } catch (e) {
+    (_a = this.loading) != null ? _a : this.loading = this.readAll();
+    return this.loading;
+  }
+  async readAll() {
+    try {
+      const adapter = this.plugin.app.vault.adapter;
+      if (!await adapter.exists(this.cacheDir)) {
+        await adapter.mkdir(this.cacheDir);
+        return;
       }
+      const files = (await adapter.list(this.cacheDir)).files;
+      let next = 0;
+      const worker = async () => {
+        var _a;
+        while (next < files.length) {
+          const file = files[next++];
+          try {
+            const entry = JSON.parse(await adapter.read(file));
+            const fileName = (_a = file.split("/").pop()) == null ? void 0 : _a.replace(".json", "");
+            if (fileName && !this.cache.has(fileName)) {
+              this.cache.set(fileName, entry);
+            }
+          } catch (e) {
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, worker));
+    } catch (e) {
+      console.warn("Bible Verse: could not read the verse cache", e);
     }
-    this.loaded = true;
   }
   /** Number of cached verses loaded from disk. */
   get size() {
@@ -1642,6 +1661,7 @@ var VerseCache = class {
   }
   /** Clear the entire cache */
   async clear() {
+    await this.load();
     const adapter = this.plugin.app.vault.adapter;
     const exists = await adapter.exists(this.cacheDir);
     if (exists) {
@@ -7061,7 +7081,6 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     await this.loadSettings();
     this.updateStyles();
     this.cache = new VerseCache(this);
-    await this.cache.load();
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
     this.registerMarkdownPostProcessor(this.inlinePostProcessor.bind(this));
@@ -7069,7 +7088,10 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     this.registerEditorExtension(buildViewPlugin(this));
     this.registerMarkdownCodeBlockProcessor("bible", this.codeBlockProcessor.bind(this));
     this.addSettingTab(new BibleVerseSettingTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => void this.maybeShowWhatsNew());
+    this.app.workspace.onLayoutReady(() => {
+      void this.cache.load();
+      void this.maybeShowWhatsNew();
+    });
     this.addCommand({
       id: "bake-current-note",
       name: "Bake all verses in this note",
@@ -7545,6 +7567,8 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
   async maybeShowWhatsNew() {
     try {
       const currentVersion = this.manifest.version;
+      if (!this.hadSavedData)
+        await this.cache.load();
       const isExistingUser = this.hadSavedData || this.cache.size > 0;
       const decision = decideWhatsNew({
         enabled: this.settings.showWhatsNew,
@@ -7648,6 +7672,7 @@ var BibleVersePlugin = class extends import_obsidian12.Plugin {
     var _a;
     const def = (_a = this.findTranslation(translationId)) != null ? _a : this.findTranslation(translationAbbr);
     if ((def == null ? void 0 : def.provider) === "esv" && this.settings.esvApiKey) {
+      await this.cache.load();
       const cached = this.cache.get(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
       if (cached) {
         cached.requireAttribution = true;
