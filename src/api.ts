@@ -194,7 +194,7 @@ export class BibleApi {
     const refStr = formatReference(ref);
 
     // Check cache first
-    const cached = this.cache.get(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
+    const cached = await this.cache.lookup(translationAbbr, refStr, settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
     if (cached) return cached;
 
     const usfm = USFM_CODES[ref.book];

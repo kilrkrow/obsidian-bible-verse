@@ -94,8 +94,9 @@ export default class BibleVersePlugin extends Plugin {
     await this.loadSettings();
     this.updateStyles();
 
+    // Reads nothing yet: each saved verse is read from disk when a note
+    // first shows it (see VerseCache.lookup).
     this.cache = new VerseCache(this);
-    await this.cache.load();
 
     this.api = new BibleApi(this.cache);
     this.baker = new Baker(this.app);
@@ -375,7 +376,7 @@ export default class BibleVersePlugin extends Plugin {
     this.addCommand({
       id,
       name,
-      editorCallback: (editor) => {
+      editorCallback: async (editor) => {
         const cursor = editor.getCursor();
         const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
         if (!found) {
@@ -389,7 +390,9 @@ export default class BibleVersePlugin extends Plugin {
           return;
         }
 
-        const shifted = shiftReference(spec.ref, target, delta, this.lookupVerseCount(spec));
+        // Read before the edit: the chapter length may only be on disk.
+        const verseCount = await this.lookupVerseCount(spec);
+        const shifted = shiftReference(spec.ref, target, delta, verseCount);
         if (!shifted) {
           new Notice("Cannot move that verse any further.");
           return;
@@ -397,6 +400,8 @@ export default class BibleVersePlugin extends Plugin {
 
         const replacement = rewriteTokenReference(found.token, shifted);
         if (replacement === null) return;
+        // The await above yielded; skip the edit if the line changed meanwhile.
+        if (editor.getLine(cursor.line).slice(found.start, found.end) !== found.token) return;
 
         editor.replaceRange(
           replacement,
@@ -408,16 +413,18 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
-   * The chapter length for a spec's reference, if it happens to be cached.
+   * The chapter length for a spec's reference, if the verse is cached - in
+   * memory or in its file on disk (a verse not yet shown this session is only
+   * on disk, so this must use lookup(), not the memory-only get()).
    * Undefined means unknown, which shiftReference treats as "no upper bound" —
    * the command still works, it just cannot convert to eoc or clamp.
    */
-  private lookupVerseCount(spec: InlineSpec): number | undefined {
+  private async lookupVerseCount(spec: InlineSpec): Promise<number | undefined> {
     const id = spec.translations.length >= 1
       ? this.resolveTranslationId(spec.translations[0])
       : this.settings.defaultTranslation;
     const abbr = this.getTranslationAbbr(id);
-    const cached = this.cache.get(
+    const cached = await this.cache.lookup(
       abbr,
       formatReference(spec.ref),
       spec.verseNewLine ?? this.settings.verseNewLine,
@@ -661,9 +668,9 @@ export default class BibleVersePlugin extends Plugin {
     try {
       const currentVersion = this.manifest.version;
       // Someone who never changed a setting has no data.json, but cached verses
-      // still show they've used the plugin before. (The cache folder itself is
-      // created on every load, so it's the entries that count.)
-      const isExistingUser = this.hadSavedData || this.cache.size > 0;
+      // still show they've used the plugin before. (Older versions created the
+      // cache folder on every load, so it's the entries that count.)
+      const isExistingUser = this.hadSavedData || (await this.cache.hasEntries());
       const decision = decideWhatsNew({
         enabled: this.settings.showWhatsNew,
         lastSeenVersion: this.settings.lastSeenVersion,
@@ -797,7 +804,7 @@ export default class BibleVersePlugin extends Plugin {
     const def = this.findTranslation(translationId) ?? this.findTranslation(translationAbbr);
 
     if (def?.provider === "esv" && this.settings.esvApiKey) {
-      const cached = this.cache.get(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
+      const cached = await this.cache.lookup(translationAbbr, formatReference(ref), settings.verseNewLine, settings.showVerseNumbers, settings.paragraphBreaks);
       if (cached) {
         // Re-stamp entries cached before attribution was enforced.
         cached.requireAttribution = true;
@@ -911,7 +918,9 @@ export default class BibleVersePlugin extends Plugin {
             const sVN = resolveShowVerseNumbers(ref, spec.showVerseNumbers, this.settings.showVerseNumbers);
             const pb = spec.paragraphBreaks ?? this.settings.paragraphBreaks;
 
-            const cached = this.cache.get(abbr, formatReference(ref), vnL, sVN, pb);
+            // Awaited so a saved verse renders straight away rather than
+            // showing its link first while the file is read.
+            const cached = await this.cache.lookup(abbr, formatReference(ref), vnL, sVN, pb);
             const withStrongs = strongsActive(spec) && this.strongsBlocker(spec) === null;
             if (cached) {
               await renderVerse(span, ref, cached, style, this.settings.preferredWebsite, this.settings.showAttribution, this.app, this, pb, vnL);

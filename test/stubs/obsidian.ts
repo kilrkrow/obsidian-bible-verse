@@ -24,3 +24,8 @@ export class PluginSettingTab {
   containerEl: HTMLElement = document.createElement("div");
   constructor(public app: unknown, public plugin: unknown) {}
 }
+
+/** Obsidian's path normaliser, reduced to what the cache uses. */
+export function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/$/g, "");
+}
