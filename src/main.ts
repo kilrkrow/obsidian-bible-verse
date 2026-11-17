@@ -376,7 +376,7 @@ export default class BibleVersePlugin extends Plugin {
     this.addCommand({
       id,
       name,
-      editorCallback: (editor) => {
+      editorCallback: async (editor) => {
         const cursor = editor.getCursor();
         const found = findTokenAtCursor(editor.getLine(cursor.line), cursor.ch);
         if (!found) {
@@ -390,7 +390,9 @@ export default class BibleVersePlugin extends Plugin {
           return;
         }
 
-        const shifted = shiftReference(spec.ref, target, delta, this.lookupVerseCount(spec));
+        // Read before the edit: the chapter length may only be on disk.
+        const verseCount = await this.lookupVerseCount(spec);
+        const shifted = shiftReference(spec.ref, target, delta, verseCount);
         if (!shifted) {
           new Notice("Cannot move that verse any further.");
           return;
@@ -398,6 +400,8 @@ export default class BibleVersePlugin extends Plugin {
 
         const replacement = rewriteTokenReference(found.token, shifted);
         if (replacement === null) return;
+        // The await above yielded; skip the edit if the line changed meanwhile.
+        if (editor.getLine(cursor.line).slice(found.start, found.end) !== found.token) return;
 
         editor.replaceRange(
           replacement,
@@ -409,16 +413,18 @@ export default class BibleVersePlugin extends Plugin {
   }
 
   /**
-   * The chapter length for a spec's reference, if it happens to be cached.
+   * The chapter length for a spec's reference, if the verse is cached - in
+   * memory or in its file on disk (a verse not yet shown this session is only
+   * on disk, so this must use lookup(), not the memory-only get()).
    * Undefined means unknown, which shiftReference treats as "no upper bound" —
    * the command still works, it just cannot convert to eoc or clamp.
    */
-  private lookupVerseCount(spec: InlineSpec): number | undefined {
+  private async lookupVerseCount(spec: InlineSpec): Promise<number | undefined> {
     const id = spec.translations.length >= 1
       ? this.resolveTranslationId(spec.translations[0])
       : this.settings.defaultTranslation;
     const abbr = this.getTranslationAbbr(id);
-    const cached = this.cache.get(
+    const cached = await this.cache.lookup(
       abbr,
       formatReference(spec.ref),
       spec.verseNewLine ?? this.settings.verseNewLine,
